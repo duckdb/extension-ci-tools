@@ -1,7 +1,5 @@
 # Reusable makefile for building out-of-tree extension with the DuckDB extension template
 #
-# TODO: move out of this repo
-#
 # Inputs
 #   EXT_NAME          : Upper case string describing the name of the out-of-tree extension
 #   EXT_CONFIG        : Path to the extension config file specifying how to build the extension
