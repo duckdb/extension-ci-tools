@@ -149,6 +149,7 @@ jobs:
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@v1.2.11 # Note: pinned due to GLIBC incompatibility in later releases
+        continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
@@ -210,6 +211,7 @@ jobs:
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
+        continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
@@ -292,6 +294,7 @@ jobs:
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
+        continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
@@ -358,6 +361,7 @@ jobs:
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
+        continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
