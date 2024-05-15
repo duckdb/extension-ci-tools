@@ -313,15 +313,11 @@ jobs:
           cp $OVERLAY_TRIPLET_SRC $OVERLAY_TRIPLET_DST
           echo "set(VCPKG_PLATFORM_TOOLSET_VERSION "14.38")" >> $OVERLAY_TRIPLET_DST
 
-      - name: Populate env for RTOOLS
-        if: matrix.duckdb_arch == 'windows_amd64_rtools'
-        run: |
-          echo "DUCKDB_PLATFORM_RTOOLS=1" >> $GITHUB_ENV
-
       - name: Build & test extension
         env:
           VCPKG_OVERLAY_TRIPLETS: "${{ github.workspace }}/overlay_triplets"
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+          DUCKDB_PLATFORM_RTOOLS: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' && 1 || 0 }}
         run: |
           make test_release
 
