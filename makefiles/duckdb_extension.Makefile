@@ -96,8 +96,10 @@ wasm_threads:
 format:
 	find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -i
 	cmake-format -i CMakeLists.txt
+
 update:
 	git submodule update --remote --merge
+
 pull:
 	git submodule init
 	git submodule update --recursive --remote
@@ -105,5 +107,7 @@ pull:
 clean:
 	rm -rf build
 	rm -rf testext
-	cd $(DUCKDB_SRCDIR) && make clean
-	cd $(DUCKDB_SRCDIR) && make clean-python
+	make $@ -C $(DUCKDB_SRCDIR)
+
+clean-python:
+	make $@ -C $(DUCKDB_SRCDIR)
