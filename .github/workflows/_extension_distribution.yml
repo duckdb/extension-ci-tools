@@ -35,10 +35,10 @@ on:
         required: false
         type: string
         default: "67cc1677c3bf5c23ea14b9d2416c7422fdeac492"
-      windows_toolset: 
+      msvc_toolset_version: 
         required: false
         type: string
-        default: "v143"
+        default: "14.40"
       # Override the default script producing the matrices. Allows specifying custom matrices.
       matrix_parse_script:
         required: false
@@ -316,7 +316,7 @@ jobs:
         run: |
           mkdir overlay_triplets
           cp $OVERLAY_TRIPLET_SRC $OVERLAY_TRIPLET_DST
-          echo "set(VCPKG_PLATFORM_TOOLSET "${{ inputs.windows_toolset }}")" >> $OVERLAY_TRIPLET_DST
+          echo "set(VCPKG_PLATFORM_TOOLSET_VERSION "${{ inputs.msvc_toolset_version }}")" >> $OVERLAY_TRIPLET_DST
 
       - name: Build & test extension
         env:
