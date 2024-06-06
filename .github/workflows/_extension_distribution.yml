@@ -34,7 +34,7 @@ on:
       vcpkg_commit:
         required: false
         type: string
-        default: "a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6"
+        default: "67cc1677c3bf5c23ea14b9d2416c7422fdeac492"
       windows_toolset: 
         required: false
         type: string
