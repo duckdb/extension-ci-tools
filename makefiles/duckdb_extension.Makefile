@@ -59,6 +59,11 @@ release:
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(DUCKDB_SRCDIR) -B build/release
 	cmake --build build/release
 
+reldebug:
+	mkdir -p build/reldebug && \
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S ./duckdb/ -B build/reldebug && \
+	cmake --build build/reldebug --config RelWithDebInfo
+
 # Main tests
 test: test_release
 
@@ -67,6 +72,9 @@ test_release: release
 
 test_debug: debug
 	./build/debug/$(TEST_PATH) "$(PROJ_DIR)test/*"
+
+test_reldebug: reldebug
+	./build/reldebug/$(TEST_PATH) "$(PROJ_DIR)test/*"
 
 # WASM config
 VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
