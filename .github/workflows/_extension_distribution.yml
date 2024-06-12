@@ -304,19 +304,8 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
 
-      - name: Fix for MSVC issue
-        shell: bash
-        env:
-          OVERLAY_TRIPLET_SRC:  ${{ github.workspace }}/vcpkg/triplets/community/x64-windows-static-md.cmake
-          OVERLAY_TRIPLET_DST:  ${{ github.workspace }}/overlay_triplets/x64-windows-static-md.cmake
-        run: |
-          mkdir overlay_triplets
-          cp $OVERLAY_TRIPLET_SRC $OVERLAY_TRIPLET_DST
-          echo "set(VCPKG_PLATFORM_TOOLSET_VERSION "14.39")" >> $OVERLAY_TRIPLET_DST
-
       - name: Build & test extension
         env:
-          VCPKG_OVERLAY_TRIPLETS: "${{ github.workspace }}/overlay_triplets"
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' && 1 || 0 }}
         run: |
