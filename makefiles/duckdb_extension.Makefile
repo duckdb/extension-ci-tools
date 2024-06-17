@@ -60,9 +60,9 @@ release:
 	cmake --build build/release
 
 reldebug:
-	mkdir -p build/reldebug && \
-	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S ./duckdb/ -B build/reldebug && \
-	cmake --build build/reldebug --config RelWithDebInfo
+	mkdir -p build/reldebug
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(DUCKDB_SRCDIR) -B build/reldebug
+	cmake --build build/reldebug
 
 # Main tests
 test: test_release
