@@ -45,6 +45,10 @@ on:
         required: false
         type: boolean
         default: true
+      enable_rust:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   generate_matrix:
@@ -120,7 +124,7 @@ jobs:
           apt-get install -y -qq software-properties-common
           add-apt-repository ppa:git-core/ppa
           apt-get update -y -qq
-          apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client
+          apt-get install -y -qq ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client
 
       - name: Install Git 2.18.5
         if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
@@ -156,6 +160,22 @@ jobs:
         run: |
           ./duckdb/scripts/setup_manylinux2014.sh general aws-cli ccache ssh python_alias openssl
 
+      - name: Setup Rust
+        if: ${{ inputs.enable_rust && matrix.duckdb_arch == 'linux_amd64'}}
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust for cross compilation
+        if: ${{ inputs.enable_rust && matrix.duckdb_arch == 'linux_arm64'}}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
+      - name: Setup Rust for manylinux (dtolnay/rust-toolchain doesn't work due to curl being old here)
+        if: ${{ inputs.enable_rust && matrix.duckdb_arch == 'linux_amd64_gcc4' }}
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@v1.2.11 # Note: pinned due to GLIBC incompatibility in later releases
         continue-on-error: true
@@ -172,6 +192,13 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+
+      - name: Configure OpenSSL for Rust
+        if: ${{ inputs.enable_rust }}
+        run: |
+          echo "OPENSSL_ROOT_DIR=`pwd`/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> $GITHUB_ENV
+          echo "OPENSSL_DIR=`pwd`/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> $GITHUB_ENV
+          echo "OPENSSL_USE_STATIC_LIBS=true" >> $GITHUB_ENV
 
       - name: Build extension
         env:
@@ -238,6 +265,11 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
 
+      - name: Install Rust cross compile dependency
+        if: ${{ inputs.enable_rust && matrix.osx_build_arch == 'x86_64'}}
+        run: |
+          rustup target add x86_64-apple-darwin
+
       - name: Build extension
         shell: bash
         env:
@@ -288,6 +320,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Setup Rust
+        if: inputs.enable_rust
+        uses: dtolnay/rust-toolchain@stable
 
       - uses: r-lib/actions/setup-r@v2
         if: matrix.duckdb_arch == 'windows_amd64_rtools'
