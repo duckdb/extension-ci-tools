@@ -49,7 +49,16 @@ on:
         required: false
         type: boolean
         default: false
-
+      # Supply an override repository to build, instead of using the current one
+      override_repository:
+        required: false
+        type: string
+        default: ""
+      # The git ref used for the override_repository
+      override_ref:
+        required: false
+        type: string
+        default: ""
 jobs:
   generate_matrix:
     name: Generate matrix
@@ -61,6 +70,17 @@ jobs:
       wasm_matrix: ${{ steps.set-matrix-wasm.outputs.wasm_matrix }}
     steps:
       - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -137,6 +157,17 @@ jobs:
           git --version
 
       - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -160,6 +191,33 @@ jobs:
         run: |
           ./duckdb/scripts/setup_manylinux2014.sh general aws-cli ccache ssh python_alias openssl
 
+      - name: Setup Ubuntu
+        if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
+        uses: ./duckdb/.github/actions/ubuntu_18_setup
+        with:
+          aarch64_cross_compile: ${{ matrix.duckdb_arch == 'linux_arm64' && 1 }}
+
+      - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Checkout DuckDB to version
+        run: |
+          cd duckdb
+          git checkout ${{ inputs.duckdb_version }}
+
       - name: Setup Rust
         if: ${{ inputs.enable_rust && matrix.duckdb_arch == 'linux_amd64'}}
         uses: dtolnay/rust-toolchain@stable
@@ -181,12 +239,6 @@ jobs:
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
-
-      - name: Setup Ubuntu
-        if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
-        uses: ./duckdb/.github/actions/ubuntu_18_setup
-        with:
-          aarch64_cross_compile: ${{ matrix.duckdb_arch == 'linux_arm64' && 1 }}
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
@@ -237,6 +289,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -313,6 +376,17 @@ jobs:
           git config --global core.eol lf
 
       - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -372,11 +446,21 @@ jobs:
     env:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-      GEN: ninja
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
       - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -389,6 +473,12 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v13
         with:
           version: 'latest'
+
+      - name: Setup Rust for cross compilation
+        if: ${{ inputs.enable_rust}}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-emscripten
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
