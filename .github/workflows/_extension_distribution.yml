@@ -131,7 +131,6 @@ jobs:
     env:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-      GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       REPO_REF: ${{ inputs.override_ref }}
@@ -151,13 +150,10 @@ jobs:
         run: |
           export CURR_DIR=/home/runner/work/${GITHUB_REPOSITORY#*/}/${GITHUB_REPOSITORY#*/}
           cat > script.sh << ENDOFLINE
-          VCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET
+          VCPKG_TARGET_TRIPLET=${VCPKG_TARGET_TRIPLET}
           export VCPKG_BUILD=1
-          CC="${CC}"
-          CXX="${CXX}"
-          GEN="${GEN}"
-          DUCKDB_PLATFORM="${DUCKDB_PLATFORM}"
-          BUILD_SHELL="${BUILD_SHELL}"
+          export DUCKDB_PLATFORM="${DUCKDB_PLATFORM}"
+          export BUILD_SHELL="${BUILD_SHELL}"
           export VCPKG_TOOLCHAIN_PATH=$CURR_DIR/vcpkg/scripts/buildsystems/vcpkg.cmake
           set -eo pipefail
           ###
@@ -257,16 +253,22 @@ jobs:
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
           ###
+          echo "Setup vcpkg"
+          cd $CURR_DIR
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git fetch
+          git checkout a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6
+          #export CC="${CC}"
+          #export CXX="${CXX}"
+          ./bootstrap-vcpkg.sh
+          ###
           echo "Setup Rust for manylinux (dtolnay/rust-toolchain doesn't work due to curl being old here)"
           cd $CURR_DIR
           if [ -n "${ENABLE_RUST}" ]; then
-            echo "ASDASDASD"
             curl --proto "https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            echo "ASDASDASD"
-            PATH="$HOME/.cargo/bin:$PATH"
-            echo "ASDASDASD"
-            . "$HOME/.cargo/env"
-            echo "ASDASDASD"
+            #PATH="$HOME/.cargo/bin:$PATH"
+            #. "$HOME/.cargo/env"
             if [ -n "${RUST_TARGET}" ]; then
               $HOME/.cargo/bin/rustup target add $RUST_TARGET
             fi
@@ -276,14 +278,6 @@ jobs:
           #   continue-on-error: true
           #   with:
           #      key: ${{ github.job }}-${{ matrix.duckdb_arch }}
-          ###
-          echo "Setup vcpkg"
-          cd $CURR_DIR
-          git clone https://github.com/microsoft/vcpkg.git
-          cd vcpkg
-          git fetch
-          git checkout a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6
-          ./bootstrap-vcpkg.sh
           ###
           #echo "Configure OpenSSL for Rust"
           #cd $CURR_DIR
@@ -297,7 +291,9 @@ jobs:
           echo "Build extension"
           cd $CURR_DIR
           # export VCPKG_TOOLCHAIN_PATH=/home/runner/work/quack/quack/vcpkgs/script/buildsystems/vcpkg.cmake
-          make release
+          #export CC="${CC}"
+          #export CXX="${CXX}"
+          GEN=ninja make release
           ###
           echo "Test extension"
           cd $CURR_DIR
