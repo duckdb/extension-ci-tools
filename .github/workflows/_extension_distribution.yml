@@ -137,7 +137,6 @@ jobs:
       REPO_NAME: ${{ inputs.override_repository != '' && inputs.override_repository || github.repository }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       ENABLE_RUST: '0'
-      RUST_TARGET: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-unknown-linux-gnu' || '' }}
       CC: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
       CXX: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-linux-gnu-g++' || 'g++' }}
       RUN_TESTS: ${{ matrix.duckdb_arch != 'linux_arm64' && '1' }}
@@ -269,9 +268,6 @@ jobs:
             curl --proto "https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             #PATH="$HOME/.cargo/bin:$PATH"
             #. "$HOME/.cargo/env"
-            if [ -n "${RUST_TARGET}" ]; then
-              $HOME/.cargo/bin/rustup target add $RUST_TARGET
-            fi
           fi
           # - name: Setup Ccache
           #   uses: hendrikmuhs/ccache-action@v1.2.11 # Note: pinned due to GLIBC incompatibility in later releases
