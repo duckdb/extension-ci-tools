@@ -64,6 +64,7 @@ jobs:
     name: Generate matrix
     runs-on: ubuntu-latest
     outputs:
+      github_ref: ${{ steps.set-github-ref.outputs.ref }}
       linux_matrix: ${{ steps.set-matrix-linux.outputs.linux_matrix }}
       windows_matrix: ${{ steps.set-matrix-windows.outputs.windows_matrix }}
       osx_matrix: ${{ steps.set-matrix-osx.outputs.osx_matrix }}
@@ -96,6 +97,11 @@ jobs:
           python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os osx --output osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
           python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os windows --output windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
           python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os wasm --output wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+
+      - id: set-github-ref
+        run: |
+          ref="`git rev-parse HEAD`"
+          echo ref=$ref >> $GITHUB_OUTPUT
 
       - id: set-matrix-linux
         run: |
@@ -133,7 +139,7 @@ jobs:
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      REPO_REF: ${{ inputs.override_ref }}
+      REPO_REF: ${{ inputs.override_ref && inputs.override_ref || needs.generate_matrix.outputs.github_ref }}
       REPO_NAME: ${{ inputs.override_repository != '' && inputs.override_repository || github.repository }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       ENABLE_RUST: '0'
