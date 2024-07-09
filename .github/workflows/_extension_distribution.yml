@@ -64,7 +64,6 @@ jobs:
     name: Generate matrix
     runs-on: ubuntu-latest
     outputs:
-      github_ref: ${{ steps.set-github-ref.outputs.ref }}
       linux_matrix: ${{ steps.set-matrix-linux.outputs.linux_matrix }}
       windows_matrix: ${{ steps.set-matrix-windows.outputs.windows_matrix }}
       osx_matrix: ${{ steps.set-matrix-osx.outputs.osx_matrix }}
@@ -97,11 +96,6 @@ jobs:
           python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os osx --output osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
           python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os windows --output windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
           python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os wasm --output wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-
-      - id: set-github-ref
-        run: |
-          ref="`git rev-parse HEAD`"
-          echo ref=$ref >> $GITHUB_OUTPUT
 
       - id: set-matrix-linux
         run: |
@@ -139,7 +133,7 @@ jobs:
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      REPO_REF: ${{ inputs.override_ref && inputs.override_ref || needs.generate_matrix.outputs.github_ref }}
+      REPO_REF: ${{ inputs.override_ref }}
       REPO_NAME: ${{ inputs.override_repository != '' && inputs.override_repository || github.repository }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       ENABLE_RUST: '0'
@@ -150,6 +144,22 @@ jobs:
       CONTAINER: ${{ matrix.container }}
 
     steps:
+      - uses: actions/checkout@v3
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v3
+        name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
       - name: Setup and build extension
         shell: bash
         run: |
@@ -183,19 +193,10 @@ jobs:
             git --version
           fi
           ###
-          echo "Checkout"
-          cd $CURR_DIR
-          git init
-          git config --global --add safe.directory $CURR_DIR
-          git remote add origin https://github.com/$REPO_NAME
-          git fetch
-          git checkout main
-          git checkout $REPO_REF
-          git submodule init
-          git submodule update
-          ###
           echo "Checkout DuckDB to version"
           cd $CURR_DIR
+          git config --global --add safe.directory $CURR_DIR
+          git config --global --add safe.directory $CURR_DIR/duckdb
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
           ###
@@ -251,7 +252,9 @@ jobs:
           ###
           echo "Checkout, again"
           cd $CURR_DIR
-          git checkout $REPO_REF
+          if [ -n "${REPO_REF}" ]; then
+            git checkout $REPO_REF
+          fi
           ###
           echo "Checkout DuckDB to version"
           cd $CURR_DIR
