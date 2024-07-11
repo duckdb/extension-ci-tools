@@ -225,7 +225,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -339,7 +339,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -436,7 +436,7 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -504,7 +504,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
