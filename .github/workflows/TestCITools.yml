@@ -20,6 +20,7 @@ jobs:
       override_repository: duckdb/extension-template
       override_ref: main
       duckdb_version: v1.0.0
+      override_ci_tools_ref: ${{ github.ref_name }}
 
   delta-extension-main:
     name: Rust builds (using Delta extension)
@@ -29,5 +30,6 @@ jobs:
       enable_rust: true
       override_repository: duckdb/duckdb_delta
       override_ref: main
+      override_ci_tools_ref: ${{ github.ref_name }}
       duckdb_version: v1.0.0
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools'
