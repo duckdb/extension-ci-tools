@@ -1,0 +1,31 @@
+#
+# This tests the extension-ci-tools works as expected
+#
+name: Test CI Tools
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  extension-template-main:
+    name: Build the extension template
+    uses: ./.github/workflows/_extension_distribution.yml
+    with:
+      extension_name: quack
+      override_repository: duckdb/extension-template
+      override_ref: main
+      duckdb_version: v1.0.0
+  delta-extension-main:
+    name: Build the Delta extension (to test Rust)
+    uses: ./.github/workflows/_extension_distribution.yml
+    with:
+      extension_name: delta
+      enable_rust: true
+      override_repository: duckdb/duckdb_delta
+      override_ref: main
+      duckdb_version: v1.0.0
