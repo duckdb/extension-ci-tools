@@ -20,6 +20,7 @@ jobs:
       override_repository: duckdb/extension-template
       override_ref: main
       duckdb_version: v1.0.0
+
   delta-extension-main:
     name: Build the Delta extension (to test Rust)
     uses: ./.github/workflows/_extension_distribution.yml
@@ -29,3 +30,4 @@ jobs:
       override_repository: duckdb/duckdb_delta
       override_ref: main
       duckdb_version: v1.0.0
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools'
