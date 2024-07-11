@@ -59,11 +59,17 @@ on:
         required: false
         type: string
         default: ""
-      # The ref for which to use the CI tools
+      # Override the repo for the CI tools (for testing CI tools itself)
+      override_ci_tools_repository:
+        required: false
+        type: string
+        default: ""
+      # Override the ref for the CI tools (for testing CI tools itself)
       override_ci_tools_ref:
         required: false
         type: string
         default: ""
+
 jobs:
   generate_matrix:
     name: Generate matrix
@@ -219,11 +225,14 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - name: Checkout Extension CI tools
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
-        run: |
-          cd extension-ci-tools
-          git checkout ${{ inputs.override_ci_tools_ref }}
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.override_ci_tools_ref }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+          fetch-depth: 0
 
       - name: Checkout DuckDB to version
         run: |
@@ -330,11 +339,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Checkout Extension CI tools
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
-        run: |
-          cd extension-ci-tools
-          git checkout ${{ inputs.override_ci_tools_ref }}
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.override_ci_tools_ref }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+          fetch-depth: 0
 
       - name: Checkout DuckDB to version
         run: |
@@ -424,11 +436,14 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
-      - name: Checkout Extension CI tools
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
-        run: |
-          cd extension-ci-tools
-          git checkout ${{ inputs.override_ci_tools_ref }}
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.override_ci_tools_ref }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+          fetch-depth: 0
 
       - name: Checkout DuckDB to version
         run: |
@@ -489,11 +504,14 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - name: Checkout Extension CI tools
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
-        run: |
-          cd extension-ci-tools
-          git checkout ${{ inputs.override_ci_tools_ref }}
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.override_ci_tools_ref }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+          fetch-depth: 0
 
       - name: Checkout DuckDB to version
         run: |
