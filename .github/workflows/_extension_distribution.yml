@@ -201,11 +201,34 @@ jobs:
         run: |
           ./duckdb/scripts/setup_manylinux2014.sh general aws-cli ccache ssh python_alias openssl
 
-      - name: Setup Ubuntu
+      - name: Install cross compiler for linux_arm64
+        shell: bash
+        if: ${{ matrix.duckdb_arch == 'linux_arm64' }}
+        run: |
+          apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install CMake 3.21
         if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
-        uses: ./duckdb/.github/actions/ubuntu_18_setup
-        with:
-          aarch64_cross_compile: ${{ matrix.duckdb_arch == 'linux_arm64' && 1 }}
+        shell: bash
+        run: |
+          wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
+          chmod +x cmake-3.21.3-linux-x86_64.sh
+          ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
+          cmake --version
+
+      # TODO: do we even need this?
+      - name: Install Python 3.8
+        shell: bash
+        if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
+        run: |
+          wget https://www.python.org/ftp/python/3.8.17/Python-3.8.17.tgz
+          tar xvf Python-3.8.17.tgz
+          cd Python-3.8.17
+          mkdir -p pythonbin
+          ./configure --with-ensurepip=install
+          make -j
+          make install
+          python3.8 --version
 
       - uses: actions/checkout@v3
         name: Checkout override repository
