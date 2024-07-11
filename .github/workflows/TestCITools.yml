@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   extension-template-main:
-    name: Build the extension template
+    name: Extension template
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: quack
@@ -22,7 +22,7 @@ jobs:
       duckdb_version: v1.0.0
 
   delta-extension-main:
-    name: Build the Delta extension (to test Rust)
+    name: Rust builds (using Delta extension)
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: delta
