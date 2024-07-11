@@ -59,6 +59,11 @@ on:
         required: false
         type: string
         default: ""
+      # The ref for which to use the CI tools
+      override_ci_tools_ref:
+        required: false
+        type: string
+        default: ""
 jobs:
   generate_matrix:
     name: Generate matrix
@@ -214,6 +219,12 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - name: Checkout Extension CI tools
+        if: ${{inputs.override_ci_tools_ref != ''}}
+        run: |
+          cd extension-ci-tools
+          git checkout ${{ inputs.override_ci_tools_ref }}
+
       - name: Checkout DuckDB to version
         run: |
           cd duckdb
@@ -319,6 +330,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Checkout Extension CI tools
+        if: ${{inputs.override_ci_tools_ref != ''}}
+        run: |
+          cd extension-ci-tools
+          git checkout ${{ inputs.override_ci_tools_ref }}
+
       - name: Checkout DuckDB to version
         run: |
           cd duckdb
@@ -407,6 +424,12 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
+      - name: Checkout Extension CI tools
+        if: ${{inputs.override_ci_tools_ref != ''}}
+        run: |
+          cd extension-ci-tools
+          git checkout ${{ inputs.override_ci_tools_ref }}
+
       - name: Checkout DuckDB to version
         run: |
           cd duckdb
@@ -465,6 +488,12 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+
+      - name: Checkout Extension CI tools
+        if: ${{inputs.override_ci_tools_ref != ''}}
+        run: |
+          cd extension-ci-tools
+          git checkout ${{ inputs.override_ci_tools_ref }}
 
       - name: Checkout DuckDB to version
         run: |
