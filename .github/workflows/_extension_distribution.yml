@@ -186,7 +186,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Rust for cross compilation
-        if: ${{ inputs.enable_rust && matrix.duckdb_arch == 'linux_arm64'}}
+        if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.duckdb_arch == 'linux_arm64'}}
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-unknown-linux-gnu
