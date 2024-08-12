@@ -22,16 +22,17 @@ jobs:
       duckdb_version: v1.0.0
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
+      extra_toolchains: 'parser_tools'
 
   delta-extension-main:
     name: Rust builds (using Delta extension)
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: delta
-      enable_rust: true
       override_repository: duckdb/duckdb_delta
       override_ref: main
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
       duckdb_version: v1.0.0
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools'
+      extra_toolchains: 'rust'
