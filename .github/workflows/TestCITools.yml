@@ -22,7 +22,7 @@ jobs:
       duckdb_version: v1.0.0
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
-      custom_toolchain_script: './scripts/setup-custom-toolchain.sh'
+      custom_toolchain_script: true
 
   delta-extension-main:
     name: Rust builds (using Delta extension)

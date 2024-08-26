@@ -71,11 +71,11 @@ on:
         required: false
         type: string
         default: ""
-      # If set, this script will be called before the build step to allow injecting custom build time dependencies
+      # If set, the setup will look for a script in `./scripts/custom-toolchain-script.sh` to run
       custom_toolchain_script:
         required: false
-        type: string
-        default: ""
+        type: boolean
+        default: false
       # DEPRECATED: use extra_toolchains instead
       enable_rust:
         required: false
@@ -274,10 +274,10 @@ jobs:
       # Custom toolchain script
       ###
       - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script != ''}}
+        if: ${{ inputs.custom_toolchain_script }}
         shell: bash
         run: |
-          ${{ inputs.custom_toolchain_script }}
+          bash scripts/setup-custom-toolchain.sh
 
       ###
       # Building & testing
@@ -373,10 +373,10 @@ jobs:
           rustup target add x86_64-apple-darwin
 
       - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script != ''}}
+        if: ${{ inputs.custom_toolchain_script }}
         shell: bash
         run: |
-          ${{ inputs.custom_toolchain_script }}
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build extension
         shell: bash
@@ -477,10 +477,10 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
 
       - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script != ''}}
+        if: ${{ inputs.custom_toolchain_script }}
         shell: bash
         run: |
-          ${{ inputs.custom_toolchain_script }}
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build & test extension
         env:
@@ -561,10 +561,10 @@ jobs:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
       - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script != ''}}
+        if: ${{ inputs.custom_toolchain_script }}
         shell: bash
         run: |
-          ${{ inputs.custom_toolchain_script }}
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build Wasm module
         run: |
