@@ -71,6 +71,11 @@ on:
         required: false
         type: string
         default: ""
+      # If set, this script will be called before the build step to allow injecting custom build time dependencies
+      custom_toolchain_script:
+        required: false
+        type: string
+        default: ""
       # DEPRECATED: use extra_toolchains instead
       enable_rust:
         required: false
@@ -266,6 +271,15 @@ jobs:
           echo "OPENSSL_USE_STATIC_LIBS=true" >> $GITHUB_ENV
 
       ###
+      # Custom toolchain script
+      ###
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script != ''}}
+        shell: bash
+        run: |
+          ${{ inputs.custom_toolchain_script }}
+
+      ###
       # Building & testing
       ###
       - name: Build extension
@@ -357,6 +371,12 @@ jobs:
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.osx_build_arch == 'x86_64'}}
         run: |
           rustup target add x86_64-apple-darwin
+
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script != ''}}
+        shell: bash
+        run: |
+          ${{ inputs.custom_toolchain_script }}
 
       - name: Build extension
         shell: bash
@@ -456,6 +476,12 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
 
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script != ''}}
+        shell: bash
+        run: |
+          ${{ inputs.custom_toolchain_script }}
+
       - name: Build & test extension
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -533,6 +559,12 @@ jobs:
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script != ''}}
+        shell: bash
+        run: |
+          ${{ inputs.custom_toolchain_script }}
 
       - name: Build Wasm module
         run: |
