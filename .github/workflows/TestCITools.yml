@@ -17,8 +17,8 @@ jobs:
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: quack
-      override_repository: duckdb/extension-template
-      override_ref: main
+      override_repository: samansmink/extension-template
+      override_ref: add-custom-toolchain-script
       duckdb_version: v1.0.0
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
