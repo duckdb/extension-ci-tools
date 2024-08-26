@@ -395,7 +395,7 @@ jobs:
           (echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> /Users/runner/.bash_profile
           eval "$(/usr/local/bin/brew shellenv)"
           arch -x86_64 brew install libomp
-          echo "LDFLAGS=-I/usr/local/opt/libomp/lib" >> $GITHUB_ENV
+          echo "LDFLAGS=-L/usr/local/opt/libomp/lib" >> $GITHUB_ENV
           echo "CFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
           echo "CPPFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
@@ -404,7 +404,7 @@ jobs:
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_arm64' }}
         run: |
           brew install libomp
-          echo "LDFLAGS=-I/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
+          echo "LDFLAGS=-L/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
           echo "CFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
