@@ -66,7 +66,7 @@ on:
         type: string
         default: ""
       # Pass extra toolchains
-      #   available: (rust)
+      #   available: (rust, fortran, omp)
       extra_toolchains:
         required: false
         type: string
@@ -220,6 +220,16 @@ jobs:
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;') && matrix.duckdb_arch == 'linux_amd64_gcc4'}}
         run: |
           yum install -y bison flex 
+
+      - name: Install fortran (amd64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_amd64' }}
+        run: |
+          apt-get install -y -qq gfortran
+
+      - name: Install fortran (arm64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_arm64' }}
+        run: |
+          apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu
 
       ###
       # Checkin out repositories
@@ -377,6 +387,27 @@ jobs:
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;')}}
         run: |
           brew install bison flex
+
+      - name: install omp (x86)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_amd64' }}
+        run: |
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+          (echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> /Users/runner/.bash_profile
+          eval "$(/usr/local/bin/brew shellenv)"
+          arch -x86_64 brew install libomp
+          echo "LDFLAGS=-I/usr/local/opt/libomp/lib" >> $GITHUB_ENV
+          echo "CFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+          echo "CXXFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+
+      - name: install omp (arm)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_arm64' }}
+        run: |
+          brew install libomp
+          echo "LDFLAGS=-I/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
+          echo "CFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+          echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
       - name: Build extension
         shell: bash
