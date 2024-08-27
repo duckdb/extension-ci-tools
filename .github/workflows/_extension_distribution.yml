@@ -66,7 +66,7 @@ on:
         type: string
         default: ""
       # Pass extra toolchains
-      #   available: (rust)
+      #   available: (rust, fortran, omp)
       extra_toolchains:
         required: false
         type: string
@@ -170,6 +170,11 @@ jobs:
           apt-get install -y -qq software-properties-common
           apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client pkg-config
 
+      - name: Install required manylinux packages
+        if: ${{ matrix.duckdb_arch == 'linux_amd64_gcc4' }}
+        run: |
+          yum install -y epel-release -y pkgconfig
+
       - name: Install cross compiler for linux_arm64
         shell: bash
         if: ${{ matrix.duckdb_arch == 'linux_arm64' }}
@@ -210,6 +215,26 @@ jobs:
           chmod +x cmake-3.21.3-linux-x86_64.sh
           ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
           cmake --version
+
+      - name: Install parser tools
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;') && (matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64') }}
+        run: |
+          apt-get install -y -qq bison flex
+
+      - name: Install parser tools (manylinux)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;') && matrix.duckdb_arch == 'linux_amd64_gcc4'}}
+        run: |
+          yum install -y bison flex 
+
+      - name: Install fortran (amd64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_amd64' }}
+        run: |
+          apt-get install -y -qq gfortran
+
+      - name: Install fortran (arm64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_arm64' }}
+        run: |
+          apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu
 
       ###
       # Checkin out repositories
@@ -285,8 +310,7 @@ jobs:
       - name: Build extension
         env:
           GEN: ninja
-          CC: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-linux-gnu-gcc' || '' }}
-          CXX: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-linux-gnu-g++' || '' }}
+          TOOLCHAIN_FLAGS: ${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
         run: |
           make release
@@ -372,6 +396,32 @@ jobs:
         run: |
           rustup target add x86_64-apple-darwin
 
+      - name: Install parser tools
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;')}}
+        run: |
+          brew install bison flex
+
+      - name: install omp (x86)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_amd64' }}
+        run: |
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+          (echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> /Users/runner/.bash_profile
+          eval "$(/usr/local/bin/brew shellenv)"
+          arch -x86_64 brew install libomp
+          echo "LDFLAGS=-L/usr/local/opt/libomp/lib" >> $GITHUB_ENV
+          echo "CFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+          echo "CXXFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+
+      - name: install omp (arm)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_arm64' }}
+        run: |
+          brew install libomp
+          echo "LDFLAGS=-L/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
+          echo "CFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+          echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+
       - name: Run custom toolchain script
         if: ${{ inputs.custom_toolchain_script }}
         shell: bash
@@ -443,6 +493,11 @@ jobs:
       - name: Setup Rust
         if: (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;'))
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install parser tools
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;')}}
+        run: |
+          choco install winflexbison3
 
       - uses: r-lib/actions/setup-r@v2
         if: matrix.duckdb_arch == 'windows_amd64_rtools'
