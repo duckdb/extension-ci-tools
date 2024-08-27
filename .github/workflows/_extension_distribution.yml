@@ -76,6 +76,11 @@ on:
         required: false
         type: string
         default: ""
+      # If set, the setup will look for a script in `./scripts/custom-toolchain-script.sh` to run
+      custom_toolchain_script:
+        required: false
+        type: boolean
+        default: false
       # DEPRECATED: use extra_toolchains instead
       enable_rust:
         required: false
@@ -297,6 +302,15 @@ jobs:
           echo "OPENSSL_USE_STATIC_LIBS=true" >> $GITHUB_ENV
 
       ###
+      # Custom toolchain script
+      ###
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
+
+      ###
       # Building & testing
       ###
       - name: Build extension
@@ -415,6 +429,12 @@ jobs:
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
+
       - name: Build extension
         shell: bash
         env:
@@ -519,6 +539,12 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
+
       - name: Build & test extension
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -597,6 +623,12 @@ jobs:
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build Wasm module
         run: |
