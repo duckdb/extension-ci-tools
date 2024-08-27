@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: ""
+      # Override the default vcpkg repository
+      vcpkg_url:
+        required: false
+        type: string
+        default: "https://github.com/microsoft/vcpkg.git"
       # Override the default vcpkg commit used by this version of DuckDB
       vcpkg_commit:
         required: false
@@ -66,11 +71,16 @@ on:
         type: string
         default: ""
       # Pass extra toolchains
-      #   available: (rust)
+      #   available: (rust, fortran, omp)
       extra_toolchains:
         required: false
         type: string
         default: ""
+      # If set, the setup will look for a script in `./scripts/custom-toolchain-script.sh` to run
+      custom_toolchain_script:
+        required: false
+        type: boolean
+        default: false
       # DEPRECATED: use extra_toolchains instead
       enable_rust:
         required: false
@@ -221,6 +231,16 @@ jobs:
         run: |
           yum install -y bison flex 
 
+      - name: Install fortran (amd64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_amd64' }}
+        run: |
+          apt-get install -y -qq gfortran
+
+      - name: Install fortran (arm64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_arm64' }}
+        run: |
+          apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu
+
       ###
       # Checkin out repositories
       ###
@@ -272,6 +292,7 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Configure OpenSSL for Rust
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -281,13 +302,21 @@ jobs:
           echo "OPENSSL_USE_STATIC_LIBS=true" >> $GITHUB_ENV
 
       ###
+      # Custom toolchain script
+      ###
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
+
+      ###
       # Building & testing
       ###
       - name: Build extension
         env:
           GEN: ninja
-          CC: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-linux-gnu-gcc' || '' }}
-          CXX: ${{ matrix.duckdb_arch == 'linux_arm64' && 'aarch64-linux-gnu-g++' || '' }}
+          TOOLCHAIN_FLAGS: ${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
         run: |
           make release
@@ -367,6 +396,7 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Install Rust cross compile dependency
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.osx_build_arch == 'x86_64'}}
@@ -377,6 +407,33 @@ jobs:
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;')}}
         run: |
           brew install bison flex
+
+      - name: install omp (x86)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_amd64' }}
+        run: |
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+          (echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> /Users/runner/.bash_profile
+          eval "$(/usr/local/bin/brew shellenv)"
+          arch -x86_64 brew install libomp
+          echo "LDFLAGS=-L/usr/local/opt/libomp/lib" >> $GITHUB_ENV
+          echo "CFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+          echo "CXXFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
+
+      - name: install omp (arm)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_arm64' }}
+        run: |
+          brew install libomp
+          echo "LDFLAGS=-L/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
+          echo "CFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+          echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build extension
         shell: bash
@@ -480,6 +537,13 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
+
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build & test extension
         env:
@@ -552,12 +616,19 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+
+      - name: Run custom toolchain script
+        if: ${{ inputs.custom_toolchain_script }}
+        shell: bash
+        run: |
+          bash scripts/setup-custom-toolchain.sh
 
       - name: Build Wasm module
         run: |
