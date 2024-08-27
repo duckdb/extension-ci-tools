@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: ""
+      # Override the default vcpkg repository
+      vcpkg_url:
+        required: false
+        type: string
+        default: "https://github.com/microsoft/vcpkg.git"
       # Override the default vcpkg commit used by this version of DuckDB
       vcpkg_commit:
         required: false
@@ -282,6 +287,7 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Configure OpenSSL for Rust
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -376,6 +382,7 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Install Rust cross compile dependency
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.osx_build_arch == 'x86_64'}}
@@ -510,6 +517,7 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Build & test extension
         env:
@@ -582,6 +590,7 @@ jobs:
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
