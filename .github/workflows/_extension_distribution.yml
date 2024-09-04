@@ -332,6 +332,15 @@ jobs:
           path: |
             build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
+
   macos:
     name: MacOS
     runs-on: macos-latest
@@ -455,6 +464,15 @@ jobs:
           path: |
             build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
+
   windows:
     name: Windows
     runs-on: windows-latest
@@ -559,6 +577,15 @@ jobs:
           path: |
             build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
+
   wasm:
     name: DuckDB-Wasm
     runs-on: ubuntu-latest
@@ -640,3 +667,12 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
+
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done

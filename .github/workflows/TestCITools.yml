@@ -31,7 +31,7 @@ jobs:
     with:
       extension_name: delta
       override_repository: duckdb/duckdb_delta
-      override_ref: main
+      override_ref: 3933ebd800ad06a64656c9aef6ca7d62897fa4db
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
       duckdb_version: v1.0.0
