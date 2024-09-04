@@ -34,6 +34,6 @@ jobs:
       override_ref: 3933ebd800ad06a64656c9aef6ca7d62897fa4db
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
-      duckdb_version: v1.0.0
+      duckdb_version: fa2daf7a09e477e30e53b4cc8f4269c39eaf62ef
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools'
       extra_toolchains: 'rust'
