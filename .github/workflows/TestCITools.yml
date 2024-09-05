@@ -31,9 +31,9 @@ jobs:
     with:
       extension_name: delta
       override_repository: duckdb/duckdb_delta
-      override_ref: 3933ebd800ad06a64656c9aef6ca7d62897fa4db
+      override_ref: 94f887bd539ec0d5ed0d31bd01ff3845cf378a9d
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
-      duckdb_version: fa2daf7a09e477e30e53b4cc8f4269c39eaf62ef
+      duckdb_version: 45787e5f9f8bdb9dce97890c1ac7a7eb2dc3a49f
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools'
       extra_toolchains: 'rust'
