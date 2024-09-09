@@ -7,7 +7,8 @@ DuckDB's [Extension Template](https://github.com/duckdb/extension-template/actio
 | Extension-ci-tools Branch | DuckDB target version | Actively maintained? |
 |---------------------------|-----------------------|----------------------|
 | main                      | main                  | yes                  |
-| v1.0.0                    | v1.0.0                | yes                  |
+| v1.1.0                    | v1.1.0                | yes                  |
+| v1.0.0                    | v1.0.0                | no                   |
 | v0.10.3                   | v0.10.3               | no                   |
 | v0.10.2                   | v0.10.2               | no                   |
 | v0.10.1                   | v0.10.1               | no                   |
