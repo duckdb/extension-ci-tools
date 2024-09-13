@@ -14,6 +14,13 @@ RUN mkdir /cmake_3_21 && \
     ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
+# Install GIT
+RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz
+    tar xvf v2.18.5.tar.gz && \
+    cd git-2.18.5 && \
+    make && \
+    make prefix=/usr install
+
 # Configure Parser tools
 RUN apt-get install -y -qq bison flex
 
