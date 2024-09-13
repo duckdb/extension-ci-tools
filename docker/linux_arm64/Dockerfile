@@ -15,7 +15,7 @@ RUN mkdir /cmake_3_21 && \
     cmake --version
 
 # Install GIT
-RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz
+RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz && \
     tar xvf v2.18.5.tar.gz && \
     cd git-2.18.5 && \
     make && \
