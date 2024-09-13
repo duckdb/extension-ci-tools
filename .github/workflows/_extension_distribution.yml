@@ -96,7 +96,7 @@ jobs:
       osx_matrix: ${{ steps.set-matrix-osx.outputs.osx_matrix }}
       wasm_matrix: ${{ steps.set-matrix-wasm.outputs.wasm_matrix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -105,7 +105,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -244,7 +244,7 @@ jobs:
       ###
       # Checkin out repositories
       ###
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -253,7 +253,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -270,7 +270,7 @@ jobs:
         run: |
           ./duckdb/scripts/setup_manylinux2014.sh general ccache ssh python_alias openssl
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -326,7 +326,7 @@ jobs:
         run: |
           make test
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
@@ -348,7 +348,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -357,7 +357,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -378,7 +378,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -448,7 +448,7 @@ jobs:
         run: |
           make test
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
@@ -477,7 +477,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -486,7 +486,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -513,7 +513,7 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -552,7 +552,7 @@ jobs:
         run: |
           make test_release
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
@@ -572,7 +572,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -581,14 +581,14 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -634,7 +634,7 @@ jobs:
         run: |
           make ${{ matrix.duckdb_arch }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
