@@ -7,7 +7,7 @@ RUN apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multi
 RUN apt-get install -y -qq ccache
 
 # Install cmake 3.21
-RUN mdir /cmake_3_21 && \
+RUN mkdir /cmake_3_21 && \
     cd /cmake_3_21 && \
     wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh && \
     chmod +x cmake-3.21.3-linux-x86_64.sh && \
