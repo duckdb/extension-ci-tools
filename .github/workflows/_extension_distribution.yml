@@ -207,7 +207,7 @@ jobs:
       ###
       - name: Build extension
         run: |
-          docker run -it \
+          docker run \
             -e DUCKDB_PLATFORM=${{ matrix.duckdb_arch }} \
             -e TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }} \
             -v ~/Development/extension-template:/duckdb_extension \
@@ -217,7 +217,12 @@ jobs:
       - name: Test extension
         if: ${{ matrix.duckdb_arch != 'linux_arm64'}}
         run: |
-          make test
+          docker run \
+            -e DUCKDB_PLATFORM=${{ matrix.duckdb_arch }} \
+            -e TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }} \
+            -v ~/Development/extension-template:/duckdb_extension \
+            duckdb/${{ matrix.duckdb_arch }} \
+            make test
 
       - uses: actions/upload-artifact@v3
         with:
