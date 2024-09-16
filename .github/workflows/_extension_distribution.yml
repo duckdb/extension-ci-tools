@@ -203,7 +203,7 @@ jobs:
         run: |
           docker run \
             -e OPENSSL_ROOT_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }} \
-            -e OPENSSL_DIR=`pwd`/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }} \
+            -e OPENSSL_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }} \
             -e OPENSSL_USE_STATIC_LIBS=true \
             -e DUCKDB_PLATFORM=${{ matrix.duckdb_arch }} \
             -e TOOLCHAIN_FLAGS='${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}' \
