@@ -48,6 +48,10 @@ on:
         required: false
         type: string
         default: "./duckdb/scripts/modify_distribution_matrix.py"
+    secrets:
+      # Override personal access token (PAT) used to fetch the repository incl. any submodules
+      checkout_token:
+        required: false
 
 jobs:
   generate_matrix:
@@ -60,6 +64,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - name: Checkout DuckDB to version
         run: |
@@ -86,6 +91,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - name: Checkout DuckDB to version
         run: |

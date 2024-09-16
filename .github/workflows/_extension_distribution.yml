@@ -90,6 +90,11 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      # Override personal access token (PAT) used to fetch the repository incl. any submodules
+      checkout_token:
+        required: false
+
 jobs:
   generate_matrix:
     name: Generate matrix
@@ -108,6 +113,7 @@ jobs:
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/checkout@v3
         name: Checkout current repository
@@ -115,6 +121,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - name: Checkout DuckDB to version
         run: |
@@ -262,6 +269,7 @@ jobs:
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/checkout@v3
         name: Checkout current repository
@@ -269,6 +277,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - name: Checkout DuckDB to version
         run: |
@@ -366,6 +375,7 @@ jobs:
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/checkout@v3
         name: Checkout current repository
@@ -373,6 +383,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - name: Install Ninja
         run: |
@@ -501,6 +512,7 @@ jobs:
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/checkout@v3
         name: Checkout current repository
@@ -508,6 +520,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -602,6 +615,7 @@ jobs:
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/checkout@v3
         name: Checkout current repository
@@ -609,6 +623,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+          token: ${{ secrets.checkout_token || github.token }}
 
       - uses: actions/checkout@v3
         name: Checkout Extension CI tools
