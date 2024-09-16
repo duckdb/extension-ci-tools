@@ -96,7 +96,7 @@ jobs:
       osx_matrix: ${{ steps.set-matrix-osx.outputs.osx_matrix }}
       wasm_matrix: ${{ steps.set-matrix-wasm.outputs.wasm_matrix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -105,7 +105,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -164,7 +164,7 @@ jobs:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -173,7 +173,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -185,7 +185,7 @@ jobs:
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -240,7 +240,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -249,7 +249,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -270,7 +270,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -369,7 +369,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -378,7 +378,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -405,7 +405,7 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -464,7 +464,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -473,14 +473,14 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
