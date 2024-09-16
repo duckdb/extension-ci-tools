@@ -194,17 +194,11 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 
-      ###
-      # Build Docker image using the dockerfile from the extension-ci-tools
-      ###
       - name: Build Docker image
         shell: bash
         run: |
           docker build -t duckdb/${{ matrix.duckdb_arch }} ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
-      ###
-      # Building & testing
-      ###
       - name: Build extension
         run: |
           docker run \
