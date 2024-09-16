@@ -33,7 +33,6 @@ RUN apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu
 # Configure Rust
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
-RUN rustup target add aarch64-unknown-linux-gnu
 
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
 RUN mkdir /vcpkg && \
