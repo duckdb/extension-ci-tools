@@ -228,7 +228,7 @@ jobs:
           touch ./ccache-dir
 
       - name: ccache cache files
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v4
         with:
           path: ./ccache-dir
           key: ${{ matrix.duckdb_arch }}-ccache-${{ steps.ccache_timestamp.outputs.timestamp }}

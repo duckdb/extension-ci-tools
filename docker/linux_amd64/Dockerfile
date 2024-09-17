@@ -63,23 +63,23 @@ ARG enable_rust
 RUN echo "$extra_toolchains" > ~/extra_toolchains.txt
 
 # Install Parser tools
-RUN if [[ $extra_toolchains == *";parser-tools;"* ]]; then \
+RUN if [ "$extra_toolchains" == *";parser-tools;"* ]; then \
       apt-get install -y -qq bison flex; \
     fi
 
 # Install Fortran
-RUN if [[ $extra_toolchains == *";fortran;"* ]]; then \
+RUN if [ "$extra_toolchains" == *";fortran;"* ]; then \
       apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu; \
     fi
 
 # Configure Rust
-RUN if [[ $extra_toolchains == *";rust;"* ]] || [ "$enable_rust" = "1" ]; then \
+RUN if [ "$extra_toolchains" == *";rust;"* ] || [ "$enable_rust" = "1" ]; then \
       curl https://sh.rustup.rs -sSf | bash -s -- -y ;\
     fi
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Configure go
-RUN if [[ $extra_toolchains == *";go;"* ]]; then \
+RUN if [ "$extra_toolchains" == *";go;"* ]; then \
       apt-get install -y -qq golang-go; \
     fi
 ENV PATH="/usr/local/go/bin:${PATH}"
