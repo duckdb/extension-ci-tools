@@ -64,12 +64,12 @@ RUN if [[ $extra_toolchains == *";parser-tools;"* ]]; then \
     fi
 
 # Install Fortran
-RUN if [[ $extra-toolchains == *";fortran;"* ]]; then \
+RUN if [[ $extra_toolchains == *";fortran;"* ]]; then \
       apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu; \
     fi
 
 # Configure Rust
-RUN if [[ $extra_toolchains == *";rust;"* ]] || [ "$enable_rust" = "1" ]; then \
+RUN if [[ $extra_toolchains == *";rust;"* ]] || [[ "$enable_rust" = "1" ]]; then \
       curl https://sh.rustup.rs -sSf | bash -s -- -y ;\
     fi
 ENV PATH="/root/.cargo/bin:${PATH}"
