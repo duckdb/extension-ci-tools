@@ -23,6 +23,7 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go'
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;windows_amd64;osx_arm64;osx_amd64'
       custom_toolchain_script: true
 
   delta-extension-main:
@@ -35,5 +36,5 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
       duckdb_version: v1.1.0
-      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;'
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;windows_amd64;osx_arm64;osx_amd64'
       extra_toolchains: 'rust'
