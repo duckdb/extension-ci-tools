@@ -199,24 +199,16 @@ jobs:
         run: |
           docker build -t duckdb/${{ matrix.duckdb_arch }} ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
-      - name: Build extension
+      - name: Build & test extension
         run: |
           docker run \
+            -e VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} \
+            -e BUILD_SHELL=${{ inputs.build_duckdb_shell && '1' || '0' }} \
             -e OPENSSL_ROOT_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }} \
             -e OPENSSL_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }} \
             -e OPENSSL_USE_STATIC_LIBS=true \
             -e DUCKDB_PLATFORM=${{ matrix.duckdb_arch }} \
             -e TOOLCHAIN_FLAGS='${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}' \
-            -v .:/duckdb_build_dir \
-            duckdb/${{ matrix.duckdb_arch }} \
-            make release
-
-      - name: Test extension
-        if: ${{ matrix.duckdb_arch != 'linux_arm64'}}
-        run: |
-          docker run \
-            -e DUCKDB_PLATFORM=${{ matrix.duckdb_arch }} \
-            -e TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }} \
             -v .:/duckdb_build_dir \
             duckdb/${{ matrix.duckdb_arch }} \
             make test
