@@ -82,10 +82,6 @@ on:
         type: boolean
         default: false
       # DEPRECATED: use extra_toolchains instead
-      enable_go:
-        required: false
-        type: boolean
-        default: false
       enable_rust:
         required: false
         type: boolean
@@ -201,7 +197,11 @@ jobs:
       - name: Build Docker image
         shell: bash
         run: |
-          docker build -t duckdb/${{ matrix.duckdb_arch }} ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
+          docker build \
+            --build-arg 'extra_toolchains=${{ inputs.extra_toolchains }}'
+            --build-arg 'enable_rust=${{ inputs.enable_rust && '1' || '0' }}'
+            -t duckdb/${{ matrix.duckdb_arch }} \
+            ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
       - name: Build extension
         run: |

@@ -24,17 +24,6 @@ RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz && \
     make && \
     make prefix=/usr install
 
-# Configure Parser tools
-RUN apt-get install -y -qq bison flex
-
-# Install fortran
-RUN apt-get install -y -qq gfortran
-
-# Configure Rust
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN rustup target add aarch64-unknown-linux-gnu
-
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
 RUN mkdir /vcpkg && \
     cd /vcpkg && \
@@ -52,3 +41,35 @@ ENV GEN=ninja
 # Specify where we expect the extension to be mounted and use that as working dir
 VOLUME /duckdb_build_dir
 WORKDIR /duckdb_build_dir
+
+###
+# Conditionally configure some extra dependencies
+###
+# a `;` separated list of extra toolchains to install (passed in like this to makes things easier through GitHub Actions)
+# Note that it should start and end with a `;`
+ARG extra_toolchains
+ARG enable_rust
+
+RUN echo "$extra_toolchains" > ~/extra_toolchains.txt
+
+# Install Parser tools
+RUN if [[ $extra_toolchains == *";parser-tools;"* ]]; then \
+      apt-get install -y -qq bison flex; \
+    fi
+
+# Install Fortran
+RUN if [[ $extra-toolchains == *";fortran;"* ]]; then \
+      apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu; \
+    fi
+
+# Configure Rust
+RUN if [[ $extra_toolchains == *";rust;"* ]] || [ "$enable_rust" = "1" ]; then \
+      curl https://sh.rustup.rs -sSf | bash -s -- -y ;\
+    fi
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Configure go
+RUN if [[ $extra_toolchains == *";go;"* ]]; then \
+      apt-get install -y -qq golang-go; \
+    fi
+ENV PATH="/usr/local/go/bin:${PATH}"
