@@ -198,7 +198,9 @@ jobs:
         shell: bash
         run: |
           docker build \
-            --build-arg 'extra_toolchains=${{ inputs.extra_toolchains }}' \
+            --build-arg 'vcpkg_url=${{ inputs.vcpkg_url }}' \
+            --build-arg 'vcpkg_commit=${{ inputs.vcpkg_commit }}' \
+            --build-arg 'extra_toolchains=${{ format(';{0};', inputs.extra_toolchains) }}' \
             --build-arg 'enable_rust=${{ inputs.enable_rust && '1' || '0' }}' \
             -t duckdb/${{ matrix.duckdb_arch }} \
             ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}

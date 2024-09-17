@@ -25,12 +25,14 @@ RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz && \
     make prefix=/usr install
 
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
+ARG vcpkg_url
+ARG vcpkg_commit
 RUN mkdir /vcpkg && \
     cd /vcpkg && \
     git init && \
-    git remote add origin https://github.com/Microsoft/vcpkg.git && \
-    git fetch origin a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6 && \
-    git checkout a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6 && \
+    git remote add origin $vcpkg_url && \
+    git fetch origin $vcpkg_commit && \
+    git checkout $vcpkg_commit && \
     ./bootstrap-vcpkg.sh
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake

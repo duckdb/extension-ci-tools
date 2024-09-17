@@ -18,12 +18,14 @@ RUN yum install -y java-11-openjdk-devel maven
 RUN yum install -y libgcc*i686 libstdc++*i686 glibc*i686 libgfortran*i686
 
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
+ARG vcpkg_url
+ARG vcpkg_commit
 RUN mkdir /vcpkg && \
     cd /vcpkg && \
     git init && \
-    git remote add origin https://github.com/Microsoft/vcpkg.git && \
-    git fetch origin a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6 && \
-    git checkout a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6 && \
+    git remote add origin $vcpkg_url && \
+    git fetch origin $vcpkg_commit && \
+    git checkout $vcpkg_commit && \
     ./bootstrap-vcpkg.sh
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
