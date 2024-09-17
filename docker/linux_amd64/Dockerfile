@@ -45,6 +45,10 @@ ENV GEN=ninja
 VOLUME /duckdb_build_dir
 WORKDIR /duckdb_build_dir
 
+# Mount for ccache to allow restoring ccache in GH actions
+VOLUME /ccache_dir
+ENV CCACHE_DIR=/ccache_dir
+
 ###
 # Conditionally configure some extra dependencies
 ###

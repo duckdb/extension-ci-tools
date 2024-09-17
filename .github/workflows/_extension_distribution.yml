@@ -205,7 +205,7 @@ jobs:
             -t duckdb/${{ matrix.duckdb_arch }} \
             ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
-      - name: Set up environment variables to be passed to docker
+      - name: Create env file for docker
         run: |
           touch docker_env.txt
           echo "VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}" >> docker_env.txt 
@@ -216,10 +216,15 @@ jobs:
           echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
           echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
 
+      - name: Create ccache dir (TODO populate using gh cache)
+        run: |
+          mkdir ccache_dir
+
       - name: Build extension
         run: |
-          docker --env-file docker_env.txt \ 
+          docker run --env-file docker_env.txt \ 
             -v .:/duckdb_build_dir \
+            -v ./ccache_dir:/ccache_dir \
             duckdb/${{ matrix.duckdb_arch }} \
             make release
 
@@ -230,6 +235,11 @@ jobs:
             -v .:/duckdb_build_dir \
             duckdb/${{ matrix.duckdb_arch }} \
             make test
+
+      - name: debug step
+        run: |
+          ls ccache_dir
+          tree ccache_dir
 
       - uses: actions/upload-artifact@v3
         with:
