@@ -216,6 +216,10 @@ jobs:
           echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
           echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
 
+      - name: Create ccache dirs
+        run: |
+          touch ./ccache-dir
+
       - name: Configure cache for ccache
         uses: actions/cache@v4
         with:
