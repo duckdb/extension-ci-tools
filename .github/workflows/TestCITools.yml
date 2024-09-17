@@ -24,7 +24,6 @@ jobs:
       override_ci_tools_ref: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp'
       custom_toolchain_script: true
-      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;windows_amd64;osx_amd64;osx_arm64'
 
   delta-extension-main:
     name: Rust builds (using Delta extension)
@@ -36,5 +35,5 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       override_ci_tools_ref: ${{ github.sha }}
       duckdb_version: v1.1.0
-      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;windows_amd64;osx_amd64;osx_arm64'
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;'
       extra_toolchains: 'rust'
