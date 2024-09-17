@@ -216,15 +216,24 @@ jobs:
           echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
           echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
 
+      - name: Prepare ccache timestamp
+        shell: cmake -P {0}
+        id: ccache_timestamp
+        run: |
+          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+          message("::set-output name=timestamp::${current_date}")
+
       - name: Create ccache dirs
         run: |
           touch ./ccache-dir
 
-      - name: Configure cache for ccache
-        uses: actions/cache@v4
+      - name: ccache cache files
+        uses: actions/cache@v1.1.0
         with:
           path: ./ccache-dir
-          key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+          key: ${{ matrix.duckdb_arch }}-ccache-${{ steps.ccache_cache_timestamp.outputs.timestamp }}
+          restore-keys: |
+            ${{ matrix.duckdb_arch }}-ccache-
 
       - name: Build extension
         run: |

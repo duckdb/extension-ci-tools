@@ -47,6 +47,9 @@ WORKDIR /duckdb_build_dir
 # Mount for ccache to allow restoring ccache in GH actions
 VOLUME /ccache_dir
 ENV CCACHE_DIR=/ccache_dir
+ENV CCACHE_COMPRESS=TRUE
+ENV CCACHE_COMPRESSLEVEL=6
+ENV CCACHE_MAXSIZE=400M
 
 ###
 # Conditionally configure some extra dependencies
