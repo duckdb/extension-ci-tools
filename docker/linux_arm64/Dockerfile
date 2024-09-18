@@ -77,7 +77,8 @@ esac
 # Configure Rust
 RUN case "$extra_toolchains" in \
   *\;rust\;*) \
-    curl https://sh.rustup.rs -sSf | bash -s -- -y \
+    curl https://sh.rustup.rs -sSf | bash -s -- -y; \
+    rustup target add aarch64-unknown-linux-gnu \
   ;; \
 esac
 ENV PATH="/root/.cargo/bin:${PATH}"
