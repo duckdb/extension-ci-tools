@@ -50,7 +50,6 @@ ENV CCACHE_MAXSIZE=400M
 # a `;` separated list of extra toolchains to install (passed in like this to makes things easier through GitHub Actions)
 # Note that it should start and end with a `;`
 ARG extra_toolchains
-ARG enable_rust
 
 RUN echo "$extra_toolchains" > ~/extra_toolchains.txt
 

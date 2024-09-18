@@ -57,28 +57,35 @@ ENV CCACHE_MAXSIZE=400M
 # a `;` separated list of extra toolchains to install (passed in like this to makes things easier through GitHub Actions)
 # Note that it should start and end with a `;`
 ARG extra_toolchains
-ARG enable_rust
 
-RUN echo "$extra_toolchains" > ~/extra_toolchains.txt
+# NOTE: the weird case conditionals are because of bash limitations in the ubuntu image used (see https://stackoverflow.com/questions/229551/how-to-check-if-a-string-contains-a-substring-in-bash)
 
 # Install Parser tools
-RUN if [ "$extra_toolchains" == *";parser-tools;"* ]; then \
-      apt-get install -y -qq bison flex; \
-    fi
+RUN case "$extra_toolchains" in \
+  *\;parser-tools\;*) \
+    apt-get install -y -qq bison flex \
+  ;; \
+esac
 
 # Install Fortran
-RUN if [ "$extra_toolchains" == *";fortran;"* ]; then \
-      apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu; \
-    fi
+RUN case "$extra_toolchains" in \
+  *\;fortran\;*) \
+    apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu \
+  ;; \
+esac
 
 # Configure Rust
-RUN if [ "$extra_toolchains" == *";rust;"* ] || [ "$enable_rust" = "1" ]; then \
-      curl https://sh.rustup.rs -sSf | bash -s -- -y ;\
-    fi
+RUN case "$extra_toolchains" in \
+  *\;rust\;*) \
+    curl https://sh.rustup.rs -sSf | bash -s -- -y \
+  ;; \
+esac
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Configure go
-RUN if [ "$extra_toolchains" == *";go;"* ]; then \
-      apt-get install -y -qq golang-go; \
-    fi
+RUN case "$extra_toolchains" in \
+  *\;go\;*) \
+    capt-get install -y -qq golang-go \
+  ;; \
+esac \
 ENV PATH="/usr/local/go/bin:${PATH}"
