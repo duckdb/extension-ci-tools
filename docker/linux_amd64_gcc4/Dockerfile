@@ -49,13 +49,13 @@ ENV CCACHE_MAXSIZE=400M
 # Conditionally configure some extra dependencies
 ###
 # a `;` separated list of extra toolchains to install (passed in like this to makes things easier through GitHub Actions)
-# Note that it should start and end with a `;` e.g. `;rust;parser-tools;`
+# Note that it should start and end with a `;` e.g. `;rust;parser_tools;`
 ARG extra_toolchains
 
 RUN echo "$extra_toolchains" > ~/extra_toolchains.txt
 
 # Install Parser tools
-RUN if [[ $extra_toolchains == *";parser-tools;"* ]]; then \
+RUN if [[ $extra_toolchains == *";parser_tools;"* ]]; then \
       yum install -y bison flex;\
     fi
 

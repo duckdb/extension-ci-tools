@@ -56,14 +56,14 @@ ENV CCACHE_MAXSIZE=400M
 # Conditionally configure some extra dependencies
 ###
 # a `;` separated list of extra toolchains to install (passed in like this to makes things easier through GitHub Actions)
-# Note that it should start and end with a `;` e.g. `;rust;parser-tools;`
+# Note that it should start and end with a `;` e.g. `;rust;parser_tools;`
 ARG extra_toolchains
 
 # NOTE: the weird case conditionals are because of bash limitations in the ubuntu image used (see https://stackoverflow.com/questions/229551/how-to-check-if-a-string-contains-a-substring-in-bash)
 
 # Install Parser tools
 RUN case "$extra_toolchains" in \
-  *\;parser-tools\;*) \
+  *\;parser_tools\;*) \
     apt-get install -y -qq bison flex \
   ;; \
 esac

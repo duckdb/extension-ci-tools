@@ -215,24 +215,24 @@ jobs:
           echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
           echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
 
-      - name: Prepare ccache timestamp
+      - name: Generate timestamp for Ccache entry
         shell: cmake -P {0}
         id: ccache_timestamp
         run: |
           string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
           message("::set-output name=timestamp::${current_date}")
 
-      - name: Create ccache dirs
+      - name: Create Ccache directory
         run: |
           mkdir ccache_dir
 
-      - name: ccache cache files
+      - name: Load Ccache
         uses: actions/cache@v4
         with:
           path: ./ccache_dir
-          key: ${{ matrix.duckdb_arch }}-ccache-${{ steps.ccache_timestamp.outputs.timestamp }}
+          key: ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.ccache_timestamp.outputs.timestamp }}
           restore-keys: |
-            ${{ matrix.duckdb_arch }}-ccache-
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-
 
       - name: Build extension
         run: |
@@ -242,11 +242,6 @@ jobs:
         if: ${{ matrix.duckdb_arch != 'linux_arm64' }}
         run: |
           docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make test
-
-      # FIXME: ccache appears to be not working yet
-      - name: log ccache size
-        run: |
-          du -h -d 1 ccache_dir
 
       - uses: actions/upload-artifact@v3
         with:
@@ -303,7 +298,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@main
         continue-on-error: true
         with:
-          key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+          key: extension-distribution-${{ matrix.duckdb_arch }}
 
       - uses: actions/setup-python@v5
         with:
