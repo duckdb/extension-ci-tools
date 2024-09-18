@@ -55,7 +55,7 @@ ENV CCACHE_MAXSIZE=400M
 # Conditionally configure some extra dependencies
 ###
 # a `;` separated list of extra toolchains to install (passed in like this to makes things easier through GitHub Actions)
-# Note that it should start and end with a `;`
+# Note that it should start and end with a `;` e.g. `;rust;parser-tools;`
 ARG extra_toolchains
 
 # NOTE: the weird case conditionals are because of bash limitations in the ubuntu image used (see https://stackoverflow.com/questions/229551/how-to-check-if-a-string-contains-a-substring-in-bash)
@@ -75,13 +75,13 @@ RUN case "$extra_toolchains" in \
 esac
 
 # Configure Rust
+ENV PATH="/root/.cargo/bin:${PATH}"
 RUN case "$extra_toolchains" in \
   *\;rust\;*) \
     curl https://sh.rustup.rs -sSf | bash -s -- -y; \
     rustup target add aarch64-unknown-linux-gnu \
   ;; \
 esac
-ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Configure go
 RUN case "$extra_toolchains" in \
@@ -89,4 +89,3 @@ RUN case "$extra_toolchains" in \
     apt-get install -y -qq golang-go \
   ;; \
 esac
-ENV PATH="/usr/local/go/bin:${PATH}"
