@@ -86,7 +86,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Configure go
 RUN case "$extra_toolchains" in \
   *\;go\;*) \
-    capt-get install -y -qq golang-go \
+    apt-get install -y -qq golang-go \
   ;; \
-esac \
+esac
 ENV PATH="/usr/local/go/bin:${PATH}"
