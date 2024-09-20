@@ -20,6 +20,11 @@ on:
       duckdb_version:
         required: true
         type: string
+      # The version of the https://github.com/duckdb/extension-ci-tools submodule of the extension. In most cases will be identical to `duckdb_version`.
+      # Passing this explicitly is required because of https://github.com/actions/toolkit/issues/1264
+      ci_tools_version:
+        required: true
+        type: string
       # ';' separated list of architectures to exclude, for example: 'linux_amd64;osx_arm64'
       exclude_archs:
         required: false
@@ -62,11 +67,6 @@ on:
         default: ""
       # Override the repo for the CI tools (for testing CI tools itself)
       override_ci_tools_repository:
-        required: false
-        type: string
-        default: ""
-      # Override the ref for the CI tools (for testing CI tools itself)
-      override_ci_tools_ref:
         required: false
         type: string
         default: ""
@@ -186,10 +186,9 @@ jobs:
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
-        if: ${{inputs.override_ci_tools_ref != ''}}
         with:
           path: 'extension-ci-tools'
-          ref: ${{ inputs.override_ci_tools_ref }}
+          ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 
@@ -305,10 +304,9 @@ jobs:
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
-        if: ${{inputs.override_ci_tools_ref != ''}}
         with:
           path: 'extension-ci-tools'
-          ref: ${{ inputs.override_ci_tools_ref }}
+          ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 
@@ -461,10 +459,9 @@ jobs:
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
-        if: ${{inputs.override_ci_tools_ref != ''}}
         with:
           path: 'extension-ci-tools'
-          ref: ${{ inputs.override_ci_tools_ref }}
+          ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 
@@ -546,10 +543,9 @@ jobs:
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
-        if: ${{inputs.override_ci_tools_ref != ''}}
         with:
           path: 'extension-ci-tools'
-          ref: ${{ inputs.override_ci_tools_ref }}
+          ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 

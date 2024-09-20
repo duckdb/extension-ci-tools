@@ -21,7 +21,7 @@ jobs:
       override_ref: main
       duckdb_version: v1.1.0
       override_ci_tools_repository: ${{ github.repository }}
-      override_ci_tools_ref: ${{ github.sha }}
+      ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go'
       custom_toolchain_script: true
 
@@ -33,7 +33,7 @@ jobs:
       override_repository: duckdb/duckdb_delta
       override_ref: 94f887bd539ec0d5ed0d31bd01ff3845cf378a9d
       override_ci_tools_repository: ${{ github.repository }}
-      override_ci_tools_ref: ${{ github.sha }}
+      ci_tools_version: ${{ github.sha }}
       duckdb_version: v1.1.0
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_rtools;windows_amd64'
       extra_toolchains: 'rust'
