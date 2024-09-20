@@ -82,10 +82,6 @@ on:
         type: boolean
         default: false
       # DEPRECATED: use extra_toolchains instead
-      enable_go:
-        required: false
-        type: boolean
-        default: false
       enable_rust:
         required: false
         type: boolean
@@ -100,7 +96,7 @@ jobs:
       osx_matrix: ${{ steps.set-matrix-osx.outputs.osx_matrix }}
       wasm_matrix: ${{ steps.set-matrix-wasm.outputs.wasm_matrix }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -109,7 +105,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -155,7 +151,6 @@ jobs:
   linux:
     name: Linux
     runs-on: ubuntu-latest
-    container: ${{ matrix.container }}
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
     strategy:
@@ -166,95 +161,9 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
-      ###
-      # Setup environment (TODO: this should ideally be part of a container image)
-      ###
-      - name: Install required ubuntu packages
-        if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
-        run: |
-          apt-get update -y -qq
-          apt-get install -y -qq software-properties-common
-          apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client pkg-config
-
-      - name: Install required manylinux packages
-        if: ${{ matrix.duckdb_arch == 'linux_amd64_gcc4' }}
-        run: |
-          yum install -y epel-release -y pkgconfig
-
-      - name: Install cross compiler for linux_arm64
-        shell: bash
-        if: ${{ matrix.duckdb_arch == 'linux_arm64' }}
-        run: |
-          apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-      - name: Install Git 2.18.5
-        if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
-        run: |
-          wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz
-          tar xvf v2.18.5.tar.gz
-          cd git-2.18.5
-          make
-          make prefix=/usr install
-          git --version
-
-      - name: Setup Rust
-        if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.duckdb_arch == 'linux_amd64'}}
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Rust for cross compilation
-        if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.duckdb_arch == 'linux_arm64'}}
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-unknown-linux-gnu
-
-      - name: Setup Rust for manylinux (dtolnay/rust-toolchain doesn't work due to curl being old here)
-        if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.duckdb_arch == 'linux_amd64_gcc4' }}
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: 'Setup go'
-        if: ${{ (inputs.enable_go || contains(format(';{0};', inputs.extra_toolchains), ';go;'))}}
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23'
-
-      - name: Install CMake 3.21
-        if: ${{ matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64' }}
-        shell: bash
-        run: |
-          wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
-          chmod +x cmake-3.21.3-linux-x86_64.sh
-          ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
-          cmake --version
-
-      - name: Install parser tools
-        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;') && (matrix.duckdb_arch == 'linux_amd64' || matrix.duckdb_arch == 'linux_arm64') }}
-        run: |
-          apt-get install -y -qq bison flex
-
-      - name: Install parser tools (manylinux)
-        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;') && matrix.duckdb_arch == 'linux_amd64_gcc4'}}
-        run: |
-          yum install -y bison flex 
-
-      - name: Install fortran (amd64)
-        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_amd64' }}
-        run: |
-          apt-get install -y -qq gfortran
-
-      - name: Install fortran (arm64)
-        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';fortran;') && matrix.duckdb_arch == 'linux_arm64' }}
-        run: |
-          apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu
-
-      ###
-      # Checkin out repositories
-      ###
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -263,7 +172,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -275,12 +184,7 @@ jobs:
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
 
-      - name: Setup ManyLinux2014
-        if: ${{ matrix.duckdb_arch == 'linux_amd64_gcc4' }}
-        run: |
-          ./duckdb/scripts/setup_manylinux2014.sh general ccache ssh python_alias openssl
-
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -289,58 +193,69 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 
-      ###
-      # Runtime configuration before build
-      ###
-      - name: Setup Ccache
-        uses: hendrikmuhs/ccache-action@v1.2.11 # Note: pinned due to GLIBC incompatibility in later releases
-        continue-on-error: true
-        with:
-          key: ${{ github.job }}-${{ matrix.duckdb_arch }}
-
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11.1
-        with:
-          vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
-          vcpkgGitURL: ${{ inputs.vcpkg_url }}
-
-      - name: Configure OpenSSL for Rust
-        if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
-        run: |
-          echo "OPENSSL_ROOT_DIR=`pwd`/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> $GITHUB_ENV
-          echo "OPENSSL_DIR=`pwd`/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> $GITHUB_ENV
-          echo "OPENSSL_USE_STATIC_LIBS=true" >> $GITHUB_ENV
-
-      ###
-      # Custom toolchain script
-      ###
-      - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script }}
+      - name: Build Docker image
         shell: bash
         run: |
-          bash scripts/setup-custom-toolchain.sh
+          docker build \
+            --build-arg 'vcpkg_url=${{ inputs.vcpkg_url }}' \
+            --build-arg 'vcpkg_commit=${{ inputs.vcpkg_commit }}' \
+            --build-arg 'extra_toolchains=${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}' \
+            -t duckdb/${{ matrix.duckdb_arch }} \
+            ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
-      ###
-      # Building & testing
-      ###
-      - name: Build extension
-        env:
-          GEN: ninja
-          TOOLCHAIN_FLAGS: ${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}
-          DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      - name: Create env file for docker
         run: |
-          make release
+          touch docker_env.txt
+          echo "VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}" >> docker_env.txt 
+          echo "BUILD_SHELL=${{ inputs.build_duckdb_shell && '1' || '0' }}" >> docker_env.txt
+          echo "OPENSSL_ROOT_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> docker_env.txt
+          echo "OPENSSL_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> docker_env.txt
+          echo "OPENSSL_USE_STATIC_LIBS=true" >> docker_env.txt
+          echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
+          echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
+
+      - name: Generate timestamp for Ccache entry
+        shell: cmake -P {0}
+        id: ccache_timestamp
+        run: |
+          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+          message("::set-output name=timestamp::${current_date}")
+
+      - name: Create Ccache directory
+        run: |
+          mkdir ccache_dir
+
+      - name: Load Ccache
+        uses: actions/cache@v4
+        with:
+          path: ./ccache_dir
+          key: ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.ccache_timestamp.outputs.timestamp }}
+          restore-keys: |
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-
+
+      - name: Build extension
+        run: |
+          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make release
 
       - name: Test extension
-        if: ${{ matrix.duckdb_arch != 'linux_arm64'}}
+        if: ${{ matrix.duckdb_arch != 'linux_arm64' }}
         run: |
-          make test
+          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make test
 
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
 
   macos:
     name: MacOS
@@ -358,7 +273,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -367,7 +282,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -382,13 +297,13 @@ jobs:
         uses: hendrikmuhs/ccache-action@main
         continue-on-error: true
         with:
-          key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+          key: extension-distribution-${{ matrix.duckdb_arch }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -471,6 +386,15 @@ jobs:
           path: |
             build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
+
   windows:
     name: Windows
     runs-on: windows-2019
@@ -493,7 +417,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -502,7 +426,7 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -535,7 +459,7 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -581,6 +505,16 @@ jobs:
           path: |
             build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        shell: bash
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
+
   wasm:
     name: DuckDB-Wasm
     runs-on: ubuntu-latest
@@ -594,7 +528,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -603,14 +537,14 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         if: ${{inputs.override_ci_tools_ref != ''}}
         with:
@@ -668,3 +602,13 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
+
+      - name: Print Rust logs
+        if: ${{ always() && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
+        shell: bash
+        run: |
+          for filename in build/release/rust/src/*/*build-*.log; do 
+            echo Printing logs for file $filename
+            cat $filename;
+            echo Done printing logs for $filename
+          done
