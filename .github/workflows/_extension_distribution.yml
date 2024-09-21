@@ -69,7 +69,7 @@ on:
       override_ci_tools_repository:
         required: false
         type: string
-        default: ""
+        default: "duckdb/extension-ci-tools"
       # Pass extra toolchains
       #   available: (rust, fortran, omp)
       extra_toolchains:
