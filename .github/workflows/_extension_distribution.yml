@@ -461,6 +461,13 @@ jobs:
           update-rtools: true
           rtools-version: '42' # linker bug in 43
 
+      - name: setup rtools gcc for vcpkg
+        if: matrix.duckdb_arch == 'windows_amd64_rtools'
+        run: |
+          cp C:/rtools42/x86_64-w64-mingw32.static.posix/bin/gcc.exe C:/rtools42/x86_64-w64-mingw32.static.posix/bin/x86_64-w64-mingw32-gcc.exe 
+          cp C:/rtools42/x86_64-w64-mingw32.static.posix/bin/g++.exe C:/rtools42/x86_64-w64-mingw32.static.posix/bin/x86_64-w64-mingw32-g++.exe 
+          cp C:/rtools42/x86_64-w64-mingw32.static.posix/bin/gfortran.exe C:/rtools42/x86_64-w64-mingw32.static.posix/bin/x86_64-w64-mingw32-gfortran.exe 
+
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
