@@ -85,6 +85,16 @@ on:
         required: false
         type: boolean
         default: false
+      # Optional tag the build extension should have -- this is easy to misuse, and subject to change, for internal use only
+      extension_tag:
+        required: false
+        type: string
+        default: ""
+      # Optional tag the referenced duckdb should have -- this is a easy to misuse, and subject to change, for internal use only
+      duckdb_tag:
+        required: false
+        type: string
+        default: ""
       # DEPRECATED: use extra_toolchains instead
       enable_rust:
         required: false
@@ -120,6 +130,17 @@ jobs:
         run: |
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
+
+      - name: Tag extension
+        if: ${{inputs.extension_tag != ''}}
+        run: |
+          git tag ${{ inputs.extension_tag }}
+
+      - name: Tag DuckDB extension
+        if: ${{inputs.duckdb_tag != ''}}
+        run: |
+          cd duckdb
+          git tag ${{ inputs.duckdb_tag }}
 
       - id: parse-matrices
         run: |
@@ -187,6 +208,17 @@ jobs:
         run: |
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
+
+      - name: Tag extension
+        if: ${{inputs.extension_tag != ''}}
+        run: |
+          git tag ${{ inputs.extension_tag }}
+
+      - name: Tag DuckDB extension
+        if: ${{inputs.duckdb_tag != ''}}
+        run: |
+          cd duckdb
+          git tag ${{ inputs.duckdb_tag }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -318,6 +350,18 @@ jobs:
         run: |
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
+
+      - name: Tag extension
+        if: ${{inputs.extension_tag != ''}}
+        run: |
+          git tag ${{ inputs.extension_tag }}
+
+      - name: Tag DuckDB extension
+        if: ${{inputs.duckdb_tag != ''}}
+        run: |
+          cd duckdb
+          git tag ${{ inputs.duckdb_tag }}
+
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
@@ -481,6 +525,18 @@ jobs:
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
 
+      - name: Tag extension
+        if: ${{inputs.extension_tag != ''}}
+        run: |
+          git tag ${{ inputs.extension_tag }}
+
+      - name: Tag DuckDB extension
+        if: ${{inputs.duckdb_tag != ''}}
+        run: |
+          cd duckdb
+          git tag ${{ inputs.duckdb_tag }}
+
+
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
         continue-on-error: true
@@ -564,6 +620,17 @@ jobs:
         run: |
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
+
+      - name: Tag extension
+        if: ${{inputs.extension_tag != ''}}
+        run: |
+          git tag ${{ inputs.extension_tag }}
+
+      - name: Tag DuckDB extension
+        if: ${{inputs.duckdb_tag != ''}}
+        run: |
+          cd duckdb
+          git tag ${{ inputs.duckdb_tag }}
 
       - uses: mymindstorm/setup-emsdk@v13
         with:
