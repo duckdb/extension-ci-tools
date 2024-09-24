@@ -137,6 +137,11 @@ jobs:
           git tag ${{ inputs.extension_tag }}
 
       - name: Tag DuckDB extension
+        if: ${{inputs.duckdb_tag != '' && (inputs.duckdb_version == 'main' || inputs.duckdb_version[0] == 'v') }}
+        run: |
+          echo "When duckdb_tag is provied an explcit git ref is expected" && exit 1
+
+      - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
           cd duckdb
