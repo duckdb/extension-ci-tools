@@ -4,7 +4,7 @@ FROM ubuntu:18.04
 RUN apt-get update -y -qq
 RUN apt-get install -y -qq software-properties-common
 RUN apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client pkg-config
-RUN apt-get install -y -qq ccache
+RUN apt-get install -y -qq ccache autoconf
 
 # Setup cross compiler because GH actions does not have open source arm runners yet
 RUN apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu

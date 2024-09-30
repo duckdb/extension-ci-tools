@@ -10,7 +10,7 @@ RUN yum install -y gcc-c++
 RUN yum install -y nodejs
 
 # Setup the basic necessities
-RUN yum install -y curl zip unzip tar
+RUN yum install -y curl zip unzip tar autoconf
 RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
 RUN yum install -y ccache
