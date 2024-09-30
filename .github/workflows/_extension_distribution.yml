@@ -331,7 +331,7 @@ jobs:
 
       - name: Install Ninja
         run: |
-          brew install ninja
+          brew install ninja autoconf make libtool pkg-config automake autoconf-archive
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
