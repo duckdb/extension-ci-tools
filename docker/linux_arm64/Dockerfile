@@ -89,3 +89,10 @@ RUN case "$extra_toolchains" in \
     apt-get install -y -qq golang-go \
   ;; \
 esac
+
+# Install Python3
+RUN case "$extra_toolchains" in \
+  *\;python3\;*) \
+    apt-get install -y -qq python3 \
+  ;; \
+esac

@@ -71,3 +71,10 @@ RUN if [[ $extra_toolchains == *";go;"* ]]; then \
       tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz; \
 fi
 ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Install Python3
+RUN case "$extra_toolchains" in \
+  *\;python3\;*) \
+    yum install -y python3; \
+  ;; \
+esac

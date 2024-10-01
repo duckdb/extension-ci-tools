@@ -90,3 +90,10 @@ RUN case "$extra_toolchains" in \
   ;; \
 esac
 ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Install Python3
+RUN case "$extra_toolchains" in \
+  *\;python3\;*) \
+    apt-get install -y -qq python3 \
+  ;; \
+esac
