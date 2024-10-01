@@ -71,7 +71,7 @@ on:
         type: string
         default: "duckdb/extension-ci-tools"
       # Pass extra toolchains
-      #   available: (rust, fortran, omp)
+      #   available: (parser_tools, rust, fortran, omp, python3)
       extra_toolchains:
         required: false
         type: string
