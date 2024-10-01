@@ -22,7 +22,7 @@ jobs:
       duckdb_version: v1.1.0
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
-      extra_toolchains: 'parser_tools;fortran;omp;go'
+      extra_toolchains: 'parser_tools;fortran;omp;go;python3'
       custom_toolchain_script: true
 
   delta-extension-main:
