@@ -565,6 +565,14 @@ jobs:
         run: |
           bash scripts/setup-custom-toolchain.sh
 
+      - name: Build extension
+        if: ${{ inputs.skip_tests == true }}
+        env:
+          DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+          DUCKDB_PLATFORM_RTOOLS: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' && 1 || 0 }}
+        run: |
+          make release
+
       - name: Build & test extension
         if: ${{ inputs.skip_tests == false }}
         env:
