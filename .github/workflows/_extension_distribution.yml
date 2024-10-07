@@ -542,8 +542,10 @@ jobs:
 
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
+          make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -552,8 +554,10 @@ jobs:
 
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
+        env:
+          DUCKDB_TAG: ${{ inputs.duckdb_tag }}
         run: |
-          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
+          make set_duckdb_tag
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
