@@ -222,6 +222,14 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.ci_tools_version }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+          fetch-depth: 0
+
       - name: Checkout DuckDB to version
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
