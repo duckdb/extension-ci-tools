@@ -133,8 +133,7 @@ jobs:
 
       - name: Checkout DuckDB to version
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -149,8 +148,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - id: parse-matrices
         run: |
@@ -216,8 +214,7 @@ jobs:
 
       - name: Checkout DuckDB to version
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -227,8 +224,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -358,8 +354,7 @@ jobs:
 
       - name: Checkout DuckDB to version
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -369,9 +364,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
-
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
@@ -532,8 +525,7 @@ jobs:
 
       - name: Checkout DuckDB to version
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -543,9 +535,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
-
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
@@ -637,8 +627,7 @@ jobs:
 
       - name: Checkout DuckDB to version
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -648,8 +637,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - uses: mymindstorm/setup-emsdk@v13
         with:

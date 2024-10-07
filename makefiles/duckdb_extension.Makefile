@@ -129,3 +129,11 @@ clean:
 
 clean-python:
 	make $@ -C $(DUCKDB_SRCDIR)
+
+set_duckdb_version:
+	cd duckdb
+	git checkout $(DUCKDB_GIT_VERSION)
+
+set_duckdb_tag:
+	cd duckdb
+	git tag $(DUCKDB_TAG)
