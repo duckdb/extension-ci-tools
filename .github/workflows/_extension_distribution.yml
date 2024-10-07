@@ -139,8 +139,9 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -229,8 +230,9 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -368,8 +370,9 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -538,8 +541,9 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -639,8 +643,9 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_tag }} make set_duckdb_version
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
