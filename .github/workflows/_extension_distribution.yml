@@ -131,10 +131,17 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.ci_tools_version }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -149,37 +156,38 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - id: parse-matrices
         run: |
-          python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os linux --output linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-          python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os osx --output osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-          python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os windows --output windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-          python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --select_os wasm --output wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          mkdir build
+          make output_distribution_matrix | tail -n +2 > build/distribution_matrix.json
+          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os linux --output build/linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os osx --output build/osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os wasm --output build/wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
 
       - id: set-matrix-linux
         run: |
-          linux_matrix="`cat linux_matrix.json`"
+          linux_matrix="`cat build/linux_matrix.json`"
           echo linux_matrix=$linux_matrix >> $GITHUB_OUTPUT
           echo `cat $GITHUB_OUTPUT`
 
       - id: set-matrix-osx
         run: |
-          osx_matrix="`cat osx_matrix.json`"
+          osx_matrix="`cat build/osx_matrix.json`"
           echo osx_matrix=$osx_matrix >> $GITHUB_OUTPUT
           echo `cat $GITHUB_OUTPUT`
 
       - id: set-matrix-windows
         run: |
-          windows_matrix="`cat windows_matrix.json`"
+          windows_matrix="`cat build/windows_matrix.json`"
           echo windows_matrix=$windows_matrix >> $GITHUB_OUTPUT
           echo `cat $GITHUB_OUTPUT`
 
       - id: set-matrix-wasm
         run: |
-          wasm_matrix="`cat wasm_matrix.json`"
+          wasm_matrix="`cat build/wasm_matrix.json`"
           echo wasm_matrix=$wasm_matrix >> $GITHUB_OUTPUT
           echo `cat $GITHUB_OUTPUT`
 
@@ -214,10 +222,17 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
+        with:
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.ci_tools_version }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -227,8 +242,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -354,12 +368,11 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
-          fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -369,9 +382,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
-
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
@@ -528,12 +539,13 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
-          fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -542,10 +554,10 @@ jobs:
 
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
+        env:
+          DUCKDB_TAG: ${{ inputs.duckdb_tag }}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
-
+          make set_duckdb_tag
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
@@ -633,12 +645,11 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
-          fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
         run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -648,8 +659,7 @@ jobs:
       - name: Tag DuckDB extension
         if: ${{inputs.duckdb_tag != ''}}
         run: |
-          cd duckdb
-          git tag ${{ inputs.duckdb_tag }}
+          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - uses: mymindstorm/setup-emsdk@v13
         with:
