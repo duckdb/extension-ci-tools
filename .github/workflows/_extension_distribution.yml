@@ -208,7 +208,14 @@ jobs:
     steps:
       - name: Free up some unused space
         run: |
-          docker rmi $(docker images -a -q)
+          docker images -a -q > package.list
+          if [ -s package.list ]; then
+              echo "To be deleted"
+              cat package.list
+              echo "---"
+              docker rmi $(cat package.list)
+          fi
+          rm package.list
 
       - uses: actions/checkout@v4
         name: Checkout override repository
