@@ -207,6 +207,7 @@ jobs:
 
     steps:
       - name: Free up some unused space
+        continue-on-error: true
         run: |
           docker images -a -q > package.list
           if [ -s package.list ]; then

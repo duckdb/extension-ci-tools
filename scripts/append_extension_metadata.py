@@ -5,19 +5,19 @@ def start_signature():
     # This is needed so that Wasm binaries are valid
     encoded_string = ''.encode('ascii')
     # 0 for custom section
-    encoded_string += int(0).to_bytes(1)
+    encoded_string += int(0).to_bytes(1, byteorder='big')
     # 213 in hex = 531 in decimal, total lenght of what follows (1 + 16 + 2 + 8x32 + 256)
     # [1(continuation) + 0010011(payload) = \x93 -> 147, 0(continuation) + 10(payload) = \x04 -> 4]
-    encoded_string += int(147).to_bytes(1)
-    encoded_string += int(4).to_bytes(1)
+    encoded_string += int(147).to_bytes(1, byteorder='big')
+    encoded_string += int(4).to_bytes(1, byteorder='big')
     # 10 in hex = 16 in decimal, lenght of name, 1 byte
-    encoded_string += int(16).to_bytes(1)
+    encoded_string += int(16).to_bytes(1, byteorder='big')
     # the name of the WebAssembly custom section, 16 bytes
     encoded_string += b'duckdb_signature'
     # 1000 in hex, 512 in decimal
     # [1(continuation) + 0000000(payload) = -> 128, 0(continuation) + 100(payload) -> 4],
-    encoded_string += int(128).to_bytes(1)
-    encoded_string += int(4).to_bytes(1)
+    encoded_string += int(128).to_bytes(1, byteorder='big')
+    encoded_string += int(4).to_bytes(1, byteorder='big')
     return encoded_string
 
 def padded_byte_string(input):
