@@ -107,9 +107,10 @@ jobs:
           BUCKET_NAME: ${{ secrets.S3_DUCKDB_ORG_BUCKET }}
           DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
           DUCKDB_DEPLOY_SCRIPT_MODE: for_real
+          PIP_BREAK_SYSTEM_PACKAGES: 1
         run: |
           pwd
-          python3 -m pip install pip awscli
+          python3 -m pip install awscli
           git config --global --add safe.directory '*'
           cd duckdb
           git fetch --tags
