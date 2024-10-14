@@ -453,7 +453,7 @@ jobs:
           make release
 
       - name: Test Extension
-        if: ${{ matrix.osx_build_arch == 'x86_64' && inputs.skip_tests == false }}
+        if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
         shell: bash
         run: |
           make test
