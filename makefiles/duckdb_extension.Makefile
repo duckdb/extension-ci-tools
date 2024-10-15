@@ -78,13 +78,13 @@ reldebug:
 # Main tests
 test: test_release
 
-test_release: release
+test_release:
 	./build/release/$(TEST_PATH) "$(PROJ_DIR)test/*"
 
-test_debug: debug
+test_debug:
 	./build/debug/$(TEST_PATH) "$(PROJ_DIR)test/*"
 
-test_reldebug: reldebug
+test_reldebug:
 	./build/reldebug/$(TEST_PATH) "$(PROJ_DIR)test/*"
 
 # WASM config
