@@ -84,8 +84,8 @@ TEST_DEBUG_TARGET=test_debug_internal
 TEST_RELDEBUG_TARGET=test_reldebug_internal
 
 # Disable testing outside docker: the unittester is currently dynamically linked by default
-ifeq($(LINUX_TESTS_OUTSIDE_DOCKER),1)
-    SKIP_TESTS=1
+ifeq ($(LINUX_TESTS_OUTSIDE_DOCKER),1)
+	SKIP_TESTS=1
 endif
 
 ifeq ($(SKIP_TESTS),1)
