@@ -465,7 +465,7 @@ jobs:
         if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
         shell: bash
         run: |
-          make test
+          make test_release
 
       - uses: actions/upload-artifact@v3
         with:
