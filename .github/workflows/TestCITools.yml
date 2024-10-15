@@ -23,7 +23,6 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3'
-      custom_toolchain_script: true
 
   delta-extension-main:
     name: Rust builds (using Delta extension)

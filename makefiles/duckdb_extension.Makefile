@@ -159,3 +159,6 @@ set_duckdb_tag:
 
 output_distribution_matrix:
 	cat duckdb/.github/config/distribution_matrix.json
+
+configure_ci:
+	@echo "configure_ci is a NOP"
