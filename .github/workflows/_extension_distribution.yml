@@ -279,6 +279,7 @@ jobs:
           echo "OPENSSL_USE_STATIC_LIBS=true" >> docker_env.txt
           echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
           echo "DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }}" >> docker_env.txt
+          echo "LINUX_CI_IN_DOCKER=1" >> docker_env.txt
           echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
 
       - name: Generate timestamp for Ccache entry
@@ -300,26 +301,31 @@ jobs:
           restore-keys: |
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
 
-      - name: Run configure CI
+      - name: Run configure (outside Docker)
+        shell: bash
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+        run: |
+          make configure_ci
+
+      - name: Run configure (inside Docker)
         shell: bash
         run: |
           docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make configure_ci
 
-      - name: Build extension
+      - name: Build extension (inside Docker)
         run: |
           docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make release
 
       - name: Test extension (inside docker)
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
-        env:
-          LINUX_TESTS_IN_DOCKER: 1
         run: |
           docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make test_release
 
       - name: Test extension (outside docker)
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
         env:
-          LINUX_TESTS_OUTSIDE_DOCKER: 1
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
           make test_release
 
@@ -449,7 +455,7 @@ jobs:
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
-      - name: Run configure CI
+      - name: Run configure
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
@@ -592,7 +598,7 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
-      - name: Run configure CI
+      - name: Run configure
         shell: bash
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -712,7 +718,7 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
-      - name: Run configure CI
+      - name: Run configure
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
