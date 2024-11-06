@@ -49,7 +49,7 @@ on:
       matrix_parse_script:
         required: false
         type: string
-        default: "./duckdb/scripts/modify_distribution_matrix.py"
+        default: "./extension-ci-tools/scripts/modify_distribution_matrix.py"
       # Enable building the DuckDB Shell
       build_duckdb_shell:
         required: false
