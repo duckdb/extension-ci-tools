@@ -305,6 +305,7 @@ jobs:
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          LINUX_CI_IN_DOCKER: 0
         run: |
           make configure_ci
 
@@ -326,6 +327,7 @@ jobs:
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          LINUX_CI_IN_DOCKER: 0
         run: |
           make test_release
 
