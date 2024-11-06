@@ -106,7 +106,7 @@ test_reldebug_internal:
 	./build/reldebug/$(TEST_PATH) "$(PROJ_DIR)test/*"
 
 tests_skipped:
-	@echo "Skipping tests..."
+	@echo "Tests are skipped in this run..."
 
 # WASM config
 VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
@@ -161,4 +161,4 @@ output_distribution_matrix:
 	cat duckdb/.github/config/distribution_matrix.json
 
 configure_ci:
-	@echo "configure_ci is a NOP"
+	@echo "configure_ci step is skipped for this extension build..."
