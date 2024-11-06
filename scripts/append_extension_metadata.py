@@ -62,10 +62,11 @@ def main():
         try:
             with open(args.duckdb_platform_file, 'r') as file:
                 PLATFORM = file.read().strip()
-                if not PLATFORM:
-                    raise Exception("File is empty!")
         except Exception as e:
-            raise Exception(f"Failed to read platform from file: {args.duckdb_platform_file}: {e}")
+            print(f"Failed to read platform from file {args.duckdb_platform_file}")
+            raise
+        if not PLATFORM:
+            raise Exception(f"Platform file passed to script is empty: {args.duckdb_platform_file}")
     else:
         raise Exception(f"Neither --duckdb-platform nor --duckdb-platform-file found, please specify the platform using either")
 
