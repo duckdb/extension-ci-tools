@@ -1,4 +1,4 @@
-# Reusable makefile for building out-of-tree extension with the DuckDB extension template
+# Reusable makefile for building out-of-tree extension with the DuckDB C++ based extension template
 #
 # Inputs
 #   EXT_NAME          : Upper case string describing the name of the out-of-tree extension
