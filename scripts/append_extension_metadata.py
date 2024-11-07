@@ -33,7 +33,10 @@ def main():
 
     arg_parser.add_argument('-o', '--out-file', type=str, help='Explicit path for the output file', default='')
 
-    arg_parser.add_argument('-p', '--duckdb-platform', type=str, help='The DuckDB platform to encode', required=True)
+    # The platform
+    arg_parser.add_argument('-p', '--duckdb-platform', type=str, help='The DuckDB platform to encode')
+    arg_parser.add_argument('-pf', '--duckdb-platform-file', type=str, help='The file containing the DuckDB platform to encode')
+
     arg_parser.add_argument('-dv', '--duckdb-version', type=str, help='The DuckDB version to encode, depending on the ABI type '
                                                                'this encodes the duckdb version or the C API version', required=True)
     arg_parser.add_argument('-ev', '--extension-version', type=str, help='The Extension version to encode', required=True)
@@ -51,6 +54,22 @@ def main():
     print(f" - Output file: {OUTPUT_FILE}")
     shutil.copyfile(args.library_file, OUTPUT_FILE_TMP)
 
+    # Handle the platform
+    PLATFORM = ""
+    if args.duckdb_platform:
+        PLATFORM = args.duckdb_platform
+    elif args.duckdb_platform_file:
+        try:
+            with open(args.duckdb_platform_file, 'r') as file:
+                PLATFORM = file.read().strip()
+        except Exception as e:
+            print(f"Failed to read platform from file {args.duckdb_platform_file}")
+            raise
+        if not PLATFORM:
+            raise Exception(f"Platform file passed to script is empty: {args.duckdb_platform_file}")
+    else:
+        raise Exception(f"Neither --duckdb-platform nor --duckdb-platform-file found, please specify the platform using either")
+
     # Then append the metadata to the tmp file
     print(f" - Metadata:")
     with open(OUTPUT_FILE_TMP, 'ab') as file:
@@ -67,8 +86,8 @@ def main():
         file.write(padded_byte_string(args.extension_version))
         print(f"   - FIELD3 (duckdb_version)    = {args.duckdb_version}")
         file.write(padded_byte_string(args.duckdb_version))
-        print(f"   - FIELD2 (duckdb_platform)   = {args.duckdb_platform}")
-        file.write(padded_byte_string(args.duckdb_platform))
+        print(f"   - FIELD2 (duckdb_platform)   = {PLATFORM}")
+        file.write(padded_byte_string(PLATFORM))
         print(f"   - FIELD1 (header signature)  = 4 (special value to identify a duckdb extension)")
         file.write(padded_byte_string("4"))
 

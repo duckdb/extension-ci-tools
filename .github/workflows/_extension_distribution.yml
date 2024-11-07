@@ -49,7 +49,7 @@ on:
       matrix_parse_script:
         required: false
         type: string
-        default: "./duckdb/scripts/modify_distribution_matrix.py"
+        default: "./extension-ci-tools/scripts/modify_distribution_matrix.py"
       # Enable building the DuckDB Shell
       build_duckdb_shell:
         required: false
@@ -76,11 +76,6 @@ on:
         required: false
         type: string
         default: ""
-      # If set, the setup will look for a script in `./scripts/custom-toolchain-script.sh` to run
-      custom_toolchain_script:
-        required: false
-        type: boolean
-        default: false
       rust_logs:
         required: false
         type: boolean
@@ -283,6 +278,8 @@ jobs:
           echo "OPENSSL_DIR=/duckdb_build_dir/build/release/vcpkg_installed/${{ matrix.vcpkg_triplet }}" >> docker_env.txt
           echo "OPENSSL_USE_STATIC_LIBS=true" >> docker_env.txt
           echo "DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}" >> docker_env.txt
+          echo "DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }}" >> docker_env.txt
+          echo "LINUX_CI_IN_DOCKER=1" >> docker_env.txt
           echo "TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}" >> docker_env.txt
 
       - name: Generate timestamp for Ccache entry
@@ -304,14 +301,35 @@ jobs:
           restore-keys: |
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
 
-      - name: Build extension
+      - name: Run configure (outside Docker)
+        shell: bash
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          LINUX_CI_IN_DOCKER: 0
+        run: |
+          make configure_ci
+
+      - name: Run configure (inside Docker)
+        shell: bash
+        run: |
+          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make configure_ci
+
+      - name: Build extension (inside Docker)
         run: |
           docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make release
 
-      - name: Test extension
+      - name: Test extension (inside docker)
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
         run: |
-          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make test
+          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make test_release
+
+      - name: Test extension (outside docker)
+        if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
+          LINUX_CI_IN_DOCKER: 0
+        run: |
+          make test_release
 
       - uses: actions/upload-artifact@v3
         with:
@@ -439,16 +457,15 @@ jobs:
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
-      - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script }}
+      - name: Run configure
         shell: bash
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
-          bash scripts/setup-custom-toolchain.sh
+          make configure_ci
 
       - name: Build extension
         shell: bash
-        env:
-          DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
         run: |
           make release
 
@@ -456,7 +473,7 @@ jobs:
         if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
         shell: bash
         run: |
-          make test
+          make test_release
 
       - uses: actions/upload-artifact@v3
         with:
@@ -583,21 +600,23 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
-      - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script }}
+      - name: Run configure
         shell: bash
+        env:
+          DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+          DUCKDB_PLATFORM_RTOOLS: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' && 1 || 0 }}
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
-          bash scripts/setup-custom-toolchain.sh
+          make configure_ci
 
       - name: Build extension
-        if: ${{ inputs.skip_tests == true }}
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' && 1 || 0 }}
         run: |
           make release
 
-      - name: Build & test extension
+      - name: Test extension
         if: ${{ inputs.skip_tests == false }}
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -701,11 +720,12 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
-      - name: Run custom toolchain script
-        if: ${{ inputs.custom_toolchain_script }}
+      - name: Run configure
         shell: bash
+        env:
+          DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
-          bash scripts/setup-custom-toolchain.sh
+          make configure_ci
 
       - name: Build Wasm module
         run: |
