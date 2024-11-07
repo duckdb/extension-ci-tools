@@ -39,7 +39,9 @@ def main():
 
     arg_parser.add_argument('-dv', '--duckdb-version', type=str, help='The DuckDB version to encode, depending on the ABI type '
                                                                'this encodes the duckdb version or the C API version', required=True)
-    arg_parser.add_argument('-ev', '--extension-version', type=str, help='The Extension version to encode', required=True)
+    arg_parser.add_argument('-ev', '--extension-version', type=str, help='The Extension version to encode')
+    arg_parser.add_argument('-evf', '--extension-version-file', type=str, help='The file containing the Extension version to encode')
+
     arg_parser.add_argument('--abi-type', type=str, help='The ABI type to encode, set to C_STRUCT by default', default='C_STRUCT')
 
     args = arg_parser.parse_args()
@@ -70,6 +72,23 @@ def main():
     else:
         raise Exception(f"Neither --duckdb-platform nor --duckdb-platform-file found, please specify the platform using either")
 
+    EXTENSION_VERSION = ""
+    if args.extension_version:
+        EXTENSION_VERSION = args.extension_version
+    elif args.extension_version_file:
+        try:
+            with open(args.extension_version_file, 'r') as file:
+                EXTENSION_VERSION = file.read().strip()
+        except Exception as e:
+            print(f"Failed to read extension version from file {args.extension_version_file}")
+            raise
+        if not EXTENSION_VERSION:
+            raise Exception(f"Extension version file passed to script is empty: {args.extension_version_file}")
+    else:
+        raise Exception(f"Neither --extension-version nor --extension-version-file found, please specify the extension version using either")
+
+
+
     # Then append the metadata to the tmp file
     print(f" - Metadata:")
     with open(OUTPUT_FILE_TMP, 'ab') as file:
@@ -82,8 +101,8 @@ def main():
         file.write(padded_byte_string(""))
         print(f"   - FIELD5 (abi_type)          = {args.abi_type}")
         file.write(padded_byte_string(args.abi_type))
-        print(f"   - FIELD4 (extension_version) = {args.extension_version}")
-        file.write(padded_byte_string(args.extension_version))
+        print(f"   - FIELD4 (extension_version) = {EXTENSION_VERSION}")
+        file.write(padded_byte_string(EXTENSION_VERSION))
         print(f"   - FIELD3 (duckdb_version)    = {args.duckdb_version}")
         file.write(padded_byte_string(args.duckdb_version))
         print(f"   - FIELD2 (duckdb_platform)   = {PLATFORM}")
