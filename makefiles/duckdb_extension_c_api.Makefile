@@ -87,8 +87,8 @@ configure/extension_version.txt:
 TEST_RUNNER=$(PYTHON_VENV_BIN) -m duckdb_sqllogictest
 
 TEST_RUNNER_BASE=$(TEST_RUNNER) --test-dir test/sql $(EXTRA_EXTENSIONS_PARAM)
-TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --external-extension build/debug/rusty_quack.duckdb_extension
-TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/rusty_quack.duckdb_extension
+TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --external-extension build/debug/$(EXTENSION_NAME).duckdb_extension
+TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/$(EXTENSION_NAME).duckdb_extension
 
 # By default latest duckdb is installed, set DUCKDB_TEST_VERSION to switch to a different version
 DUCKDB_INSTALL_VERSION?=
