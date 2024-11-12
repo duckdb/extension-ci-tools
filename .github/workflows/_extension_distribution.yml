@@ -100,6 +100,7 @@ on:
         required: false
         type: boolean
         default: false
+
 jobs:
   generate_matrix:
     name: Generate matrix
@@ -111,56 +112,19 @@ jobs:
       wasm_matrix: ${{ steps.set-matrix-wasm.outputs.wasm_matrix }}
     steps:
       - uses: actions/checkout@v4
-        name: Checkout override repository
-        if: ${{inputs.override_repository != ''}}
-        with:
-          repository: ${{ inputs.override_repository }}
-          ref: ${{ inputs.override_ref }}
-          fetch-depth: 0
-          submodules: 'true'
-
-      - uses: actions/checkout@v4
-        name: Checkout current repository
-        if: ${{inputs.override_repository == ''}}
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
-      - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
-        run: |
-          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
-
-      - name: Tag extension
-        if: ${{inputs.extension_tag != ''}}
-        run: |
-          git tag ${{ inputs.extension_tag }}
-
-      - name: Tag DuckDB extension
-        if: ${{inputs.duckdb_tag != '' && (inputs.duckdb_version == 'main' || inputs.duckdb_version[0] == 'v') }}
-        run: |
-          echo "When duckdb_tag is provied an explcit git ref is expected" && exit 1
-
-      - name: Tag DuckDB extension
-        if: ${{inputs.duckdb_tag != ''}}
-        run: |
-          DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
-
       - id: parse-matrices
         run: |
           mkdir build
-          make output_distribution_matrix | tail -n +2 > build/distribution_matrix.json
-          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os linux --output build/linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os osx --output build/osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
-          python3 ${{ inputs.matrix_parse_script }} --input build/distribution_matrix.json --select_os wasm --output build/wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux --output build/linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx --output build/osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm --output build/wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
 
       - id: set-matrix-linux
         run: |
