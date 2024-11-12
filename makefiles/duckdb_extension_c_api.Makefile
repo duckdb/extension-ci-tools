@@ -171,10 +171,10 @@ output_distribution_matrix:
 ifneq ($(DUCKDB_WASM_PLATFORM),)
 
 link_wasm_debug:
-	emcc build/debug/$(EXTENSION_LIB_FILENAME) -o build/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api" -v
+	emcc build/debug/$(EXTENSION_LIB_FILENAME) -o build/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
 
 link_wasm_release:
-	emcc build/release/$(EXTENSION_LIB_FILENAME) -o build/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api" -v
+	emcc build/release/$(EXTENSION_LIB_FILENAME) -o build/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
 
 else
 link_wasm_debug:
