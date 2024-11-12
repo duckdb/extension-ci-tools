@@ -52,7 +52,7 @@ platform: configure/platform.txt
 # Either autodetect or use the provided value
 PLATFORM_COMMAND?=
 ifeq ($(DUCKDB_PLATFORM),)
-    PLATFORM_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py --duckdb-platform
+	PLATFORM_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py --duckdb-platform
 else
 	# Sets the platform using DUCKDB_PLATFORM variable
 	PLATFORM_COMMAND=echo $(DUCKDB_PLATFORM) > configure/platform.txt
