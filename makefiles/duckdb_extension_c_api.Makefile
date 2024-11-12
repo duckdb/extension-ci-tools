@@ -41,6 +41,7 @@ ifeq ($(MINIMUM_DUCKDB_VERSION),)
 endif
 
 EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension
+EXTENSION_FILENAME_NO_METADATA=$(EXTENSION_LIB_FILENAME)
 
 #############################################
 ### Platform Detection
@@ -161,7 +162,7 @@ output_distribution_matrix:
 #############################################
 build_extension_with_metadata_debug: check_configure
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build/debug/$(EXTENSION_LIB_FILENAME) \
+			-l build/debug/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(MINIMUM_DUCKDB_VERSION) \
@@ -171,7 +172,7 @@ build_extension_with_metadata_debug: check_configure
 
 build_extension_with_metadata_release: check_configure
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build/release/$(EXTENSION_LIB_FILENAME) \
+			-l build/release/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(MINIMUM_DUCKDB_VERSION) \
