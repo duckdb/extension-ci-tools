@@ -17,9 +17,12 @@ ifneq ($(LOCAL_DUCKDB_RS_PATH),)
 	CARGO_OVERRIDE_DUCKDB_RS_FLAG=--config 'patch.crates-io.duckdb.path="$(LOCAL_DUCKDB_RS_PATH)/crates/duckdb"' --config 'patch.crates-io.libduckdb-sys.path="$(LOCAL_DUCKDB_RS_PATH)/crates/libduckdb-sys"' --config 'patch.crates-io.duckdb-loadable-macros-sys.path="$(LOCAL_DUCKDB_RS_PATH)/crates/duckdb-loadable-macros-sys"'
 endif
 
+IS_EXAMPLE=
+
 ifneq ($(DUCKDB_WASM_PLATFORM),)
 	TARGET=wasm32-unknown-emscripten
-	TARGET_INFO=--target $(TARGET)
+	TARGET_INFO=--target $(TARGET) --example $(EXTENSION_NAME)
+	IS_EXAMPLE=examples
 endif
 
 #############################################
@@ -29,12 +32,12 @@ endif
 build_extension_library_debug: check_configure
 	DUCKDB_EXTENSION_NAME=$(EXTENSION_NAME) DUCKDB_EXTENSION_MIN_DUCKDB_VERSION=$(MINIMUM_DUCKDB_VERSION) cargo build $(CARGO_OVERRIDE_DUCKDB_RS_FLAG) $(TARGET_INFO)
 	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/debug/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('target/$(TARGET)/debug/$(EXTENSION_LIB_FILENAME)', 'build/debug/$(EXTENSION_LIB_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('target/$(TARGET)/debug/$(IS_EXAMPLE)/$(EXTENSION_LIB_FILENAME)', 'build/debug/$(EXTENSION_LIB_FILENAME)')"
 
 build_extension_library_release: check_configure
 	DUCKDB_EXTENSION_NAME=$(EXTENSION_NAME) DUCKDB_EXTENSION_MIN_DUCKDB_VERSION=$(MINIMUM_DUCKDB_VERSION) cargo build $(CARGO_OVERRIDE_DUCKDB_RS_FLAG) --release $(TARGET_INFO)
 	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/release/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('target/$(TARGET)/release/$(EXTENSION_LIB_FILENAME)', 'build/release/$(EXTENSION_LIB_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('target/$(TARGET)/release/$(IS_EXAMPLE)/$(EXTENSION_LIB_FILENAME)', 'build/release/$(EXTENSION_LIB_FILENAME)')"
 
 #############################################
 ### Misc
