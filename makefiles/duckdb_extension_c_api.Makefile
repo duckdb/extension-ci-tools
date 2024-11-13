@@ -41,6 +41,15 @@ ifeq ($(MINIMUM_DUCKDB_VERSION),)
 endif
 
 EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension
+EXTENSION_FILENAME_NO_METADATA=$(EXTENSION_LIB_FILENAME)
+
+DUCKDB_WASM_PLATFORM=$(filter wasm_mvp wasm_eh wasm_threads,$(DUCKDB_PLATFORM))
+
+ifneq ($(DUCKDB_WASM_PLATFORM),)
+	EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension.wasm
+	EXTENSION_FILENAME_NO_METADATA=$(EXTENSION_NAME).no_metadata.wasm
+	EXTENSION_LIB_FILENAME=lib$(EXTENSION_NAME).a
+endif
 
 #############################################
 ### Platform Detection
@@ -52,7 +61,7 @@ platform: configure/platform.txt
 # Either autodetect or use the provided value
 PLATFORM_COMMAND?=
 ifeq ($(DUCKDB_PLATFORM),)
-    PLATFORM_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py --duckdb-platform
+	PLATFORM_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py --duckdb-platform
 else
 	# Sets the platform using DUCKDB_PLATFORM variable
 	PLATFORM_COMMAND=echo $(DUCKDB_PLATFORM) > configure/platform.txt
@@ -157,11 +166,28 @@ output_distribution_matrix:
 	cat extension-ci-tools/config/distribution_matrix.json
 
 #############################################
-### Building
+### Linking
 #############################################
-build_extension_with_metadata_debug: check_configure
+ifneq ($(DUCKDB_WASM_PLATFORM),)
+
+link_wasm_debug:
+	emcc build/debug/$(EXTENSION_LIB_FILENAME) -o build/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
+
+link_wasm_release:
+	emcc build/release/$(EXTENSION_LIB_FILENAME) -o build/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
+
+else
+link_wasm_debug:
+link_wasm_release:
+
+endif
+
+#############################################
+### Adding metadata
+#############################################
+build_extension_with_metadata_debug: check_configure link_wasm_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build/debug/$(EXTENSION_LIB_FILENAME) \
+			-l build/debug/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(MINIMUM_DUCKDB_VERSION) \
@@ -169,9 +195,9 @@ build_extension_with_metadata_debug: check_configure
 			-pf configure/platform.txt
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/debug/$(EXTENSION_FILENAME)', 'build/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
-build_extension_with_metadata_release: check_configure
+build_extension_with_metadata_release: check_configure link_wasm_release
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build/release/$(EXTENSION_LIB_FILENAME) \
+			-l build/release/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(MINIMUM_DUCKDB_VERSION) \
