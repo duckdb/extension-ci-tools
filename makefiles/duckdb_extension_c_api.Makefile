@@ -124,6 +124,14 @@ ifeq ($(DUCKDB_PLATFORM),linux_amd64)
 	SKIP_TESTS=1
 endif
 
+# The mingw/rtools can not be tested using the python test runner unfortunately
+ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
+	SKIP_TESTS=1
+endif
+ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
+	SKIP_TESTS=1
+endif
+
 ifeq ($(SKIP_TESTS),1)
 	TEST_RELEASE_TARGET=tests_skipped
 	TEST_DEBUG_TARGET=tests_skipped
