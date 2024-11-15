@@ -48,7 +48,7 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;rust;python3'
-      exclude_archs: 'windows_amd64_rtools;windows_amd64_mingw' # TODO: remove once fixed upstream
+      exclude_archs: 'windows_amd64_rtools;windows_amd64_mingw;wasm_threads' # TODO: remove once fixed upstream
 
   delta-extension-main:
     name: Rust builds (using Delta extension)
