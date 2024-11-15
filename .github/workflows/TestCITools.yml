@@ -24,6 +24,30 @@ jobs:
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3'
 
+  extension-template-capi:
+    name: Extension template (C API)
+    uses: ./.github/workflows/_extension_distribution.yml
+    with:
+      extension_name: capi_quack
+      override_repository: duckdb/extension-template-c
+      override_ref: main
+      duckdb_version: v1.1.3
+      override_ci_tools_repository: ${{ github.repository }}
+      ci_tools_version: ${{ github.sha }}
+      extra_toolchains: 'parser_tools;fortran;omp;go;python3'
+
+  extension-template-rust:
+    name: Extension template (Rust)
+    uses: ./.github/workflows/_extension_distribution.yml
+    with:
+      extension_name: rusty_quack
+      override_repository: duckdb/extension-template-rs
+      override_ref: main
+      duckdb_version: v1.1.3
+      override_ci_tools_repository: ${{ github.repository }}
+      ci_tools_version: ${{ github.sha }}
+      extra_toolchains: 'parser_tools;fortran;omp;go;rust;python3'
+
   delta-extension-main:
     name: Rust builds (using Delta extension)
     uses: ./.github/workflows/_extension_distribution.yml
