@@ -68,23 +68,40 @@ ifeq ($(MINGW),1)
 	EXTRA_COPY_STEP_RELEASE=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/release/Release').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/release/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_RELEASE)')"
 endif
 
+CMAKE_WRAPPER=
+EXTRA_CMAKE_FLAGS ?=
+
+ifneq ($(DUCKDB_WASM_PLATFORM),)
+	CMAKE_WRAPPER=emcmake
+	EXTRA_CMAKE_FLAGS += -DCMAKE_C_FLAGS="$(CMAKE_C_FLAGS) -fPIC"
+	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_eh')
+		EXTRA_CMAKE_FLAGS += -DCMAKE_CXX_FLAGS="$(CMAKE_CXX_FLAGS) -fPIC"
+	endif
+	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_eh')
+		EXTRA_CMAKE_FLAGS += -DCMAKE_CXX_FLAGS="$(CMAKE_CXX_FLAGS) -fPIC -fwasm-exceptions"
+	endif
+	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_threads')
+		EXTRA_CMAKE_FLAGS += -DCMAKE_CXX_FLAGS="$(CMAKE_CXX_FLAGS) -fPIC -fwasm-exceptions -DWITH_WASM_THREADS=1 -DWITH_WASM_SIMD=1 -DWITH_WASM_BULK_MEMORY=1 -pthread"
+	endif
+endif
+
 #############################################
 ### Build targets
 #############################################
 
 build_extension_library_debug: check_configure
-	cmake $(CMAKE_BUILD_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(PROJ_DIR) -B cmake_build/debug
-	cmake --build cmake_build/debug --config Debug
+	$(CMAKE_WRAPPER) cmake $(CMAKE_BUILD_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(PROJ_DIR) -B cmake_build/debug $(EXTRA_CMAKE_FLAGS)
+	cmake --build cmake_build/debug
 	$(EXTRA_COPY_STEP_DEBUG)
-	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/debug/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_DEBUG)', 'build/debug/$(EXTENSION_LIB_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_DEBUG)', 'build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_LIB_FILENAME)')"
 
 build_extension_library_release: check_configure
-	cmake $(CMAKE_BUILD_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(PROJ_DIR) -B cmake_build/release
-	cmake --build cmake_build/release --config Release
+	$(CMAKE_WRAPPER) cmake $(CMAKE_BUILD_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(PROJ_DIR) -B cmake_build/release $(EXTRA_CMAKE_FLAGS)
+	make -j8 -C cmake_build/release
 	$(EXTRA_COPY_STEP_RELEASE)
-	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/release/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_RELEASE)', 'build/release/$(EXTENSION_LIB_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_RELEASE)', 'build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_LIB_FILENAME)')"
 
 #############################################
 ### Misc
