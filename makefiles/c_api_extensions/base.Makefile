@@ -255,4 +255,4 @@ wasm_eh:
 	DUCKDB_PLATFORM=wasm_eh make configure release move_wasm_extension
 
 wasm_threads:
-	DUCKDB_PLATFORM=wasm_coi make configure release move_wasm_extension
+	DUCKDB_PLATFORM=wasm_threads make configure release move_wasm_extension
