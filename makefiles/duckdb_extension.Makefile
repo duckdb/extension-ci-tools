@@ -1,4 +1,4 @@
-# Reusable makefile for building out-of-tree extension with the DuckDB extension template
+# Reusable makefile for building out-of-tree extension with the DuckDB C++ based extension template
 #
 # Inputs
 #   EXT_NAME          : Upper case string describing the name of the out-of-tree extension
@@ -6,8 +6,9 @@
 #   EXT_FLAGS         : Extra CMake flags to pass to the build
 #   EXT_RELEASE_FLAGS : Extra CMake flags to pass to the release build
 #   EXT_DEBUG_FLAGS   : Extra CMake flags to pass to the debug build
+#   SKIP_TESTS        : Replaces all test targets with a NOP step
 
-.PHONY: all clean format debug release pull update wasm_mvp wasm_eh wasm_threads
+.PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
 
 all: release
 
@@ -78,14 +79,34 @@ reldebug:
 # Main tests
 test: test_release
 
-test_release: release
+TEST_RELEASE_TARGET=test_release_internal
+TEST_DEBUG_TARGET=test_debug_internal
+TEST_RELDEBUG_TARGET=test_reldebug_internal
+
+# Disable testing outside docker: the unittester is currently dynamically linked by default
+ifeq ($(LINUX_CI_IN_DOCKER),0)
+	SKIP_TESTS=1
+endif
+
+ifeq ($(SKIP_TESTS),1)
+	TEST_RELEASE_TARGET=tests_skipped
+	TEST_DEBUG_TARGET=tests_skipped
+	TEST_RELDEBUG_TARGET=tests_skipped
+endif
+
+test_release: $(TEST_RELEASE_TARGET)
+test_debug: $(TEST_DEBUG_TARGET)
+test_reldebug: $(TEST_RELDEBUG_TARGET)
+
+test_release_internal:
 	./build/release/$(TEST_PATH) "$(PROJ_DIR)test/*"
-
-test_debug: debug
+test_debug_internal:
 	./build/debug/$(TEST_PATH) "$(PROJ_DIR)test/*"
-
-test_reldebug: reldebug
+test_reldebug_internal:
 	./build/reldebug/$(TEST_PATH) "$(PROJ_DIR)test/*"
+
+tests_skipped:
+	@echo "Tests are skipped in this run..."
 
 # WASM config
 VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
@@ -138,3 +159,6 @@ set_duckdb_tag:
 
 output_distribution_matrix:
 	cat duckdb/.github/config/distribution_matrix.json
+
+configure_ci:
+	@echo "configure_ci step is skipped for this extension build..."

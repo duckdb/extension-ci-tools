@@ -33,10 +33,15 @@ def main():
 
     arg_parser.add_argument('-o', '--out-file', type=str, help='Explicit path for the output file', default='')
 
-    arg_parser.add_argument('-p', '--duckdb-platform', type=str, help='The DuckDB platform to encode', required=True)
+    # The platform
+    arg_parser.add_argument('-p', '--duckdb-platform', type=str, help='The DuckDB platform to encode')
+    arg_parser.add_argument('-pf', '--duckdb-platform-file', type=str, help='The file containing the DuckDB platform to encode')
+
     arg_parser.add_argument('-dv', '--duckdb-version', type=str, help='The DuckDB version to encode, depending on the ABI type '
                                                                'this encodes the duckdb version or the C API version', required=True)
-    arg_parser.add_argument('-ev', '--extension-version', type=str, help='The Extension version to encode', required=True)
+    arg_parser.add_argument('-ev', '--extension-version', type=str, help='The Extension version to encode')
+    arg_parser.add_argument('-evf', '--extension-version-file', type=str, help='The file containing the Extension version to encode')
+
     arg_parser.add_argument('--abi-type', type=str, help='The ABI type to encode, set to C_STRUCT by default', default='C_STRUCT')
 
     args = arg_parser.parse_args()
@@ -51,6 +56,39 @@ def main():
     print(f" - Output file: {OUTPUT_FILE}")
     shutil.copyfile(args.library_file, OUTPUT_FILE_TMP)
 
+    # Handle the platform
+    PLATFORM = ""
+    if args.duckdb_platform:
+        PLATFORM = args.duckdb_platform
+    elif args.duckdb_platform_file:
+        try:
+            with open(args.duckdb_platform_file, 'r') as file:
+                PLATFORM = file.read().strip()
+        except Exception as e:
+            print(f"Failed to read platform from file {args.duckdb_platform_file}")
+            raise
+        if not PLATFORM:
+            raise Exception(f"Platform file passed to script is empty: {args.duckdb_platform_file}")
+    else:
+        raise Exception(f"Neither --duckdb-platform nor --duckdb-platform-file found, please specify the platform using either")
+
+    EXTENSION_VERSION = ""
+    if args.extension_version:
+        EXTENSION_VERSION = args.extension_version
+    elif args.extension_version_file:
+        try:
+            with open(args.extension_version_file, 'r') as file:
+                EXTENSION_VERSION = file.read().strip()
+        except Exception as e:
+            print(f"Failed to read extension version from file {args.extension_version_file}")
+            raise
+        if not EXTENSION_VERSION:
+            raise Exception(f"Extension version file passed to script is empty: {args.extension_version_file}")
+    else:
+        raise Exception(f"Neither --extension-version nor --extension-version-file found, please specify the extension version using either")
+
+
+
     # Then append the metadata to the tmp file
     print(f" - Metadata:")
     with open(OUTPUT_FILE_TMP, 'ab') as file:
@@ -63,12 +101,12 @@ def main():
         file.write(padded_byte_string(""))
         print(f"   - FIELD5 (abi_type)          = {args.abi_type}")
         file.write(padded_byte_string(args.abi_type))
-        print(f"   - FIELD4 (extension_version) = {args.extension_version}")
-        file.write(padded_byte_string(args.extension_version))
+        print(f"   - FIELD4 (extension_version) = {EXTENSION_VERSION}")
+        file.write(padded_byte_string(EXTENSION_VERSION))
         print(f"   - FIELD3 (duckdb_version)    = {args.duckdb_version}")
         file.write(padded_byte_string(args.duckdb_version))
-        print(f"   - FIELD2 (duckdb_platform)   = {args.duckdb_platform}")
-        file.write(padded_byte_string(args.duckdb_platform))
+        print(f"   - FIELD2 (duckdb_platform)   = {PLATFORM}")
+        file.write(padded_byte_string(PLATFORM))
         print(f"   - FIELD1 (header signature)  = 4 (special value to identify a duckdb extension)")
         file.write(padded_byte_string("4"))
 

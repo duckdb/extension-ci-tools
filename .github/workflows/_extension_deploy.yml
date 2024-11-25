@@ -18,6 +18,16 @@ on:
       duckdb_version:
         required: true
         type: string
+      # The version of the https://github.com/duckdb/extension-ci-tools submodule of the extension. In most cases will be identical to `duckdb_version`.
+      # Passing this explicitly is required because of https://github.com/actions/toolkit/issues/1264
+      ci_tools_version:
+        required: true
+        type: string
+      # Override the repo for the CI tools (for testing CI tools itself)
+      override_ci_tools_repository:
+        required: false
+        type: string
+        default: "duckdb/extension-ci-tools"
       # ';' separated list of architectures to exclude, for example: 'linux_amd64;osx_arm64'
       exclude_archs:
         required: false
@@ -47,7 +57,7 @@ on:
       matrix_parse_script:
         required: false
         type: string
-        default: "./duckdb/scripts/modify_distribution_matrix.py"
+        default: "./extension-ci-tools/scripts/modify_distribution_matrix.py"
 
 jobs:
   generate_matrix:
@@ -57,18 +67,15 @@ jobs:
       deploy_matrix: ${{ steps.parse-matrices.outputs.deploy_matrix }}
     steps:
       - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
         with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Checkout DuckDB to version
-        run: |
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.ci_tools_version }}
+          repository: ${{ inputs.override_ci_tools_repository }}
 
       - id: parse-matrices
         run: |
-          python3 ${{ inputs.matrix_parse_script }} --input ./duckdb/.github/config/distribution_matrix.json --deploy_matrix --output deploy_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --deploy_matrix --output deploy_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
           deploy_matrix="`cat deploy_matrix.json`"
           echo deploy_matrix=$deploy_matrix >> $GITHUB_OUTPUT
           echo `cat $GITHUB_OUTPUT`
@@ -92,7 +99,7 @@ jobs:
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}${{startsWith(matrix.duckdb, 'wasm') && '.wasm' || ''}}
           path: |
