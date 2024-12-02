@@ -64,17 +64,17 @@ BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EX
 debug:
 	mkdir -p  build/debug
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/debug
-	cmake --build build/debug --config Debug
+	cmake --build build/debug -j`nproc` --config Debug
 
 release:
 	mkdir -p build/release
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(DUCKDB_SRCDIR) -B build/release
-	cmake --build build/release --config Release
+	cmake --build build/release -j`nproc` --config Release
 
 reldebug:
 	mkdir -p build/reldebug
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(DUCKDB_SRCDIR) -B build/reldebug
-	cmake --build build/reldebug
+	cmake --build build/reldebug -j`nproc`
 
 # Main tests
 test: test_release
