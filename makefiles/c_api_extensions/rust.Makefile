@@ -30,12 +30,12 @@ endif
 #############################################
 
 build_extension_library_debug: check_configure
-	DUCKDB_EXTENSION_NAME=$(EXTENSION_NAME) DUCKDB_EXTENSION_MIN_DUCKDB_VERSION=$(MINIMUM_DUCKDB_VERSION) cargo build $(CARGO_OVERRIDE_DUCKDB_RS_FLAG) $(TARGET_INFO)
+	DUCKDB_EXTENSION_NAME=$(EXTENSION_NAME) DUCKDB_EXTENSION_MIN_DUCKDB_VERSION=$(TARGET_DUCKDB_VERSION) cargo build $(CARGO_OVERRIDE_DUCKDB_RS_FLAG) $(TARGET_INFO)
 	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('target/$(TARGET)/debug/$(IS_EXAMPLE)/$(EXTENSION_LIB_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_LIB_FILENAME)')"
 
 build_extension_library_release: check_configure
-	DUCKDB_EXTENSION_NAME=$(EXTENSION_NAME) DUCKDB_EXTENSION_MIN_DUCKDB_VERSION=$(MINIMUM_DUCKDB_VERSION) cargo build $(CARGO_OVERRIDE_DUCKDB_RS_FLAG) --release $(TARGET_INFO)
+	DUCKDB_EXTENSION_NAME=$(EXTENSION_NAME) DUCKDB_EXTENSION_MIN_DUCKDB_VERSION=$(TARGET_DUCKDB_VERSION) cargo build $(CARGO_OVERRIDE_DUCKDB_RS_FLAG) --release $(TARGET_INFO)
 	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./build/$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('target/$(TARGET)/release/$(IS_EXAMPLE)/$(EXTENSION_LIB_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_LIB_FILENAME)')"
 

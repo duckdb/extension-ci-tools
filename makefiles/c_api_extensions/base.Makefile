@@ -2,7 +2,8 @@
 #
 # Inputs
 #   EXTENSION_NAME         : name of the extension (lower case)
-#   MINIMUM_DUCKDB_VERSION : the minimum version of DuckDB that the extension supports
+#   TARGET_DUCKDB_VERSION         : the target version of DuckDB that the extension supports
+# 	USE_UNSTABLE_C_API     : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   EXTENSION_VERSION      : the version of the extension, if left blank it will be autodetected
 #   DUCKDB_PLATFORM        : the platform of the extension, if left blank it will be autodetected
 #   DUCKDB_TEST_VERSION    : the version of DuckDB to test with, if left blank will default to latest stable on PyPi
@@ -35,9 +36,9 @@ endif
 ### Main extension parameters
 #############################################
 
-# The minimum DuckDB version that this extension supports
-ifeq ($(MINIMUM_DUCKDB_VERSION),)
-	MINIMUM_DUCKDB_VERSION = v0.0.1
+# The target DuckDB version
+ifeq ($(TARGET_DUCKDB_VERSION),)
+	TARGET_DUCKDB_VERSION = v0.0.1
 endif
 
 EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension
@@ -193,14 +194,19 @@ endif
 #############################################
 ### Adding metadata
 #############################################
+UNSTABLE_C_API_FLAG=
+ifeq ($(USE_UNSTABLE_C_API),1)
+	UNSTABLE_C_API_FLAG+=--abi-type C_STRUCT_UNSTABLE
+endif
+
 build_extension_with_metadata_debug: check_configure link_wasm_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
 			-l build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
-			-dv $(MINIMUM_DUCKDB_VERSION) \
+			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
-			-pf configure/platform.txt
+			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 build_extension_with_metadata_release: check_configure link_wasm_release
@@ -208,9 +214,9 @@ build_extension_with_metadata_release: check_configure link_wasm_release
 			-l build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
-			-dv $(MINIMUM_DUCKDB_VERSION) \
+			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
-			-pf configure/platform.txt
+			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 #############################################

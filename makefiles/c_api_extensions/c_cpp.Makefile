@@ -3,10 +3,11 @@
 # Inputs
 #   EXTENSION_NAME               : name of the extension (lower case)
 #   EXTENSION_LIB_FILENAME       : the library name that is produced by the build
-#	MINIMUM_DUCKDB_VERSION       : full version tag (including v)
-#	MINIMUM_DUCKDB_VERSION_MAJOR : major version
-#	MINIMUM_DUCKDB_VERSION_MINOR : minor version
-#	MINIMUM_DUCKDB_VERSION_PATCH : patch version
+# 	USE_UNSTABLE_C_API           : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
+#	TARGET_DUCKDB_VERSION        : full version tag (including v)
+#	TARGET_DUCKDB_VERSION_MAJOR  : target major version
+#	TARGET_DUCKDB_VERSION_MINOR  : target minor version
+#	TARGET_DUCKDB_VERSION_PATCH  : target patch version
 #	CMAKE_EXTRA_BUILD_FLAGS      : additional CMake flags to pass
 #	VCPKG_TOOLCHAIN_PATH         : path to vcpkg toolchain
 #	VCPKG_TARGET_TRIPLET         : vcpkg triplet to override
@@ -20,9 +21,13 @@
 
 # Create build params to pass name and version
 CMAKE_VERSION_PARAMS = -DEXTENSION_NAME=$(EXTENSION_NAME)
-CMAKE_VERSION_PARAMS += -DMINIMUM_DUCKDB_VERSION_MAJOR=$(MINIMUM_DUCKDB_VERSION_MAJOR)
-CMAKE_VERSION_PARAMS += -DMINIMUM_DUCKDB_VERSION_MINOR=$(MINIMUM_DUCKDB_VERSION_MINOR)
-CMAKE_VERSION_PARAMS += -DMINIMUM_DUCKDB_VERSION_PATCH=$(MINIMUM_DUCKDB_VERSION_PATCH)
+CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MAJOR=$(TARGET_DUCKDB_VERSION_MAJOR)
+CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MINOR=$(TARGET_DUCKDB_VERSION_MINOR)
+CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_PATCH=$(TARGET_DUCKDB_VERSION_PATCH)
+
+ifeq ($(USE_UNSTABLE_C_API),1)
+	CMAKE_VERSION_PARAMS += -DDUCKDB_EXTENSION_API_VERSION_UNSTABLE=$(TARGET_DUCKDB_VERSION)
+endif
 
 CMAKE_BUILD_FLAGS = $(CMAKE_VERSION_PARAMS) $(CMAKE_EXTRA_BUILD_FLAGS)
 
@@ -89,7 +94,7 @@ build_extension_library_release: check_configure
 #############################################
 ### Misc
 #############################################
-# TODO: switch this to use the $(MINIMUM_DUCKDB_VERSION) after v1.2.0 is released
+# TODO: switch this to use the $(TARGET_DUCKDB_VERSION) after v1.2.0 is released
 BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/main/src/include
 DUCKDB_C_HEADER_URL=$(BASE_HEADER_URL)/duckdb.h
 DUCKDB_C_EXTENSION_HEADER_URL=$(BASE_HEADER_URL)/duckdb_extension.h
