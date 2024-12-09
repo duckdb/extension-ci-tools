@@ -38,7 +38,4 @@ jobs:
       - name: Format Check
         shell: bash
         run: |
-          clang-format --version
-          clang-format --dump-config
-          black --version
           make format-check
