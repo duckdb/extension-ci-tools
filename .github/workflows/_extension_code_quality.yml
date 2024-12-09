@@ -34,15 +34,7 @@ jobs:
         shell: bash
         run: pip3 freeze
 
-      # Step 4: Debugging: List submodule content
-      - name: Debug Submodule Content
-        shell: bash
-        run: |
-          pwd
-          ls -la
-          ls -la extension-ci-tools
-
-      # Step 5: Run Format Check
+      # Step 4: Run Format Check
       - name: Format Check
         shell: bash
         run: |
