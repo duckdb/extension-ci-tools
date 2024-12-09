@@ -140,9 +140,19 @@ format:
 
 format-check:
 	@echo "Checking formatting..."
-	@find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -output-replacements-xml | grep -q "<replacement " \
-		&& (echo "Formatting issues found. Run 'make format' to fix them." && exit 1) || echo "Formatting is correct."
-	@cmake-format --check CMakeLists.txt || (echo "Formatting issues found. Run 'make format' to fix them." && exit 1)
+	@if find src/ -iname "*.hpp" -o -iname "*.cpp" | xargs clang-format --sort-includes=0 -style=file -output-replacements-xml | grep -q "<replacement "; then \
+		echo "Formatting issues found in source files. Run 'make format' to fix them."; \
+		exit 1; \
+	else \
+		echo "No formatting issues in source files."; \
+	fi
+	@if ! cmake-format --check CMakeLists.txt; then \
+		echo "Formatting issues found in CMakeLists.txt. Run 'make format' to fix them."; \
+		exit 1; \
+	else \
+		echo "No formatting issues in CMakeLists.txt."; \
+	fi
+	@echo "All formatting checks passed successfully."
 
 update:
 	git submodule update --remote --merge
