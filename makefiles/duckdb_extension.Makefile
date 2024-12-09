@@ -132,10 +132,18 @@ wasm_threads:
 	emmake make -j8 -Cbuild/wasm_threads
 
 #### Misc
+# Rule to fix formatting
 format:
+	@echo "Fixing formatting issues..."
 	find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -i
 	cmake-format -i CMakeLists.txt
 
+# Rule to check formatting without modifying files
+format-check:
+	@echo "Checking formatting..."
+	@find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -output-replacements-xml | grep -q "<replacement " \
+		&& (echo "Formatting issues found. Run 'make format' to fix them." && exit 1) || echo "Formatting is correct."
+	@cmake-format --check CMakeLists.txt || (echo "Formatting issues found. Run 'make format' to fix them." && exit 1)
 update:
 	git submodule update --remote --merge
 
