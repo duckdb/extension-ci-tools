@@ -136,6 +136,9 @@ wasm_threads:
 format:
 	python scripts/format.py
 
+format-fix:
+	python3 scripts/format.py --all --fix --noconfirm
+
 update:
 	git submodule update --remote --merge
 
