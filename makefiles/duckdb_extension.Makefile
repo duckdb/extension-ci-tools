@@ -136,6 +136,9 @@ wasm_threads:
 format-check:
 	python scripts/format_extension.py
 
+format-check-silent:
+	python3 scripts/format_extension.py --all --check --silent
+
 format-fix:
 	python3 scripts/format_extension.py --all --fix --noconfirm
 
