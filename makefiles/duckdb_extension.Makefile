@@ -134,25 +134,7 @@ wasm_threads:
 #### Misc
 # Rule to fix formatting
 format:
-	@echo "Fixing formatting issues..."
-	find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -i
-	cmake-format -i CMakeLists.txt
-
-format-check:
-	@echo "Checking formatting..."
-	@if find src/ -iname "*.hpp" -o -iname "*.cpp" | xargs clang-format --sort-includes=0 -style=file -output-replacements-xml | grep -q "<replacement "; then \
-		echo "Formatting issues found in source files. Run 'make format' to fix them."; \
-		exit 1; \
-	else \
-		echo "No formatting issues in source files."; \
-	fi
-	@if ! cmake-format --check CMakeLists.txt; then \
-		echo "Formatting issues found in CMakeLists.txt. Run 'make format' to fix them."; \
-		exit 1; \
-	else \
-		echo "No formatting issues in CMakeLists.txt."; \
-	fi
-	@echo "All formatting checks passed successfully."
+	python scripts/format.py
 
 update:
 	git submodule update --remote --merge
