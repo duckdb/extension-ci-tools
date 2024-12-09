@@ -1,33 +1,11 @@
 name: CodeQuality
+
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       explicit_checks:
+        required: false
         type: string
-  repository_dispatch:
-  push:
-    branches:
-      - '**'
-      - '!main'
-      - '!feature'
-    paths-ignore:
-      - '**.md'
-      - '.github/workflows/**'
-      - '!.extension-ci-tools/workflows/**'
-
-  pull_request:
-    types: [opened, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - '.github/workflows/**'
-      - '!.extension-ci-tools/workflows/**'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
-  cancel-in-progress: true
-
-env:
-  GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
   format-check:
