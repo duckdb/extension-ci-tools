@@ -133,7 +133,7 @@ wasm_threads:
 
 #### Misc
 # Rule to fix formatting
-format:
+format-check:
 	python scripts/format_extension.py
 
 format-fix:

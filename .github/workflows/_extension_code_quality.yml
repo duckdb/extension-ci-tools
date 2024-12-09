@@ -38,4 +38,4 @@ jobs:
       - name: Format Check
         shell: bash
         run: |
-          make format-fix
+          make format-check
