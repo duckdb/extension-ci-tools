@@ -37,4 +37,5 @@ jobs:
           clang-format --dump-config
           black --version
           pwd 
+          ls
           make format
