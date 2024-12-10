@@ -137,10 +137,10 @@ format-check:
 	python extension-ci-tools/scripts/format_extension.py
 
 format-check-silent:
-	python3 extension-ci-tools/scripts/format_extension.py --all --check --silent
+	python extension-ci-tools/scripts/format_extension.py --all --check --silent
 
 format-fix:
-	python3 extension-ci-tools/scripts/format_extension.py --all --fix --noconfirm
+	python extension-ci-tools/scripts/format_extension.py --all --fix --noconfirm
 
 update:
 	git submodule update --remote --merge
