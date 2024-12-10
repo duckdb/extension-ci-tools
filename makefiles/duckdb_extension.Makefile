@@ -132,9 +132,15 @@ wasm_threads:
 	emmake make -j8 -Cbuild/wasm_threads
 
 #### Misc
-format:
-	find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -i
-	cmake-format -i CMakeLists.txt
+# Rule to fix formatting
+format-check:
+	python extension-ci-tools/scripts/format_extension.py
+
+format-check-silent:
+	python extension-ci-tools/scripts/format_extension.py --all --check --silent
+
+format-fix:
+	python extension-ci-tools/scripts/format_extension.py --all --fix --noconfirm
 
 update:
 	git submodule update --remote --merge
