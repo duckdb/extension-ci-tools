@@ -10,7 +10,14 @@ import subprocess
 import difflib
 import re
 import concurrent.futures
-from python_helpers import open_utf8
+
+def open_utf8(fpath, flags):
+    import sys
+
+    if sys.version_info[0] < 3:
+        return open(fpath, flags)
+    else:
+        return open(fpath, flags, encoding="utf8")
 
 try:
     ver = subprocess.check_output(('black', '--version'), text=True)
@@ -311,7 +318,6 @@ def format_file(f, full_path, directory, ext):
     if file_is_generated(old_text) and ext != '.py':
         return
     old_lines = old_text.split('\n')
-
     new_text = get_formatted_text(f, full_path, directory, ext)
     if ext in ('.cpp', '.hpp'):
         new_text = new_text.replace('ARGS &&...args', 'ARGS &&... args')
