@@ -56,6 +56,8 @@ jobs:
           clang-format --version
           clang-format --dump-config
           black --version
+          ls
+          pwd
           make format-check-silent
 
       - name: Generated Check
