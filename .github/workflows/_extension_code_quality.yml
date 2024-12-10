@@ -6,8 +6,9 @@ on:
       explicit_checks:
         required: false
         type: string
-      # The version of the https://github.com/duckdb/extension-ci-tools submodule of the extension. In most cases will be identical to `duckdb_version`.
-      # Passing this explicitly is required because of https://github.com/actions/toolkit/issues/1264
+      duckdb_version:
+        required: true
+        type: string
       ci_tools_version:
         required: true
         type: string
@@ -16,6 +17,15 @@ on:
         required: false
         type: string
         default: "duckdb/extension-ci-tools"
+      override_repository:
+        required: false
+        type: string
+        default: ""
+      # The git ref used for the override_repository
+      override_ref:
+        required: false
+        type: string
+        default: ""
 
 
 jobs:
@@ -30,7 +40,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        name: Checkout override repository
+        if: ${{inputs.override_repository != ''}}
+        with:
+          repository: ${{ inputs.override_repository }}
+          ref: ${{ inputs.override_ref }}
+          fetch-depth: 0
+          submodules: 'true'
+
+      - uses: actions/checkout@v4
         name: Checkout current repository
+        if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'true'
@@ -41,6 +61,11 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Checkout DuckDB to version
+        if: ${{inputs.duckdb_version != ''}}
+        run: |
+          DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Install
         shell: bash
