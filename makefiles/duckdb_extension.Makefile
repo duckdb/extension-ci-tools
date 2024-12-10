@@ -134,13 +134,13 @@ wasm_threads:
 #### Misc
 # Rule to fix formatting
 format-check:
-	python scripts/format_extension.py
+	python extension-ci-tools/scripts/format_extension.py
 
 format-check-silent:
-	python3 scripts/format_extension.py --all --check --silent
+	python3 extension-ci-tools/scripts/format_extension.py --all --check --silent
 
 format-fix:
-	python3 scripts/format_extension.py --all --fix --noconfirm
+	python3 extension-ci-tools/scripts/format_extension.py --all --fix --noconfirm
 
 update:
 	git submodule update --remote --merge
