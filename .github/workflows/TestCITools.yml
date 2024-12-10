@@ -67,4 +67,4 @@ jobs:
     uses: ./.github/workflows/_extension_code_quality.yml
     with:
       override_ci_tools_repository: "dtenwolde/extension-ci-tools"
-      ci_tools_version: ${{ github.sha }}
+      ci_tools_version: main
