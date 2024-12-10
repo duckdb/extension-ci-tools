@@ -81,7 +81,6 @@ jobs:
           clang-format --version
           clang-format --dump-config
           black --version
-          cat makefiles/duckdb_extension.Makefile
           make format-check-silent
 
       - name: Generated Check
