@@ -6,6 +6,17 @@ on:
       explicit_checks:
         required: false
         type: string
+      # The version of the https://github.com/duckdb/extension-ci-tools submodule of the extension. In most cases will be identical to `duckdb_version`.
+      # Passing this explicitly is required because of https://github.com/actions/toolkit/issues/1264
+      ci_tools_version:
+        required: true
+        type: string
+      # Override the repo for the CI tools (for testing CI tools itself)
+      override_ci_tools_repository:
+        required: false
+        type: string
+        default: "duckdb/extension-ci-tools"
+
 
 jobs:
   format-check:

@@ -66,5 +66,5 @@ jobs:
     name: Code quality check
     uses: ./.github/workflows/_extension_code_quality.yml
     with:
-      override_ci_tools_repository: ${{ github.repository }}
+      override_ci_tools_repository: "dtenwolde/extension-ci-tools"
       ci_tools_version: ${{ github.sha }}
