@@ -211,13 +211,13 @@ endif
 
 build_extension_with_metadata_debug: check_configure link_wasm_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
-			-o build$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME) \
+			-l build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
+			-o build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME)', 'build$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 build_extension_with_metadata_release: check_configure link_wasm_release
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
@@ -227,7 +227,7 @@ build_extension_with_metadata_release: check_configure link_wasm_release
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME)', 'build$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 #############################################
 ### Python

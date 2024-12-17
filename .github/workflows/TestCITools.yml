@@ -29,9 +29,9 @@ jobs:
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: capi_quack
-      override_repository: duckdb/extension-template-c
-      override_ref: main
-      duckdb_version: v1.1.3
+      override_repository: samansmink/extension-template-c
+      override_ref: prepare-for-v1.2.0
+      duckdb_version: main
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
@@ -43,7 +43,7 @@ jobs:
       extension_name: rusty_quack
       override_repository: duckdb/extension-template-rs
       override_ref: main
-      duckdb_version: v1.1.3
+      duckdb_version: main
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
