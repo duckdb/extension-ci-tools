@@ -2,7 +2,7 @@
 #
 # Inputs
 #   EXTENSION_NAME         : name of the extension (lower case)
-#   TARGET_DUCKDB_VERSION         : the target version of DuckDB that the extension supports
+#   TARGET_DUCKDB_VERSION  : the target version of DuckDB that the extension supports
 # 	USE_UNSTABLE_C_API     : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   EXTENSION_VERSION      : the version of the extension, if left blank it will be autodetected
 #   DUCKDB_PLATFORM        : the platform of the extension, if left blank it will be autodetected
@@ -88,6 +88,16 @@ extension_version: configure/extension_version.txt
 
 configure/extension_version.txt:
 	@ $(VERSION_COMMAND)
+
+#############################################
+### Parse DuckDB Semver
+#############################################
+
+# Either autodetect or use the provided value
+PARSE_SEMVER_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py -s $(TARGET_DUCKDB_VERSION)
+
+parse_duckdb_version:
+	@ $(PARSE_SEMVER_COMMAND)
 
 #############################################
 ### Testing
@@ -201,23 +211,23 @@ endif
 
 build_extension_with_metadata_debug: check_configure link_wasm_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
-			-o build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME) \
+			-l build$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
+			-o build$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME)', 'build$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 build_extension_with_metadata_release: check_configure link_wasm_release
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME_NO_METADATA) \
-			-o build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME) \
+			-l build$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME_NO_METADATA) \
+			-o build$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME)', 'build$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 #############################################
 ### Python
@@ -231,6 +241,7 @@ configure/venv:
 	$(PYTHON_BIN) -m venv configure/venv
 	$(PYTHON_VENV_BIN) -m pip install 'duckdb$(DUCKDB_INSTALL_VERSION)'
 	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python
+	$(PYTHON_VENV_BIN) -m pip install packaging
 
 #############################################
 ### Configure

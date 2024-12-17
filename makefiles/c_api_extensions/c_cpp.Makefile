@@ -4,10 +4,7 @@
 #   EXTENSION_NAME               : name of the extension (lower case)
 #   EXTENSION_LIB_FILENAME       : the library name that is produced by the build
 # 	USE_UNSTABLE_C_API           : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
-#	TARGET_DUCKDB_VERSION        : full version tag (including v)
-#	TARGET_DUCKDB_VERSION_MAJOR  : target major version
-#	TARGET_DUCKDB_VERSION_MINOR  : target minor version
-#	TARGET_DUCKDB_VERSION_PATCH  : target patch version
+#	TARGET_DUCKDB_VERSION        : full version
 #	CMAKE_EXTRA_BUILD_FLAGS      : additional CMake flags to pass
 #	VCPKG_TOOLCHAIN_PATH         : path to vcpkg toolchain
 #	VCPKG_TARGET_TRIPLET         : vcpkg triplet to override
@@ -19,11 +16,27 @@
 ### Base config
 #############################################
 
+# Get parsed SemVer for Stable C API
+FILE_MAJOR := ./configure/duckdb_version_major.txt
+FILE_MINOR := ./configure/duckdb_version_minor.txt
+FILE_PATCH := ./configure/duckdb_version_patch.txt
+MAJOR_VERSION := $(file < $(FILE_MAJOR))
+MINOR_VERSION := $(file < $(FILE_MINOR))
+PATCH_VERSION := $(file < $(FILE_PATCH))
+
 # Create build params to pass name and version
 CMAKE_VERSION_PARAMS = -DEXTENSION_NAME=$(EXTENSION_NAME)
-CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MAJOR=$(TARGET_DUCKDB_VERSION_MAJOR)
-CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MINOR=$(TARGET_DUCKDB_VERSION_MINOR)
-CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_PATCH=$(TARGET_DUCKDB_VERSION_PATCH)
+
+# Set the parsed semver defines
+ifneq ($(MAJOR_VERSION),)
+	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MAJOR=$(MAJOR_VERSION)
+endif
+ifneq ($(MINOR_VERSION),)
+	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MINOR=$(MINOR_VERSION)
+endif
+ifneq ($(PATCH_VERSION),)
+	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_PATCH=$(PATCH_VERSION)
+endif
 
 ifeq ($(USE_UNSTABLE_C_API),1)
 	CMAKE_VERSION_PARAMS += -DDUCKDB_EXTENSION_API_VERSION_UNSTABLE=$(TARGET_DUCKDB_VERSION)
