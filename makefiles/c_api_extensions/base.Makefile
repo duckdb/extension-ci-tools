@@ -111,13 +111,17 @@ TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --external-extension build/debug/$(EXTENSI
 TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/$(EXTENSION_NAME).duckdb_extension
 
 # By default latest duckdb is installed, set DUCKDB_TEST_VERSION to switch to a different version
-DUCKDB_INSTALL_VERSION?=
+DUCKDB_PIP_INSTALL?=
 ifneq ($(DUCKDB_TEST_VERSION),)
-	DUCKDB_INSTALL_VERSION===$(DUCKDB_TEST_VERSION)
+	DUCKDB_PIP_INSTALL=duckdb==$(DUCKDB_TEST_VERSION)
 endif
 
-ifneq ($(DUCKDB_GIT_VERSION),)
-	DUCKDB_INSTALL_VERSION===$(DUCKDB_GIT_VERSION)
+# This allows C API extensions to be tested against a prerelease of DuckDB. This only really makes sense when DuckDB already
+# has stabilized the C API for the upcoming release.
+ifeq ($(DUCKDB_GIT_VERSION),main)
+	DUCKDB_PIP_INSTALL=--pre duckdb
+else ifneq ($(DUCKDB_GIT_VERSION),)
+	DUCKDB_PIP_INSTALL=duckdb==$(DUCKDB_GIT_VERSION)
 endif
 
 TEST_RELEASE_TARGET=test_extension_release_internal
@@ -239,7 +243,7 @@ venv: configure/venv
 
 configure/venv:
 	$(PYTHON_BIN) -m venv configure/venv
-	$(PYTHON_VENV_BIN) -m pip install 'duckdb$(DUCKDB_INSTALL_VERSION)'
+	$(PYTHON_VENV_BIN) -m pip install $(DUCKDB_PIP_INSTALL)
 	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python
 	$(PYTHON_VENV_BIN) -m pip install packaging
 
