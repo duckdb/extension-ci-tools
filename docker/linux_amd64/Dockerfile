@@ -10,18 +10,18 @@ RUN apt-get install -y -qq software-properties-common
 RUN apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client pkg-config autoconf
 RUN apt-get install -y -qq ccache
 
-# Install cmake 3.21
-RUN mkdir /cmake_3_21 && \
-    cd /cmake_3_21 && \
-    wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh && \
-    chmod +x cmake-3.21.3-linux-x86_64.sh && \
-    ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local && \
+# Install cmake 3.31
+RUN mkdir /cmake_3_31 && \
+    cd /cmake_3_31 && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.sh && \
+    chmod +x cmake-3.31.3-linux-x86_64.sh && \
+    ./cmake-3.31.3-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
 # Install GIT
-RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz && \
-    tar xvf v2.18.5.tar.gz && \
-    cd git-2.18.5 && \
+RUN wget https://github.com/git/git/archive/refs/tags/v2.25.0.tar.gz && \
+    tar xvf v2.25.0.tar.gz && \
+    cd git-2.25.0 && \
     make && \
     make prefix=/usr install
 

@@ -9,18 +9,18 @@ RUN apt-get install -y -qq ccache autoconf
 # Setup cross compiler because GH actions does not have open source arm runners yet
 RUN apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-# Install cmake 3.21
-RUN mkdir /cmake_3_21 && \
-    cd /cmake_3_21 && \
-    wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh && \
-    chmod +x cmake-3.21.3-linux-x86_64.sh && \
-    ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local && \
+# Install cmake 3.31
+RUN mkdir /cmake_3_31 && \
+    cd /cmake_3_31 && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.sh && \
+    chmod +x cmake-3.31.3-linux-x86_64.sh && \
+    ./cmake-3.31.3-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
 # Install GIT
-RUN wget https://github.com/git/git/archive/refs/tags/v2.18.5.tar.gz && \
-    tar xvf v2.18.5.tar.gz && \
-    cd git-2.18.5 && \
+RUN wget https://github.com/git/git/archive/refs/tags/v2.25.0.tar.gz && \
+    tar xvf v2.25.0.tar.gz && \
+    cd git-2.25.0 && \
     make && \
     make prefix=/usr install
 
