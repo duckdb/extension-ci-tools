@@ -7,14 +7,17 @@ ARG vcpkg_commit="a1a1cbc975abf909a6c8985a6a2b8fe20bbd9bd6"
 # Install build dependencies
 RUN apk update && \
     apk add --no-cache \
+      bash \
       build-base \
       ccache \
       cmake \
       curl \
       git \
       g++ \ 
+      linux-headers \
       make \
-      ninja \
+      ninja-build \
+      perl \
       pkgconfig \
       python3 \
       rustup \
@@ -22,7 +25,9 @@ RUN apk update && \
       unzip \
       zip 
 
-# Setup VCPKG n a mounted volume TODO: figure out how to cache this
+RUN ln -s /usr/lib/ninja-build/bin/ninja /usr/bin/ninja
+
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 RUN mkdir /vcpkg && \
     cd /vcpkg && \
     git init && \
