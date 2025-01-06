@@ -101,11 +101,12 @@ TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/$(EXT
 
 # By default latest duckdb is installed, set DUCKDB_TEST_VERSION to switch to a different version
 DUCKDB_INSTALL_VERSION?=
+DUCKDB_INSTALL_OPTIONS?=
 ifneq ($(DUCKDB_TEST_VERSION),)
 	DUCKDB_INSTALL_VERSION===$(DUCKDB_TEST_VERSION)
-endif
-
-ifneq ($(DUCKDB_GIT_VERSION),)
+else ifeq ($(DUCKDB_GIT_VERSION),main)
+	DUCKDB_INSTALL_OPTIONS= --pre
+else ifneq ($(DUCKDB_GIT_VERSION),)
 	DUCKDB_INSTALL_VERSION===$(DUCKDB_GIT_VERSION)
 endif
 
@@ -223,7 +224,7 @@ venv: configure/venv
 
 configure/venv:
 	$(PYTHON_BIN) -m venv configure/venv
-	$(PYTHON_VENV_BIN) -m pip install 'duckdb$(DUCKDB_INSTALL_VERSION)'
+	$(PYTHON_VENV_BIN) -m pip install 'duckdb$(DUCKDB_INSTALL_VERSION)' $(DUCKDB_INSTALL_OPTIONS)
 	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python
 
 #############################################
