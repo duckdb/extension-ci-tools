@@ -35,7 +35,6 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
-      exclude_archs: 'linux_amd64_musl'
 
   extension-template-rust:
     name: Extension template (Rust)
