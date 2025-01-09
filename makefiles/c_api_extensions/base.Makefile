@@ -125,6 +125,11 @@ ifeq ($(DUCKDB_PLATFORM),linux_amd64)
 	SKIP_TESTS=1
 endif
 
+# _musl tests would need to be run in the container
+ifeq ($(DUCKDB_PLATFORM),linux_amd64_musl)
+	SKIP_TESTS=1
+endif
+
 # The mingw/rtools can not be tested using the python test runner unfortunately
 ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
 	SKIP_TESTS=1
