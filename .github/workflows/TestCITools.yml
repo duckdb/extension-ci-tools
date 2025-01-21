@@ -27,6 +27,7 @@ jobs:
   extension-template-capi:
     name: Extension template (C API)
     uses: ./.github/workflows/_extension_distribution.yml
+    if: false # TODO: re-enable after v1.2
     with:
       extension_name: capi_quack
       override_repository: samansmink/extension-template-c
