@@ -232,8 +232,8 @@ build_extension_with_metadata_debug: check_configure link_wasm_debug
 
 build_extension_with_metadata_release: check_configure link_wasm_release
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l build$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME_NO_METADATA) \
-			-o build$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME) \
+			-l build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME_NO_METADATA) \
+			-o build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
