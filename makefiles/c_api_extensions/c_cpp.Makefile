@@ -4,7 +4,7 @@
 #   EXTENSION_NAME               : name of the extension (lower case)
 #   EXTENSION_LIB_FILENAME       : the library name that is produced by the build
 # 	USE_UNSTABLE_C_API           : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
-#	TARGET_DUCKDB_VERSION        : full version
+#   TARGET_DUCKDB_VERSION        : the target version of DuckDB that the extension targets
 #	CMAKE_EXTRA_BUILD_FLAGS      : additional CMake flags to pass
 #	VCPKG_TOOLCHAIN_PATH         : path to vcpkg toolchain
 #	VCPKG_TARGET_TRIPLET         : vcpkg triplet to override
@@ -135,7 +135,13 @@ build_extension_library_release: check_configure
 ### Misc
 #############################################
 # TODO: switch this to use the $(TARGET_DUCKDB_VERSION) after v1.2.0 is released
-BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/main/src/include
+
+BASE_HEADER_URL=
+ifneq ($(TARGET_DUCKDB_VERSION),)
+	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/$(TARGET_DUCKDB_VERSION)/src/include
+else
+	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/main/src/include
+endif
 DUCKDB_C_HEADER_URL=$(BASE_HEADER_URL)/duckdb.h
 DUCKDB_C_EXTENSION_HEADER_URL=$(BASE_HEADER_URL)/duckdb_extension.h
 

@@ -2,7 +2,7 @@
 #
 # Inputs
 #   EXTENSION_NAME         : name of the extension (lower case)
-#   TARGET_DUCKDB_VERSION  : the target version of DuckDB that the extension supports
+#   TARGET_DUCKDB_VERSION  : the target version of DuckDB that the extension targets
 # 	USE_UNSTABLE_C_API     : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   EXTENSION_VERSION      : the version of the extension, if left blank it will be autodetected
 #   DUCKDB_PLATFORM        : the platform of the extension, if left blank it will be autodetected
@@ -111,8 +111,10 @@ TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --external-extension build/debug/$(EXTENSI
 TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/$(EXTENSION_NAME).duckdb_extension
 
 # By default latest duckdb is installed, set DUCKDB_TEST_VERSION to switch to a different version
-DUCKDB_PIP_INSTALL?=
-ifneq ($(DUCKDB_TEST_VERSION),)
+DUCKDB_PIP_INSTALL?=duckdb
+ifeq ($(DUCKDB_TEST_VERSION),main)
+	DUCKDB_PIP_INSTALL=--pre duckdb
+else ifneq ($(DUCKDB_TEST_VERSION),)
 	DUCKDB_PIP_INSTALL=duckdb==$(DUCKDB_TEST_VERSION)
 endif
 
