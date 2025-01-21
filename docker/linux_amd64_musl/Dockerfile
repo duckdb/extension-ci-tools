@@ -1,29 +1,12 @@
-FROM ubuntu:18.04
+FROM alpine:3
 
 ###
 # Base image setup
 ###
 
 # Setup the basic necessities
-RUN apt-get update -y -qq
-RUN apt-get install -y -qq software-properties-common
-RUN apt-get install -y -qq --fix-missing ninja-build make gcc-multilib g++-multilib libssl-dev wget openjdk-8-jdk zip maven unixodbc-dev libc6-dev-i386 lib32readline6-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip build-essential checkinstall libffi-dev curl libz-dev openssh-client pkg-config autoconf
-RUN apt-get install -y -qq ccache
-
-# Install cmake 3.31
-RUN mkdir /cmake_3_31 && \
-    cd /cmake_3_31 && \
-    wget https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.sh && \
-    chmod +x cmake-3.31.3-linux-x86_64.sh && \
-    ./cmake-3.31.3-linux-x86_64.sh --skip-license --prefix=/usr/local && \
-    cmake --version
-
-# Install GIT
-RUN wget https://github.com/git/git/archive/refs/tags/v2.25.0.tar.gz && \
-    tar xvf v2.25.0.tar.gz && \
-    cd git-2.25.0 && \
-    make && \
-    make prefix=/usr install
+RUN apk update --y -qq
+RUN apk add -qq ccache cmake git ninja ninja-build clang19 gcc libssl3 wget bash zip gettext unzip build-base curl make libffi-dev zlib openssh autoconf linux-headers
 
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
 ARG vcpkg_url
@@ -34,12 +17,14 @@ RUN mkdir /vcpkg && \
     git remote add origin $vcpkg_url && \
     git fetch origin $vcpkg_commit && \
     git checkout $vcpkg_commit && \
-    ./bootstrap-vcpkg.sh
+    VCPKG_FORCE_SYSTEM_BINARIES=1 ./bootstrap-vcpkg.sh
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # Common environment variables
 ENV GEN=ninja
+ENV DUCKDB_PLATFORM=linux_amd64_musl
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 
 # Specify where we expect the extension to be mounted and use that as working dir
 VOLUME /duckdb_build_dir
@@ -64,14 +49,14 @@ ARG extra_toolchains
 # Install Parser tools
 RUN case "$extra_toolchains" in \
   *\;parser_tools\;*) \
-    apt-get install -y -qq bison flex \
+    apk add -qq bison flex \
   ;; \
 esac
 
 # Install Fortran
 RUN case "$extra_toolchains" in \
   *\;fortran\;*) \
-    apt-get install -y -qq gfortran gfortran-aarch64-linux-gnu \
+    apk add -qq gfortran \
   ;; \
 esac
 
@@ -86,7 +71,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Configure go
 RUN case "$extra_toolchains" in \
   *\;go\;*) \
-    apt-get install -y -qq golang-go \
+    apk add -qq go \
   ;; \
 esac
 ENV PATH="/usr/local/go/bin:${PATH}"
@@ -94,6 +79,6 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 # Install Python3
 RUN case "$extra_toolchains" in \
   *\;python3\;*) \
-    apt-get install -y -qq python3 \
+    apk add -qq python3 \
   ;; \
 esac
