@@ -90,16 +90,6 @@ configure/extension_version.txt:
 	@ $(VERSION_COMMAND)
 
 #############################################
-### Parse DuckDB Semver
-#############################################
-
-# Either autodetect or use the provided value
-PARSE_SEMVER_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py -s $(TARGET_DUCKDB_VERSION)
-
-parse_duckdb_version:
-	@ $(PARSE_SEMVER_COMMAND)
-
-#############################################
 ### Testing
 #############################################
 
