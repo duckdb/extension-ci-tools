@@ -27,11 +27,12 @@ jobs:
   extension-template-capi:
     name: Extension template (C API)
     uses: ./.github/workflows/_extension_distribution.yml
+    if: false # TODO: re-enable when require changes are merged in template repo
     with:
       extension_name: capi_quack
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: v1.1.3
+      duckdb_version: main
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'

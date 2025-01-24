@@ -3,10 +3,8 @@
 # Inputs
 #   EXTENSION_NAME               : name of the extension (lower case)
 #   EXTENSION_LIB_FILENAME       : the library name that is produced by the build
-#	MINIMUM_DUCKDB_VERSION       : full version tag (including v)
-#	MINIMUM_DUCKDB_VERSION_MAJOR : major version
-#	MINIMUM_DUCKDB_VERSION_MINOR : minor version
-#	MINIMUM_DUCKDB_VERSION_PATCH : patch version
+# 	USE_UNSTABLE_C_API           : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
+#   TARGET_DUCKDB_VERSION        : the target version of DuckDB that the extension targets
 #	CMAKE_EXTRA_BUILD_FLAGS      : additional CMake flags to pass
 #	VCPKG_TOOLCHAIN_PATH         : path to vcpkg toolchain
 #	VCPKG_TARGET_TRIPLET         : vcpkg triplet to override
@@ -18,11 +16,31 @@
 ### Base config
 #############################################
 
+# Get parsed SemVer for Stable C API
+FILE_MAJOR := ./configure/duckdb_version_major.txt
+FILE_MINOR := ./configure/duckdb_version_minor.txt
+FILE_PATCH := ./configure/duckdb_version_patch.txt
+MAJOR_VERSION := $(file < $(FILE_MAJOR))
+MINOR_VERSION := $(file < $(FILE_MINOR))
+PATCH_VERSION := $(file < $(FILE_PATCH))
+
 # Create build params to pass name and version
 CMAKE_VERSION_PARAMS = -DEXTENSION_NAME=$(EXTENSION_NAME)
-CMAKE_VERSION_PARAMS += -DMINIMUM_DUCKDB_VERSION_MAJOR=$(MINIMUM_DUCKDB_VERSION_MAJOR)
-CMAKE_VERSION_PARAMS += -DMINIMUM_DUCKDB_VERSION_MINOR=$(MINIMUM_DUCKDB_VERSION_MINOR)
-CMAKE_VERSION_PARAMS += -DMINIMUM_DUCKDB_VERSION_PATCH=$(MINIMUM_DUCKDB_VERSION_PATCH)
+
+# Set the parsed semver defines
+ifneq ($(MAJOR_VERSION),)
+	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MAJOR=$(MAJOR_VERSION)
+endif
+ifneq ($(MINOR_VERSION),)
+	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MINOR=$(MINOR_VERSION)
+endif
+ifneq ($(PATCH_VERSION),)
+	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_PATCH=$(PATCH_VERSION)
+endif
+
+ifeq ($(USE_UNSTABLE_C_API),1)
+	CMAKE_VERSION_PARAMS += -DDUCKDB_EXTENSION_API_VERSION_UNSTABLE=$(TARGET_DUCKDB_VERSION)
+endif
 
 CMAKE_BUILD_FLAGS = $(CMAKE_VERSION_PARAMS) $(CMAKE_EXTRA_BUILD_FLAGS)
 
@@ -116,8 +134,14 @@ build_extension_library_release: check_configure
 #############################################
 ### Misc
 #############################################
-# TODO: switch this to use the $(MINIMUM_DUCKDB_VERSION) after v1.2.0 is released
-BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/main/src/include
+# TODO: switch this to use the $(TARGET_DUCKDB_VERSION) after v1.2.0 is released
+
+BASE_HEADER_URL=
+ifneq ($(TARGET_DUCKDB_VERSION),)
+	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/$(TARGET_DUCKDB_VERSION)/src/include
+else
+	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/main/src/include
+endif
 DUCKDB_C_HEADER_URL=$(BASE_HEADER_URL)/duckdb.h
 DUCKDB_C_EXTENSION_HEADER_URL=$(BASE_HEADER_URL)/duckdb_extension.h
 

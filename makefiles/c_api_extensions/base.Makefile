@@ -2,7 +2,8 @@
 #
 # Inputs
 #   EXTENSION_NAME         : name of the extension (lower case)
-#   MINIMUM_DUCKDB_VERSION : the minimum version of DuckDB that the extension supports
+#   TARGET_DUCKDB_VERSION  : the target version of DuckDB that the extension targets
+# 	USE_UNSTABLE_C_API     : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   EXTENSION_VERSION      : the version of the extension, if left blank it will be autodetected
 #   DUCKDB_PLATFORM        : the platform of the extension, if left blank it will be autodetected
 #   DUCKDB_TEST_VERSION    : the version of DuckDB to test with, if left blank will default to latest stable on PyPi
@@ -35,9 +36,9 @@ endif
 ### Main extension parameters
 #############################################
 
-# The minimum DuckDB version that this extension supports
-ifeq ($(MINIMUM_DUCKDB_VERSION),)
-	MINIMUM_DUCKDB_VERSION = v0.0.1
+# The target DuckDB version
+ifeq ($(TARGET_DUCKDB_VERSION),)
+	TARGET_DUCKDB_VERSION = v0.0.1
 endif
 
 EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension
@@ -89,6 +90,16 @@ configure/extension_version.txt:
 	@ $(VERSION_COMMAND)
 
 #############################################
+### Parse DuckDB Semver
+#############################################
+
+# Either autodetect or use the provided value
+PARSE_SEMVER_COMMAND=$(PYTHON_VENV_BIN) extension-ci-tools/scripts/configure_helper.py -s $(TARGET_DUCKDB_VERSION)
+
+parse_duckdb_version:
+	@ $(PARSE_SEMVER_COMMAND)
+
+#############################################
 ### Testing
 #############################################
 
@@ -100,14 +111,19 @@ TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --external-extension build/debug/$(EXTENSI
 TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/$(EXTENSION_NAME).duckdb_extension
 
 # By default latest duckdb is installed, set DUCKDB_TEST_VERSION to switch to a different version
-DUCKDB_INSTALL_VERSION?=
-DUCKDB_INSTALL_OPTIONS?=
-ifneq ($(DUCKDB_TEST_VERSION),)
-	DUCKDB_INSTALL_VERSION===$(DUCKDB_TEST_VERSION)
-else ifeq ($(DUCKDB_GIT_VERSION),main)
-	DUCKDB_INSTALL_OPTIONS= --pre
+DUCKDB_PIP_INSTALL?=duckdb
+ifeq ($(DUCKDB_TEST_VERSION),main)
+	DUCKDB_PIP_INSTALL=--pre duckdb
+else ifneq ($(DUCKDB_TEST_VERSION),)
+	DUCKDB_PIP_INSTALL=duckdb==$(DUCKDB_TEST_VERSION)
+endif
+
+# This allows C API extensions to be tested against a prerelease of DuckDB. This only really makes sense when DuckDB already
+# has stabilized the C API for the upcoming release.
+ifeq ($(DUCKDB_GIT_VERSION),main)
+	DUCKDB_PIP_INSTALL=--pre duckdb
 else ifneq ($(DUCKDB_GIT_VERSION),)
-	DUCKDB_INSTALL_VERSION===$(DUCKDB_GIT_VERSION)
+	DUCKDB_PIP_INSTALL=duckdb==$(DUCKDB_GIT_VERSION)
 endif
 
 TEST_RELEASE_TARGET=test_extension_release_internal
@@ -199,14 +215,19 @@ endif
 #############################################
 ### Adding metadata
 #############################################
+UNSTABLE_C_API_FLAG=
+ifeq ($(USE_UNSTABLE_C_API),1)
+	UNSTABLE_C_API_FLAG+=--abi-type C_STRUCT_UNSTABLE
+endif
+
 build_extension_with_metadata_debug: check_configure link_wasm_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
 			-l build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
-			-dv $(MINIMUM_DUCKDB_VERSION) \
+			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
-			-pf configure/platform.txt
+			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/debug/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 build_extension_with_metadata_release: check_configure link_wasm_release
@@ -214,9 +235,9 @@ build_extension_with_metadata_release: check_configure link_wasm_release
 			-l build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
-			-dv $(MINIMUM_DUCKDB_VERSION) \
+			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
-			-pf configure/platform.txt
+			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('build/$(DUCKDB_WASM_PLATFORM)/release/$(EXTENSION_FILENAME)', 'build/$(DUCKDB_WASM_PLATFORM)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 #############################################
@@ -229,8 +250,9 @@ venv: configure/venv
 
 configure/venv:
 	$(PYTHON_BIN) -m venv configure/venv
-	$(PYTHON_VENV_BIN) -m pip install 'duckdb$(DUCKDB_INSTALL_VERSION)' $(DUCKDB_INSTALL_OPTIONS)
+	$(PYTHON_VENV_BIN) -m pip install $(DUCKDB_PIP_INSTALL)
 	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python
+	$(PYTHON_VENV_BIN) -m pip install packaging
 
 #############################################
 ### Configure
