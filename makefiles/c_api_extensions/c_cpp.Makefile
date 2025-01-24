@@ -17,12 +17,15 @@
 #############################################
 
 # Get parsed SemVer for Stable C API
-FILE_MAJOR := ./configure/duckdb_version_major.txt
-FILE_MINOR := ./configure/duckdb_version_minor.txt
-FILE_PATCH := ./configure/duckdb_version_patch.txt
-MAJOR_VERSION := $(file < $(FILE_MAJOR))
-MINOR_VERSION := $(file < $(FILE_MINOR))
-PATCH_VERSION := $(file < $(FILE_PATCH))
+VERSION_PARTS = $(subst ., ,$(TARGET_DUCKDB_VERSION))
+MAJOR_VERSION=
+MINOR_VERSION=
+PATCH_VERSION=
+ifeq ($(word 1,$(VERSION_PARTS)), v1)
+	MAJOR_VERSION = 1
+	MINOR_VERSION = $(word 2,$(VERSION_PARTS))
+	PATCH_VERSION = $(word 3,$(VERSION_PARTS))
+endif
 
 # Create build params to pass name and version
 CMAKE_VERSION_PARAMS = -DEXTENSION_NAME=$(EXTENSION_NAME)
