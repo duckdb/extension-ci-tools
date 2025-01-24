@@ -134,11 +134,9 @@ build_extension_library_release: check_configure
 #############################################
 ### Misc
 #############################################
-# TODO: switch this to use the $(TARGET_DUCKDB_VERSION) after v1.2.0 is released
-
 BASE_HEADER_URL=
 ifneq ($(TARGET_DUCKDB_VERSION),)
-	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/$(TARGET_DUCKDB_VERSION)/src/include
+	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/$(TARGET_DUCKDB_VERSION)/src/include
 else
 	BASE_HEADER_URL=https://raw.githubusercontent.com/duckdb/duckdb/refs/heads/main/src/include
 endif
