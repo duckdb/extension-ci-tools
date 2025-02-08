@@ -30,6 +30,16 @@ RUN mkdir /vcpkg && \
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
 
+# The version of Curl is so old (curl 7.29.0 (x86_64-redhat-linux-gnu)
+# that vcpkg can't use it for build artifact caching, so install a recent
+# version of curl from vcpkg and symlink it in place.
+RUN curl --version
+RUN /vcpkg/vcpkg integrate install
+RUN /vcpkg/vcpkg install curl[tool]
+RUN mv /usr/bin/curl /usr/bin/curl.old
+RUN ln -s /vcpkg/installed/x64-linux/tools/curl/curl /usr/bin/curl
+RUN curl --version
+
 # Common environment variables
 ENV GEN=ninja
 
