@@ -505,6 +505,8 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || '' }}
       CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -560,12 +562,6 @@ jobs:
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}
-
-      - name: Configure Environment for CCache
-        shell: cmd
-        run: |
-          set CMAKE_C_COMPILER_LAUNCHER=ccache
-          set CMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - uses: r-lib/actions/setup-r@v2
         if:  matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw'
