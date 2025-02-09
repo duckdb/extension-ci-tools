@@ -621,7 +621,6 @@ jobs:
 
       - name: Build extension
         run: |
-          dir /s $(CURDIR)
           make configure_ccache
 
       - name: Build extension
