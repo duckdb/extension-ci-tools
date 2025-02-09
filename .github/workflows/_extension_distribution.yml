@@ -555,6 +555,12 @@ jobs:
         run: |
           choco install winflexbison3
 
+      - name: Setup Ccache
+        uses: hendrikmuhs/ccache-action@main
+        continue-on-error: true
+        with:
+          key: ${{ github.job }}-${{ matrix.duckdb_arch }}
+
       - uses: r-lib/actions/setup-r@v2
         if:  matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw'
         with:
@@ -594,12 +600,6 @@ jobs:
           DUCKDB_TAG: ${{ inputs.duckdb_tag }}
         run: |
           make set_duckdb_tag
-
-      - name: Setup Ccache
-        uses: hendrikmuhs/ccache-action@main
-        continue-on-error: true
-        with:
-          key: ${{ github.job }}-${{ matrix.duckdb_arch }}
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
