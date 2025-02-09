@@ -164,5 +164,4 @@ configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
 
 configure_ccache:
-	dir /s $(CURDIR)
-	cmake -P $(CURDIR)/makefiles/configure_ccache.cmake -S $(DUCKDB_SRCDIR) -B build/reldebug
+	cmake -P $(CURDIR)/extension-ci-tools/makefiles/configure_ccache.cmake -S $(DUCKDB_SRCDIR) -B build/reldebug
