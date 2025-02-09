@@ -621,6 +621,7 @@ jobs:
 
       - name: Build extension
         run: |
+          ls -lR
           make configure_ccache
 
       - name: Build extension
