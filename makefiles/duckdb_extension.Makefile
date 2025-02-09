@@ -162,3 +162,6 @@ output_distribution_matrix:
 
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
+
+configure_ccache:
+	cmake -C configure_ccache.cmake
