@@ -505,6 +505,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || '' }}
       CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || '' }}
+      GEN: ninja
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -554,6 +555,10 @@ jobs:
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';parser_tools;')}}
         run: |
           choco install winflexbison3
+
+      - name: Install Ninja build tool
+        run: |
+          choco install ninja -y
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
@@ -620,7 +625,14 @@ jobs:
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
+          EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        shell: cmd
         run: |
+          if "%DUCKDB_PLATFORM_RTOOLS%" == "0" (
+            call "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+            REM Rename link.exe to link-git.exe to avoid conflicts with git supplied linker.
+            mv "C:\Program Files\Git\usr\bin\link.exe" "C:\Program Files\Git\usr\bin\link-git.exe"
+          )
           make release
 
       - name: Test extension
@@ -647,6 +659,13 @@ jobs:
             cat $filename;
             echo Done printing logs for $filename
           done
+
+      - name: Move rtools supplied zstd out of the way, so ccache can work
+        if: (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw')
+        shell: cmd
+        run: |
+          mv C:\rtools42\usr\bin\zstd.exe C:\rtools42\usr\bin\zstd-rtools.exe
+
 
   wasm:
     name: DuckDB-Wasm
