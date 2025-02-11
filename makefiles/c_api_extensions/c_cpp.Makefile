@@ -72,17 +72,8 @@ ifeq ($(GEN),ninja)
 	MAKE_INVOCATION = ninja
 endif
 
-#############################################
-### Windows weirdness
-#############################################
-
-ifeq ($(OS),Windows_NT)
-	OUTPUT_LIB_PATH_DEBUG=cmake_build/debug/Debug/$(EXTENSION_LIB_FILENAME)
-	OUTPUT_LIB_PATH_RELEASE=cmake_build/release/Release/$(EXTENSION_LIB_FILENAME)
-else
-	OUTPUT_LIB_PATH_DEBUG=cmake_build/debug/$(EXTENSION_LIB_FILENAME)
-	OUTPUT_LIB_PATH_RELEASE=cmake_build/release/$(EXTENSION_LIB_FILENAME)
-endif
+OUTPUT_LIB_PATH_DEBUG=cmake_build/debug/$(EXTENSION_LIB_FILENAME)
+OUTPUT_LIB_PATH_RELEASE=cmake_build/release/$(EXTENSION_LIB_FILENAME)
 
 ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
 	MINGW=1
@@ -91,8 +82,8 @@ ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
 	MINGW=1
 endif
 ifeq ($(MINGW),1)
-	EXTRA_COPY_STEP_DEBUG=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/debug/Debug').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/debug/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_DEBUG)')"
-	EXTRA_COPY_STEP_RELEASE=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/release/Release').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/release/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_RELEASE)')"
+	EXTRA_COPY_STEP_DEBUG=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/debug').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/debug/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_DEBUG)')"
+	EXTRA_COPY_STEP_RELEASE=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/release').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/release/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_RELEASE)')"
 endif
 
 CMAKE_WRAPPER=
