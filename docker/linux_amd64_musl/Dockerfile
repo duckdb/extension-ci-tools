@@ -1,12 +1,21 @@
-FROM alpine:3
+FROM quay.io/pypa/musllinux_1_2_x86_64:latest
 
-###
-# Base image setup
-###
+RUN yum install -y epel-release -y pkgconfig
+
+# TODO do we need this?
+RUN git config --global --add safe.directory '*'
+
+# TODO do we need these?
+RUN yum install -y gcc-c++
+RUN yum install -y nodejs
 
 # Setup the basic necessities
-RUN apk update --y -qq
-RUN apk add -qq ccache cmake git ninja ninja-build clang19 gcc libssl3 wget bash zip gettext unzip build-base curl make libffi-dev zlib openssh autoconf linux-headers libunwind-dev
+RUN yum install -y curl zip unzip tar autoconf
+RUN yum install -y ninja-build
+RUN yum install -y perl-IPC-Cmd
+RUN yum install -y ccache
+RUN yum install -y java-11-openjdk-devel maven
+RUN yum install -y libgcc*i686 libstdc++*i686 glibc*i686 libgfortran*i686
 
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
 ARG vcpkg_url
@@ -17,14 +26,22 @@ RUN mkdir /vcpkg && \
     git remote add origin $vcpkg_url && \
     git fetch origin $vcpkg_commit && \
     git checkout $vcpkg_commit && \
-    VCPKG_FORCE_SYSTEM_BINARIES=1 ./bootstrap-vcpkg.sh
+    ./bootstrap-vcpkg.sh
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
 
+# The version of Curl is so old (curl 7.29.0 (x86_64-redhat-linux-gnu)
+# that vcpkg can't use it for build artifact caching, so install a recent
+# version of curl from vcpkg and symlink it in place.
+RUN curl --version
+RUN /vcpkg/vcpkg integrate install
+RUN /vcpkg/vcpkg install curl[tool]
+RUN mv /usr/bin/curl /usr/bin/curl.old
+RUN ln -s /vcpkg/installed/x64-linux/tools/curl/curl /usr/bin/curl
+RUN curl --version
+
 # Common environment variables
 ENV GEN=ninja
-ENV DUCKDB_PLATFORM=linux_amd64_musl
-ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 
 # Specify where we expect the extension to be mounted and use that as working dir
 VOLUME /duckdb_build_dir
@@ -44,41 +61,30 @@ ENV CCACHE_MAXSIZE=400M
 # Note that it should start and end with a `;` e.g. `;rust;parser_tools;`
 ARG extra_toolchains
 
-# NOTE: the weird case conditionals are because of bash limitations in the ubuntu image used (see https://stackoverflow.com/questions/229551/how-to-check-if-a-string-contains-a-substring-in-bash)
+RUN echo "$extra_toolchains" > ~/extra_toolchains.txt
 
 # Install Parser tools
-RUN case "$extra_toolchains" in \
-  *\;parser_tools\;*) \
-    apk add -qq bison flex \
-  ;; \
-esac
-
-# Install Fortran
-RUN case "$extra_toolchains" in \
-  *\;fortran\;*) \
-    apk add -qq gfortran \
-  ;; \
-esac
+RUN if [[ $extra_toolchains == *";parser_tools;"* ]]; then \
+      yum install -y bison flex;\
+    fi
 
 # Configure Rust
-RUN case "$extra_toolchains" in \
-  *\;rust\;*) \
-    curl https://sh.rustup.rs -sSf | bash -s -- -y \
-  ;; \
-esac
+RUN if [[ $extra_toolchains == *";rust;"* ]] || [ "$enable_rust" = "1" ]; then \
+      curl https://sh.rustup.rs -sSf | bash -s -- -y ;\
+    fi
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Configure go
-RUN case "$extra_toolchains" in \
-  *\;go\;*) \
-    apk add -qq go \
-  ;; \
-esac
+RUN if [[ $extra_toolchains == *";go;"* ]]; then \
+      yum install -y wget; \
+      wget https://go.dev/dl/go1.23.1.linux-amd64.tar.gz; \
+      tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz; \
+fi
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Install Python3
 RUN case "$extra_toolchains" in \
   *\;python3\;*) \
-    apk add -qq python3 \
+    yum install -y python3; \
   ;; \
 esac
