@@ -25,7 +25,6 @@
         "vcpkg_triplet": "x64-linux",
         "runner":"ubuntu-24:04"
       },
-      ,
       {
         "duckdb_arch": "linux_arm64_musl",
         "container": "quay.io/pypa/musllinux_1_2_aarch64",
