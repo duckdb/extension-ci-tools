@@ -1,4 +1,5 @@
-FROM quay.io/pypa/manylinux2014_x86_64:latest
+ARG base_image
+FROM $base_image
 
 RUN yum install -y epel-release -y pkgconfig
 
