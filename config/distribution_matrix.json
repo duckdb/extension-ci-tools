@@ -4,22 +4,34 @@
       {
         "duckdb_arch": "linux_amd64",
         "container": "ubuntu:18.04",
-        "vcpkg_triplet": "x64-linux"
+        "vcpkg_triplet": "x64-linux",
+        "runner":"ubuntu-24:04"
       },
       {
         "duckdb_arch": "linux_amd64_gcc4",
         "container": "quay.io/pypa/manylinux2014_x86_64",
-        "vcpkg_triplet": "x64-linux"
+        "vcpkg_triplet": "x64-linux",
+        "runner":"ubuntu-24:04"
       },
       {
         "duckdb_arch": "linux_arm64",
-        "container": "ubuntu:18.04",
-        "vcpkg_triplet": "arm64-linux"
+        "container": "quay.io/pypa/manylinux2014_aarch64",
+        "vcpkg_triplet": "arm64-linux",
+        "runner":"ubuntu-24:04-arm",
+        "runner":"ubuntu-24:04"
       },
       {
         "duckdb_arch": "linux_amd64_musl",
-        "container": "alpine:3",
-        "vcpkg_triplet": "x64-linux"
+        "container": "quay.io/pypa/musllinux_1_2_x86_64",
+        "vcpkg_triplet": "x64-linux",
+        "runner":"ubuntu-24:04"
+      },
+      ,
+      {
+        "duckdb_arch": "linux_amd64_musl",
+        "container": "quay.io/pypa/musllinux_1_2_aarch64",
+        "vcpkg_triplet": "arm64-linux",
+        "runner":"ubuntu-24:04-arm"
       }
     ]
   },
