@@ -167,7 +167,3 @@ output_distribution_matrix:
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
 
-benchmark:
-	mkdir -p build/release
-	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DBUILD_BENCHMARKS=1 -DCMAKE_BUILD_TYPE=Release -S $(DUCKDB_SRCDIR) -B build/release
-	cmake --build build/release --config Release
