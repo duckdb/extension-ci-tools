@@ -4,22 +4,26 @@
       {
         "duckdb_arch": "linux_amd64",
         "container": "ubuntu:18.04",
-        "vcpkg_triplet": "x64-linux"
+        "vcpkg_target_triplet": "x64-linux-release",
+        "vcpkg_host_triplet": "x64-linux-release"
       },
       {
         "duckdb_arch": "linux_amd64_gcc4",
         "container": "quay.io/pypa/manylinux2014_x86_64",
-        "vcpkg_triplet": "x64-linux"
+        "vcpkg_target_triplet": "x64-linux-release",
+        "vcpkg_host_triplet": "x64-linux-release"
       },
       {
         "duckdb_arch": "linux_arm64",
         "container": "ubuntu:18.04",
-        "vcpkg_triplet": "arm64-linux"
+        "vcpkg_target_triplet": "arm64-linux-release",
+        "vcpkg_host_triplet": "x64-linux"
       },
       {
         "duckdb_arch": "linux_amd64_musl",
         "container": "alpine:3",
-        "vcpkg_triplet": "x64-linux"
+        "vcpkg_target_triplet": "x64-linux-release",
+        "vcpkg_host_triplet": "x64-linux-release"
       }
     ]
   },
@@ -28,12 +32,14 @@
       {
         "duckdb_arch": "osx_amd64",
         "osx_build_arch": "x86_64",
-        "vcpkg_triplet": "x64-osx"
+        "vcpkg_target_triplet": "x64-osx-release",
+        "vcpkg_host_triplet": "x64-osx-release"
       },
       {
         "duckdb_arch": "osx_arm64",
         "osx_build_arch": "arm64",
-        "vcpkg_triplet": "arm64-osx"
+        "vcpkg_target_triplet": "arm64-osx-release",
+        "vcpkg_host_triplet": "arm64-osx-release"
       }
     ]
   },
@@ -41,11 +47,13 @@
     "include": [
       {
         "duckdb_arch": "windows_amd64",
-        "vcpkg_triplet": "x64-windows-static-md"
+        "vcpkg_target_triplet": "x64-windows-static-md-release",
+        "vcpkg_host_triplet": "x64-windows-static-md-release"
       },
       {
         "duckdb_arch": "windows_amd64_mingw",
-        "vcpkg_triplet": "x64-mingw-static"
+        "vcpkg_target_triplet": "x64-mingw-static",
+        "vcpkg_host_triplet": "x64-mingw-static"
       }
     ]
   },
@@ -53,15 +61,18 @@
     "include": [
       {
         "duckdb_arch": "wasm_mvp",
-        "vcpkg_triplet": "wasm32-emscripten"
+        "vcpkg_target_triplet": "wasm32-emscripten",
+        "vcpkg_host_triplet": "x64-linux"
       },
       {
         "duckdb_arch": "wasm_eh",
-        "vcpkg_triplet": "wasm32-emscripten"
+        "vcpkg_target_triplet": "wasm32-emscripten",
+        "vcpkg_host_triplet": "x64-linux"
       },
       {
         "duckdb_arch": "wasm_threads",
-        "vcpkg_triplet": "wasm32-emscripten"
+        "vcpkg_target_triplet": "wasm32-emscripten",
+        "vcpkg_host_triplet": "x64-linux"
       }
     ]
   }
