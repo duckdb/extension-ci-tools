@@ -152,11 +152,12 @@ jobs:
 
   linux:
     name: Linux
-    runs-on: ubuntu-latest
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
     strategy:
       matrix: ${{fromJson(needs.generate_matrix.outputs.linux_matrix)}}
+    runs-on: ${{ matrix.runner }}
+
     env:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_triplet }}
       VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
@@ -250,6 +251,7 @@ jobs:
         shell: bash
         run: |
           docker build \
+            --build-arg 'base_image=${{ matrix.base_image }}' \
             --build-arg 'vcpkg_url=${{ inputs.vcpkg_url }}' \
             --build-arg 'vcpkg_commit=${{ inputs.vcpkg_commit }}' \
             --build-arg 'extra_toolchains=${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}' \
@@ -270,7 +272,6 @@ jobs:
           DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }}
           LINUX_CI_IN_DOCKER=1
-          TOOLCHAIN_FLAGS=${{ matrix.duckdb_arch == 'linux_arm64' && '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_Fortran_COMPILER=aarch64-linux-gnu-gfortran' || '' }}
           EOF
 
       - name: Generate timestamp for Ccache entry
