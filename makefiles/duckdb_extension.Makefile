@@ -56,8 +56,12 @@ EXTENSION_FLAGS=-DDUCKDB_EXTENSION_CONFIGS='${EXT_CONFIG}'
 
 BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER}
 
+ifeq ($(BUILD_BENCHMARK), 1)
+	BUILD_FLAGS += -DBUILD_BENCHMARKS=1
+endif
+
 debug:
-	mkdir -p  build/debug
+	mkdir -p build/debug
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/debug
 	cmake --build build/debug --config Debug
 
@@ -157,3 +161,4 @@ output_distribution_matrix:
 
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
+
