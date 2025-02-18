@@ -60,6 +60,9 @@ endif
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
 	CMAKE_BUILD_FLAGS += -DVCPKG_TARGET_TRIPLET='${VCPKG_TARGET_TRIPLET}'
 endif
+ifneq ("${VCPKG_HOST_TRIPLET}", "")
+	CMAKE_BUILD_FLAGS += -DVCPKG_HOST_TRIPLET='${VCPKG_HOST_TRIPLET}'
+endif
 
 #############################################
 ### Ninja
