@@ -16,7 +16,7 @@
 #############################################
 ### Platform dependent config
 #############################################
-PYTHON_BIN=python3
+PYTHON_BIN?=python3
 
 ifeq ($(OS),Windows_NT)
 	EXTENSION_LIB_FILENAME=$(EXTENSION_NAME).dll
