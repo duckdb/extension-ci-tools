@@ -34,6 +34,13 @@ else ifeq ("${OSX_BUILD_ARCH}", "x86_64")
 	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-apple-darwin
 endif
 
+#### Windows config
+ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
+	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-pc-windows-gnu
+else ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
+	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-pc-windows-gnu
+endif
+
 #### VCPKG config
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
