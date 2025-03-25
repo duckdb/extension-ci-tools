@@ -1,0 +1,13 @@
+if(NOT ("$CMAKE_HOST_SYSTEM_NAME" STREQUAL "Darwin" AND "$CMAKE_HOST_SYSTEM_PROCESSOR" STREQUAL "x86_64"))
+    set(CMAKE_SYSTEM_NAME Darwin)
+    set(CMAKE_SYSTEM_PROCESSOR x86_64)
+endif()
+
+set(TOOLCHAINS ${DUCKDB_TOOLCHAINS})
+message(WARNING TOOLCHAINS)
+if("omp" IN_LIST TOOLCHAINS)
+    set(CMAKE_LD_FLAGS_INIT "-L/usr/local/opt/libomp/lib")
+    set(CMAKE_C_FLAGS_INIT "-I/usr/local/opt/libomp/include")
+    set(CMAKE_CPP_FLAGS_INIT "-I/usr/local/opt/libomp/include")
+    set(CMAKE_CXX_FLAGS_INIT "-I/usr/local/opt/libomp/include")
+endif()
