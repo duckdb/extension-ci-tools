@@ -499,8 +499,7 @@ jobs:
       VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || '' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || '' }}
+      TOOLCHAINS: ${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}
       GEN: ninja
 
     steps:
