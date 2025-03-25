@@ -10,6 +10,7 @@
 #	VCPKG_TOOLCHAIN_PATH         : path to vcpkg toolchain
 #	VCPKG_TARGET_TRIPLET         : vcpkg triplet to override
 #	GEN                          : allow specifying ninja as generator
+#   PROJ_DIR		  : The root path of the project
 
 .PHONY: build_extension_library_debug build_extension_library_release update_duckdb_headers
 
@@ -49,16 +50,26 @@ ifeq ($(USE_UNSTABLE_C_API),1)
 	CMAKE_VERSION_PARAMS += -DDUCKDB_EXTENSION_API_VERSION_UNSTABLE=$(TARGET_DUCKDB_VERSION)
 endif
 
-CMAKE_BUILD_FLAGS = $(CMAKE_VERSION_PARAMS) $(CMAKE_EXTRA_BUILD_FLAGS)
+CMAKE_BUILD_FLAGS = $(CMAKE_VERSION_PARAMS) $(CMAKE_EXTRA_BUILD_FLAGS) -DDUCKDB_TOOLCHAINS='${TOOLCHAINS}'
 
 #############################################
 ### Vcpkg
 #############################################
 
+CMAKE_TOOLCHAIN = '${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 	CMAKE_BUILD_FLAGS += -DCMAKE_TOOLCHAIN_FILE='${VCPKG_TOOLCHAIN_PATH}'
 	ifneq ($(DUCKDB_WASM_PLATFORM),)
 		CMAKE_BUILD_FLAGS += -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+	else
+	ifneq ("${DUCKDB_PLATFORM}", "")
+		CMAKE_BUILD_FLAGS += -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+	endif
+	endif
+else 
+	ifneq ("${DUCKDB_PLATFORM}", "")
+		CMAKE_BUILD_FLAGS += -DCMAKE_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
 	endif
 endif
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
