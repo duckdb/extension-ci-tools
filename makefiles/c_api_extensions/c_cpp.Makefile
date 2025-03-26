@@ -62,8 +62,6 @@ ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 else 
 	CMAKE_BUILD_FLAGS += -DCMAKE_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
 endif
-
-endif
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
 	CMAKE_BUILD_FLAGS += -DVCPKG_TARGET_TRIPLET='${VCPKG_TARGET_TRIPLET}'
 endif
