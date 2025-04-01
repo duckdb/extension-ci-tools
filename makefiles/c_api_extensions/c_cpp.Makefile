@@ -52,15 +52,21 @@ CMAKE_BUILD_FLAGS = $(CMAKE_VERSION_PARAMS) $(CMAKE_EXTRA_BUILD_FLAGS) -DDUCKDB_
 ### Vcpkg
 #############################################
 
+CMAKE_TOOLCHAIN = '${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 	CMAKE_BUILD_FLAGS += -DCMAKE_TOOLCHAIN_FILE='${VCPKG_TOOLCHAIN_PATH}'
 	ifneq ($(DUCKDB_WASM_PLATFORM),)
 		CMAKE_BUILD_FLAGS += -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
-	else 
+	else
+	ifneq ("${DUCKDB_PLATFORM}", "")
 		CMAKE_BUILD_FLAGS += -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
 	endif
+	endif
 else 
-	CMAKE_BUILD_FLAGS += -DCMAKE_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+	ifneq ("${DUCKDB_PLATFORM}", "")
+		CMAKE_BUILD_FLAGS += -DCMAKE_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+	endif
 endif
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
 	CMAKE_BUILD_FLAGS += -DVCPKG_TARGET_TRIPLET='${VCPKG_TARGET_TRIPLET}'
