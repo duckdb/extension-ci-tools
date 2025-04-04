@@ -17,14 +17,6 @@ DUCKDB_PATH="/duckdb"
 
 DUCKDB_SRCDIR ?= "./duckdb/"
 
-# For non-MinGW windows the path is slightly different
-ifeq ($(OS),Windows_NT)
-ifneq ($(CXX),g++)
-	TEST_PATH="/test/Release/unittest.exe"
-	DUCKDB_PATH="/Release/duckdb.exe"
-endif
-endif
-
 #### Core extensions, allows easily building one of the core extensions
 ifneq ($(CORE_EXTENSIONS),)
 	CORE_EXTENSION_VAR:=-DCORE_EXTENSIONS="$(CORE_EXTENSIONS)"
@@ -42,6 +34,13 @@ else ifeq ("${OSX_BUILD_ARCH}", "x86_64")
 	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-apple-darwin
 endif
 
+#### Windows config
+ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
+	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-pc-windows-gnu
+else ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
+	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-pc-windows-gnu
+endif
+
 #### VCPKG config
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
@@ -49,6 +48,9 @@ ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 endif
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_TARGET_TRIPLET='${VCPKG_TARGET_TRIPLET}'
+endif
+ifneq ("${VCPKG_HOST_TRIPLET}", "")
+	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_HOST_TRIPLET='${VCPKG_HOST_TRIPLET}'
 endif
 
 #### Enable Ninja as generator
@@ -59,10 +61,14 @@ endif
 #### Configuration for this extension
 EXTENSION_FLAGS=-DDUCKDB_EXTENSION_CONFIGS='${EXT_CONFIG}'
 
-BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER}
+BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}"
+
+ifeq ($(BUILD_BENCHMARK), 1)
+	BUILD_FLAGS += -DBUILD_BENCHMARKS=1
+endif
 
 debug:
-	mkdir -p  build/debug
+	mkdir -p build/debug
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/debug
 	cmake --build build/debug --config Debug
 
@@ -168,3 +174,4 @@ output_distribution_matrix:
 
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
+

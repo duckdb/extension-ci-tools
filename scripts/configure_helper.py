@@ -40,6 +40,5 @@ def main():
             print(f"Writing platform {duckdb_platform} to {platform_file}")
             f.write(duckdb_platform)
 
-
 if __name__ == '__main__':
     main()
