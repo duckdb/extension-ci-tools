@@ -2,8 +2,8 @@ if(NOT ("$CMAKE_HOST_SYSTEM_NAME" STREQUAL "Windows" AND "$CMAKE_HOST_SYSTEM_PRO
     set(CMAKE_SYSTEM_NAME Windows)
     set(CMAKE_SYSTEM_PROCESSOR x86_64)
 endif()
-set(CMAKE_C_COMPILER "gcc")
-set(CMAKE_CXX_COMPILER "g++")
+set(CMAKE_C_COMPILER "x86_64-w64-mingw32-gcc")
+set(CMAKE_CXX_COMPILER "x86_64-w64-mingw32-g++")
 
 if("rust" IN_LIST TOOLCHAINS)
     set(Rust_CARGO_TARGET x86_64-pc-windows-gnu)
