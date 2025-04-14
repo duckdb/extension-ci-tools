@@ -42,6 +42,7 @@ RUN curl --version
 
 # Common environment variables
 ENV GEN=ninja
+ENV DUCKDB_PLATFORM=linux_amd64_gcc4
 
 # Specify where we expect the extension to be mounted and use that as working dir
 VOLUME /duckdb_build_dir
