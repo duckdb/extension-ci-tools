@@ -82,6 +82,9 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 # Install Python3
 RUN case "$extra_toolchains" in \
   *\;python3\;*) \
-    apk add -qq python3 \
+    apk add -qq python3; \
+    apk info -L python3 | grep bin/python3 \
   ;; \
 esac
+ENV PATH="/usr/bin:${PATH}"
+ENV Python3_EXECUTABLE=/usr/bin/python3
