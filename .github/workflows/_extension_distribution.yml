@@ -59,7 +59,7 @@ on:
       relative_path:
         required: false
         type: string
-        default: ""
+        default: "."
       # Supply an override repository to build, instead of using the current one
       override_repository:
         required: false
@@ -170,6 +170,9 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -221,11 +224,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
-
-      - name: Move into relative path
-        if: ${{ inputs.relative_path != '' }}
-        run:
-          cd ${{ inputs.relative_path }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -364,6 +362,9 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -388,11 +389,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
-
-      - name: Move into relative path
-        if: ${{ inputs.relative_path != '' }}
-        run:
-          cd ${{ inputs.relative_path }}
 
       - name: Install Ninja
         run: |
@@ -524,6 +520,9 @@ jobs:
       CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || '' }}
       CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || '' }}
       GEN: ninja
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -554,11 +553,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
-
-      - name: Move into relative path
-        if: ${{ inputs.relative_path != '' }}
-        run:
-          cd ${{ inputs.relative_path }}
 
       - uses: actions/setup-python@v5
         with:
@@ -702,6 +696,9 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - uses: actions/checkout@v4
@@ -719,11 +716,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
-
-      - name: Move into relative path
-        if: ${{ inputs.relative_path != '' }}
-        run:
-          cd ${{ inputs.relative_path }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
