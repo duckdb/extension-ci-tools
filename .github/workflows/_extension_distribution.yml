@@ -59,7 +59,7 @@ on:
       relative_path:
         required: false
         type: string
-        default: "."
+        default: ""
       # Supply an override repository to build, instead of using the current one
       override_repository:
         required: false
