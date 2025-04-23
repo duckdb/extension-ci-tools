@@ -336,19 +336,6 @@ jobs:
         run: |
           make test_release
 
-      - name: Where am I
-        continue-on-error: true
-        run: |
-          pwd
-          ls -al . || true
-          ls -al ${{ inputs.relative_path }} || true
-          ls -al ..
-          ls -al ../..
-          ls -al build
-          ls -al build/release
-          ls -al build/release/extension
-          ls -al build/release/extension/*
-
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
@@ -504,23 +491,6 @@ jobs:
         shell: bash
         run: |
           make test_release
-          
-      - name: Where am I
-        working-directory: "."
-        continue-on-error: true
-        run: |
-          pwd 
-          ls -al ${{ inputs.relative_path }} || true
-          ls -al ${{ inputs.relative_path }}/build || true
-          ls -al . || true
-          ls -al ${{ inputs.relative_path }} || true
-          ls -al ..
-          ls -al ../..
-          ls -al build
-          ls -al build/release
-          ls -al build/release/extension
-          ls -al build/release/extension/*
-          
 
       - uses: actions/upload-artifact@v4
         with:
@@ -700,7 +670,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.relative_path }}/build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -818,7 +788,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
+            ${{ inputs.relative_path }}/build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
