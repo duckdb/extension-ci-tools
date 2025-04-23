@@ -509,7 +509,6 @@ jobs:
       - name: Where am I
         continue-on-error: true
         run: |
-          ls -al . || true
           ls -al build
           ls -al build/release
           ls -al build/release/extension
