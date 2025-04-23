@@ -55,6 +55,11 @@ on:
         required: false
         type: boolean
         default: true
+      # Overrides the root directory that the repository
+      relative_path:
+        required: false
+        type: string
+        default: "."
       # Supply an override repository to build, instead of using the current one
       override_repository:
         required: false
@@ -216,6 +221,11 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+
+      - name: Move into relative path
+        if: ${{ inputs.relative_path != '' }}
+        run:
+          cd ${{ inputs.relative_path }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -379,6 +389,11 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - name: Move into relative path
+        if: ${{ inputs.relative_path != '' }}
+        run:
+          cd ${{ inputs.relative_path }}
+
       - name: Install Ninja
         run: |
           brew install ninja autoconf make libtool automake autoconf-archive
@@ -540,6 +555,11 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - name: Move into relative path
+        if: ${{ inputs.relative_path != '' }}
+        run:
+          cd ${{ inputs.relative_path }}
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -699,6 +719,11 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'true'
+
+      - name: Move into relative path
+        if: ${{ inputs.relative_path != '' }}
+        run:
+          cd ${{ inputs.relative_path }}
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
