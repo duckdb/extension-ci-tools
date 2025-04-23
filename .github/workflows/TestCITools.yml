@@ -12,17 +12,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  extension-template-main:
-    name: Extension template
-    uses: ./.github/workflows/_extension_distribution.yml
-    with:
-      extension_name: quack
-      override_repository: duckdb/extension-template
-      override_ref: main
-      duckdb_version: v1.2.1
-      override_ci_tools_repository: ${{ github.repository }}
-      ci_tools_version: ${{ github.sha }}
-      extra_toolchains: 'parser_tools;fortran;omp;go;python3'
+#  extension-template-main:
+#    name: Extension template
+#    uses: ./.github/workflows/_extension_distribution.yml
+#    with:
+#      extension_name: quack
+#      override_repository: duckdb/extension-template
+#      override_ref: main
+#      duckdb_version: v1.2.1
+#      override_ci_tools_repository: ${{ github.repository }}
+#      ci_tools_version: ${{ github.sha }}
+#      extra_toolchains: 'parser_tools;fortran;omp;go;python3'
 #
 #  extension-template-capi:
 #    name: Extension template (C API)

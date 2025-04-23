@@ -339,6 +339,7 @@ jobs:
       - name: Where am I
         continue-on-error: true
         run: |
+          pwd
           ls -al . || true
           ls -al ${{ inputs.relative_path }} || true
           ls -al ..
@@ -507,6 +508,7 @@ jobs:
       - name: Where am I
         continue-on-error: true
         run: |
+          pwd 
           ls -al . || true
           ls -al ${{ inputs.relative_path }} || true
           ls -al ..
