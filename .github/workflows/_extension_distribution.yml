@@ -55,7 +55,7 @@ on:
         required: false
         type: boolean
         default: true
-      # Overrides the root directory that the repository
+      # Overrides the root of the extension
       relative_path:
         required: false
         type: string
