@@ -353,7 +353,7 @@ jobs:
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.relative_path }}/build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -506,9 +506,12 @@ jobs:
           make test_release
           
       - name: Where am I
+        working-directory: "."
         continue-on-error: true
         run: |
           pwd 
+          ls -al ${{ inputs.relative_path }} || true
+          ls -al ${{ inputs.relative_path }}/build || true
           ls -al . || true
           ls -al ${{ inputs.relative_path }} || true
           ls -al ..
@@ -517,13 +520,14 @@ jobs:
           ls -al build/release
           ls -al build/release/extension
           ls -al build/release/extension/*
+          
 
       - uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.relative_path }}/build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
