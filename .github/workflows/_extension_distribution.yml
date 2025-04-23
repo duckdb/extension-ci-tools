@@ -184,6 +184,7 @@ jobs:
 
       - name: Free up some unused space
         continue-on-error: true
+        working-directory: "."
         run: |
           docker images -a -q > package.list
           if [ -s package.list ]; then
@@ -195,18 +196,22 @@ jobs:
           rm package.list
 
       - name: Restart docker to run on /mnt
+        working-directory: "."
         run: |
           sudo systemctl stop docker
 
       - name: Configure Docker with custom data directory
+        working-directory: "."
         run: |
           sudo mkdir -p /mnt/docker-data
           echo '{ "data-root": "/mnt/docker-data" }' | sudo tee /etc/docker/daemon.json
 
       - name: Start Docker with updated storage path
+        working-directory: "."
         run: sudo systemctl start docker
 
       - name: Verify Docker storage path
+        working-directory: "."
         run: docker info | grep "Docker Root Dir"
 
       - uses: actions/checkout@v4
