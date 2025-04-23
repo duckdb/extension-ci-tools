@@ -208,14 +208,14 @@ jobs:
           repository: ${{ inputs.override_repository }}
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
@@ -370,14 +370,14 @@ jobs:
           repository: ${{ inputs.override_repository }}
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Install Ninja
         run: |
@@ -531,14 +531,14 @@ jobs:
           repository: ${{ inputs.override_repository }}
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/setup-python@v5
         with:
@@ -691,14 +691,14 @@ jobs:
           repository: ${{ inputs.override_repository }}
           ref: ${{ inputs.override_ref }}
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
-          submodules: 'true'
+          submodules: 'recursive'
 
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
