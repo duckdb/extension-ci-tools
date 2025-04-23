@@ -538,6 +538,7 @@ jobs:
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Keep \n line endings
+        working-directory: "."
         shell: bash
         run: |
           git config --global core.autocrlf false
