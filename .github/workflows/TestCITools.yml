@@ -68,6 +68,7 @@ jobs:
     with:
       extension_name: underwater_quack
       override_repository: spiraldb/scuba-duck
+      relative_path: 'nested_folder'
       override_ref: main
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
