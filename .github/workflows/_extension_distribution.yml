@@ -240,7 +240,6 @@ jobs:
       - name: Where am I
         run: |
           ls -al .
-          ls -al /
 
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
@@ -340,6 +339,10 @@ jobs:
           LINUX_CI_IN_DOCKER: 0
         run: |
           make test_release
+
+      - name: Where am I
+        run: |
+          ls -al .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -501,6 +504,15 @@ jobs:
         shell: bash
         run: |
           make test_release
+          
+      - name: Where am I
+        continue-on-error: true
+        run: |
+          ls -al . || true
+          ls -al ${{ inputs.relative_path }} || true
+          ls -al build
+          ls -al ../
+          
 
       - uses: actions/upload-artifact@v4
         with:
