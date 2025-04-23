@@ -232,6 +232,11 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Where am I
+        run: |
+          ls -al .
+          ls -al /
+
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
         run: |
