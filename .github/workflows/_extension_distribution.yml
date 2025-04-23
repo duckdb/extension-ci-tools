@@ -383,6 +383,11 @@ jobs:
           fetch-depth: 0
           submodules: 'true'
 
+      - name: Where am I
+        run: |
+          ls -al .
+          ls -al /
+
       - uses: actions/checkout@v4
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
