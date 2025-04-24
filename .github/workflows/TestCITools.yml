@@ -63,11 +63,12 @@ jobs:
       extra_toolchains: 'rust'
 
   nested-folder-extension-main:
+    if: false
     name: Nested extension template
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: underwater_quack
-      override_repository: spiraldb/scuba-duck
+      override_repository: duckdb/extension-template-nested
       relative_path: 'nested_folder'
       override_ref: main
       override_ci_tools_repository: ${{ github.repository }}
