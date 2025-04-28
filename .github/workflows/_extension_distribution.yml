@@ -55,6 +55,11 @@ on:
         required: false
         type: boolean
         default: true
+      # Overrides the root of the extension
+      relative_path:
+        required: false
+        type: string
+        default: "."
       # Supply an override repository to build, instead of using the current one
       override_repository:
         required: false
@@ -165,6 +170,9 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -176,6 +184,7 @@ jobs:
 
       - name: Free up some unused space
         continue-on-error: true
+        working-directory: "."
         run: |
           docker images -a -q > package.list
           if [ -s package.list ]; then
@@ -187,18 +196,22 @@ jobs:
           rm package.list
 
       - name: Restart docker to run on /mnt
+        working-directory: "."
         run: |
           sudo systemctl stop docker
 
       - name: Configure Docker with custom data directory
+        working-directory: "."
         run: |
           sudo mkdir -p /mnt/docker-data
           echo '{ "data-root": "/mnt/docker-data" }' | sudo tee /etc/docker/daemon.json
 
       - name: Start Docker with updated storage path
+        working-directory: "."
         run: sudo systemctl start docker
 
       - name: Verify Docker storage path
+        working-directory: "."
         run: docker info | grep "Docker Root Dir"
 
       - uses: actions/checkout@v4
@@ -327,7 +340,7 @@ jobs:
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.relative_path }}/build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -354,6 +367,9 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -481,7 +497,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.relative_path }}/build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -509,6 +525,9 @@ jobs:
       CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || '' }}
       CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || '' }}
       GEN: ninja
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -519,6 +538,7 @@ jobs:
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Keep \n line endings
+        working-directory: "."
         shell: bash
         run: |
           git config --global core.autocrlf false
@@ -651,7 +671,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.relative_path }}/build/release/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -682,6 +702,9 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.relative_path }}
 
     steps:
       - uses: actions/checkout@v4
@@ -766,7 +789,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
+            ${{ inputs.relative_path }}/build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
