@@ -16,6 +16,10 @@ on:
       extension_name:
         required: true
         type: string
+      # If our extension is an alias extension, the name of the canonical extension
+      extension_canonical:
+        required: false
+        type: string
       # DuckDB version to build against, should in most cases be identical to
       duckdb_version:
         required: true
