@@ -473,7 +473,7 @@ jobs:
       - name: Build extension
         shell: bash
         run: |
-          make release
+          EXTENSION_CANONICAL=${{ inputs.extension_canonical }} make release
 
       - name: Test Extension
         if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
@@ -632,6 +632,7 @@ jobs:
       - name: Build extension
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+          EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
           EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         shell: cmd
@@ -764,7 +765,7 @@ jobs:
 
       - name: Build Wasm module
         run: |
-          make ${{ matrix.duckdb_arch }}
+          EXTENSION_CANONICAL=${{ inputs.extension_canonical }} make ${{ matrix.duckdb_arch }}
 
       - uses: actions/upload-artifact@v4
         with:
