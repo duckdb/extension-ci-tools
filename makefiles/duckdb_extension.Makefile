@@ -99,6 +99,9 @@ ifeq ($(SKIP_TESTS),1)
 	TEST_DEBUG_TARGET=tests_skipped
 	TEST_RELDEBUG_TARGET=tests_skipped
 endif
+ifeq (${CRASH_ON_ASSERT}, 1)
+	BUILD_FLAGS += -DCRASH_ON_ASSERT=1
+endif
 
 test_release: $(TEST_RELEASE_TARGET)
 test_debug: $(TEST_DEBUG_TARGET)
@@ -138,9 +141,17 @@ wasm_threads:
 	emmake make -j8 -Cbuild/wasm_threads
 
 #### Misc
+format-check:
+	python3 duckdb/scripts/format.py --all --check --directories src test
+
 format:
-	find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -i
-	cmake-format -i CMakeLists.txt
+	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+
+format-fix:
+	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+
+format-main:
+	python3 duckdb/scripts/format.py main --fix --noconfirm --directories src test
 
 update:
 	git submodule update --remote --merge
