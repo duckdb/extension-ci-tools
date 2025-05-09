@@ -568,6 +568,11 @@ jobs:
       - name: Install Ninja build tool
         run: |
           choco install ninja -y
+      
+      - name: Set up CMake
+        uses: azyobuzin/setup-cmake@v1
+        with:
+          cmake-version: '3.31.0'
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
