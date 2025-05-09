@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:24.04
 
 # Setup the basic necessities
 RUN apt-get update -y -qq
