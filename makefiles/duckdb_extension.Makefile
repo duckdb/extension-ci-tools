@@ -7,6 +7,7 @@
 #   EXT_RELEASE_FLAGS : Extra CMake flags to pass to the release build
 #   EXT_DEBUG_FLAGS   : Extra CMake flags to pass to the debug build
 #   SKIP_TESTS        : Replaces all test targets with a NOP step
+#   PROJ_DIR		  : The root path of the project
 
 .PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
 
@@ -22,29 +23,18 @@ ifneq ($(CORE_EXTENSIONS),)
 	CORE_EXTENSION_VAR:=-DCORE_EXTENSIONS="$(CORE_EXTENSIONS)"
 endif
 
-#### OSX config
-OSX_BUILD_FLAG=
-ifneq (${OSX_BUILD_ARCH}, "")
-	OSX_BUILD_FLAG=-DOSX_BUILD_ARCH=${OSX_BUILD_ARCH}
-endif
-
-ifeq ("${OSX_BUILD_ARCH}", "arm64")
-	RUST_FLAGS=-DRust_CARGO_TARGET=aarch64-apple-darwin
-else ifeq ("${OSX_BUILD_ARCH}", "x86_64")
-	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-apple-darwin
-endif
-
-#### Windows config
-ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
-	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-pc-windows-gnu
-else ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
-	RUST_FLAGS=-DRust_CARGO_TARGET=x86_64-pc-windows-gnu
-endif
 
 #### VCPKG config
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_MANIFEST_DIR='${PROJ_DIR}' -DVCPKG_BUILD=1 -DCMAKE_TOOLCHAIN_FILE='${VCPKG_TOOLCHAIN_PATH}'
+ifneq ("${DUCKDB_PLATFORM}", "")
+	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+endif
+else
+ifneq ("${DUCKDB_PLATFORM}", "")
+	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DCMAKE_TOOLCHAIN_FILE='${PROJ_DIR}/extension-ci-tools/toolchains/${DUCKDB_PLATFORM}.cmake'
+endif
 endif
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_TARGET_TRIPLET='${VCPKG_TARGET_TRIPLET}'
@@ -52,6 +42,7 @@ endif
 ifneq ("${VCPKG_HOST_TRIPLET}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_HOST_TRIPLET='${VCPKG_HOST_TRIPLET}'
 endif
+TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_HOST_TRIPLET='${VCPKG_HOST_TRIPLET}'
 
 #### Enable Ninja as generator
 ifeq ($(GEN),ninja)
@@ -61,7 +52,7 @@ endif
 #### Configuration for this extension
 EXTENSION_FLAGS=-DDUCKDB_EXTENSION_CONFIGS='${EXT_CONFIG}'
 
-BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}"
+BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DDUCKDB_TOOLCHAINS='${TOOLCHAINS}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}"
 
 ifeq ($(BUILD_BENCHMARK), 1)
 	BUILD_FLAGS += -DBUILD_BENCHMARKS=1
