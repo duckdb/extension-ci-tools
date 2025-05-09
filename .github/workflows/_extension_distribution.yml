@@ -569,10 +569,11 @@ jobs:
         run: |
           choco install ninja -y
       
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.31.x'
+      - name: Install CMake
+        run: |
+          choco install cmake --version=3.31.0 --force -y
+          refreshenv
+        shell: powershell
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
