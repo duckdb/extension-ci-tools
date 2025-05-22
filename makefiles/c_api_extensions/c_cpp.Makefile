@@ -2,6 +2,7 @@
 #
 # Inputs
 #   EXTENSION_NAME               : name of the extension (lower case)
+#   EXTENSION_CANONICAL          : name of the canonical extension (lower case)
 #   EXTENSION_LIB_FILENAME       : the library name that is produced by the build
 # 	USE_UNSTABLE_C_API           : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   TARGET_DUCKDB_VERSION        : the target version of DuckDB that the extension targets
@@ -33,6 +34,9 @@ CMAKE_VERSION_PARAMS = -DEXTENSION_NAME=$(EXTENSION_NAME)
 # Set the parsed semver defines
 ifneq ($(MAJOR_VERSION),)
 	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MAJOR=$(MAJOR_VERSION)
+endif
+ifneq ($(EXTENSION_CANONICAL),)
+	CMAKE_VERSION_PARAMS += -DEXTENSION_CANONICAL=$(EXTENSION_CANONICAL)
 endif
 ifneq ($(MINOR_VERSION),)
 	CMAKE_VERSION_PARAMS += -DTARGET_DUCKDB_VERSION_MINOR=$(MINOR_VERSION)
