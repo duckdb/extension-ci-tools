@@ -37,6 +37,9 @@ ENV CCACHE_COMPRESS=TRUE
 ENV CCACHE_COMPRESSLEVEL=6
 ENV CCACHE_MAXSIZE=400M
 
+# Allow git access to the mounted volume
+RUN git config --global --add safe.directory "*"
+
 ###
 # Conditionally configure some extra dependencies
 ###

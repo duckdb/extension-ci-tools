@@ -19,7 +19,7 @@ jobs:
       extension_name: quack
       override_repository: duckdb/extension-template
       override_ref: main
-      duckdb_version: v1.2.0
+      duckdb_version: v1.2.2
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3'
@@ -31,7 +31,7 @@ jobs:
       extension_name: capi_quack
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: main
+      duckdb_version: v1.2.2
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
@@ -43,7 +43,7 @@ jobs:
       extension_name: rusty_quack
       override_repository: duckdb/extension-template-rs
       override_ref: main
-      duckdb_version: v1.2.0
+      duckdb_version: v1.2.2
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
@@ -55,9 +55,9 @@ jobs:
     with:
       extension_name: delta
       override_repository: duckdb/duckdb_delta
-      override_ref: 846019edcc27000721ff9c4281e85a63d1aa10de
+      override_ref: 90f244b3d572c1692867950b562df8183957b7a8
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
-      duckdb_version: v1.2.0
+      duckdb_version: v1.2.2
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;windows_amd64;linux_amd64_musl'
       extra_toolchains: 'rust'
