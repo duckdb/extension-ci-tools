@@ -11,9 +11,9 @@ RUN yum install -y wget
 # We need a recent CMake
 RUN mkdir /cmake_4_02 && \
     cd /cmake_4_02 && \
-    wget https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-amd64.sh && \
-    chmod +x cmake-4.0.2-linux-amd64.sh  && \
-    ./cmake-4.0.2-linux-amd64.sh --skip-license --prefix=/usr/local && \
+    wget https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-x86_64.sh && \
+    chmod +x cmake-4.0.2-linux-x86_64.sh  && \
+    ./cmake-4.0.2-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
 # Install the AWS cli, since the packaged version is too old
