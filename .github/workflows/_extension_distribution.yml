@@ -161,7 +161,7 @@ jobs:
 
   linux:
     name: Linux
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
     strategy:
