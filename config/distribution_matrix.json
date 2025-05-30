@@ -3,19 +3,19 @@
     "include": [
       {
         "duckdb_arch": "linux_amd64",
-        "container": "quay.io/pypa/manylinux_2_28_x86_64",
+        "runner": "ubuntu-24.04",
         "vcpkg_target_triplet": "x64-linux-release",
         "vcpkg_host_triplet": "x64-linux-release"
       },
       {
         "duckdb_arch": "linux_arm64",
-        "container": "quay.io/pypa/manylinux_2_28_aarch64",
+        "runner": "ubuntu-24.04-arm",
         "vcpkg_target_triplet": "arm64-linux-release",
-        "vcpkg_host_triplet": "x64-linux"
+        "vcpkg_host_triplet": "arm64-linux-linux-release"
       },
       {
         "duckdb_arch": "linux_amd64_musl",
-        "container": "alpine:3",
+        "runner": "ubuntu-24.04",
         "vcpkg_target_triplet": "x64-linux-release",
         "vcpkg_host_triplet": "x64-linux-release"
       }
