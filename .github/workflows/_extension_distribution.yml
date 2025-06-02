@@ -642,6 +642,7 @@ jobs:
 
       # disables vcpkg cache to github actions
       - name: fix vcpkg config
+        shell: bash
         run: |
           if [[ "$VCPKG_BINARY_SOURCES" == "clear;x-gha,readwrite" ]]; then
             echo "VCPKG_BINARY_SOURCES=" >> $GITHUB_ENV
