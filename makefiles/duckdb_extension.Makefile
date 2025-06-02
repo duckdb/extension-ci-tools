@@ -61,7 +61,7 @@ endif
 #### Configuration for this extension
 EXTENSION_FLAGS=-DDUCKDB_EXTENSION_CONFIGS='${EXT_CONFIG}'
 
-BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}"
+BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=1 $(EXTENSION_FLAGS) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}" -DUNITTEST_ROOT_DIRECTORY="$(PROJ_DIR)" -DBENCHMARK_ROOT_DIRECTORY="$(PROJ_DIR)" -DENABLE_UNITTEST_CPP_TESTS=FALSE
 
 ifeq ($(BUILD_BENCHMARK), 1)
 	BUILD_FLAGS += -DBUILD_BENCHMARKS=1
@@ -76,6 +76,11 @@ release:
 	mkdir -p build/release
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(DUCKDB_SRCDIR) -B build/release
 	cmake --build build/release --config Release
+
+relassert:
+	mkdir -p build/relassert
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(DUCKDB_SRCDIR) -DFORCE_ASSERT=1 -B build/relassert
+	cmake --build build/relassert --config RelWithDebInfo
 
 reldebug:
 	mkdir -p build/reldebug
@@ -98,6 +103,9 @@ ifeq ($(SKIP_TESTS),1)
 	TEST_RELEASE_TARGET=tests_skipped
 	TEST_DEBUG_TARGET=tests_skipped
 	TEST_RELDEBUG_TARGET=tests_skipped
+endif
+ifeq (${CRASH_ON_ASSERT}, 1)
+	BUILD_FLAGS += -DCRASH_ON_ASSERT=1
 endif
 
 test_release: $(TEST_RELEASE_TARGET)
@@ -138,9 +146,17 @@ wasm_threads:
 	emmake make -j8 -Cbuild/wasm_threads
 
 #### Misc
+format-check:
+	python3 duckdb/scripts/format.py --all --check --directories src test
+
 format:
-	find src/ -iname *.hpp -o -iname *.cpp | xargs clang-format --sort-includes=0 -style=file -i
-	cmake-format -i CMakeLists.txt
+	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+
+format-fix:
+	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+
+format-main:
+	python3 duckdb/scripts/format.py main --fix --noconfirm --directories src test
 
 update:
 	git submodule update --remote --merge
