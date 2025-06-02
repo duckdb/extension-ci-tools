@@ -43,6 +43,9 @@ ENV GEN=ninja
 VOLUME /duckdb_build_dir
 WORKDIR /duckdb_build_dir
 
+# Allow git access to the mounted volume
+RUN git config --global --add safe.directory "*"
+
 # Mount for ccache to allow restoring ccache in GH actions
 VOLUME /ccache_dir
 ENV CCACHE_DIR=/ccache_dir
