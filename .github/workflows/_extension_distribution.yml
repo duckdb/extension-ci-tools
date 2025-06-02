@@ -640,6 +640,13 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
+      # disables vcpkg cache to github actions
+      - name: fix vcpkg config
+        run: |
+          if [[ "$VCPKG_BINARY_SOURCES" == "clear;x-gha,readwrite" ]]; then
+            echo "VCPKG_BINARY_SOURCES=" >> $GITHUB_ENV
+          fi
+
       - name: Run configure
         shell: bash
         env:
