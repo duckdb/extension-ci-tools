@@ -436,7 +436,6 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
-          doNotCache: ${{ vars.VCPKG_BINARY_SOURCES == '' }} # disable the default caching behaviour: it's broken
 
       - name: Install Rust cross compile dependency
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.osx_build_arch == 'x86_64'}}
@@ -474,6 +473,13 @@ jobs:
           echo "CFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
+
+      # disables vcpkg cache to github actions
+      - name: fix vcpkg config
+        run: |
+          if [[ "$VCPKG_BINARY_SOURCES" == "clear;x-gha,readwrite" ]]; then
+            echo "VCPKG_BINARY_SOURCES=" >> $GITHUB_ENV
+          fi
 
       - name: Run configure
         shell: bash
