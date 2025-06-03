@@ -16,7 +16,7 @@ on:
         required: false
       VCPKG_CACHING_AWS_SECRET_ACCESS_KEY:
         required: false
-      VCPKG_CACHING_AWS_ENDPOINT:
+      VCPKG_CACHING_AWS_ENDPOINT_URL:
         required: false
       VCPKG_CACHING_AWS_DEFAULT_REGION:
         required: false
