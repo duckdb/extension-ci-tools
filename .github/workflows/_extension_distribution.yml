@@ -124,7 +124,7 @@ on:
         default: false
 
 env:
-  VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache:duckdb:org,read' || inputs.vcpkg_binary_sources }}
+  VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
 
 jobs:
   generate_matrix:
