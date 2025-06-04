@@ -58,6 +58,11 @@ on:
         required: false
         type: string
         default: "ce613c41372b23b1f51333815feb3edd87ef8a8b"
+      # Override the vcpkg binary sources config. By default, we use the public (read-only) cache from duckdb.
+      vcpkg_binary_sources:
+        required: false
+        type: string
+        default: 'clear;http,https://vcpkg-cache.duckdb.org,read'
       # Override the default script producing the matrices. Allows specifying custom matrices.
       matrix_parse_script:
         required: false
@@ -180,7 +185,6 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       # VCPKG caching
-      VCPKG_BINARY_SOURCES: ${{ vars.VCPKG_BINARY_SOURCES }}
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
@@ -286,7 +290,7 @@ jobs:
           cat <<-EOF > docker_env.txt
           ACTIONS_CACHE_URL=$ACTIONS_CACHE_URL
           ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN
-          VCPKG_BINARY_SOURCES=${{ vars.VCPKG_BINARY_SOURCES }}
+          VCPKG_BINARY_SOURCES=${{ inputs.vcpkg_binary_sources }}
           AWS_ACCESS_KEY_ID=${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY=${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
           AWS_ENDPOINT_URL=${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
@@ -387,7 +391,7 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       # VCPKG caching
-      VCPKG_BINARY_SOURCES: ${{ vars.VCPKG_BINARY_SOURCES }}
+      VCPKG_BINARY_SOURCES: ${{ inputs.vcpkg_binary_sources }}
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
@@ -502,13 +506,6 @@ jobs:
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
-      # disables vcpkg cache to github actions
-      - name: fix vcpkg config
-        run: |
-          if [[ "$VCPKG_BINARY_SOURCES" == "clear;x-gha,readwrite" ]]; then
-            echo "VCPKG_BINARY_SOURCES=" >> $GITHUB_ENV
-          fi
-
       - name: Run configure
         shell: bash
         env:
@@ -556,7 +553,7 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       # VCPKG caching
-      VCPKG_BINARY_SOURCES: ${{ vars.VCPKG_BINARY_SOURCES }}
+      VCPKG_BINARY_SOURCES: ${{ inputs.vcpkg_binary_sources }}
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
@@ -673,14 +670,6 @@ jobs:
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
-
-      # disables vcpkg cache to github actions
-      - name: fix vcpkg config
-        shell: bash
-        run: |
-          if [[ "$VCPKG_BINARY_SOURCES" == "clear;x-gha,readwrite" ]]; then
-            echo "VCPKG_BINARY_SOURCES=" >> $GITHUB_ENV
-          fi
 
       - name: Run configure
         shell: bash
