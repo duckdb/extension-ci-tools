@@ -88,10 +88,6 @@ endif
 ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
 	MINGW=1
 endif
-ifeq ($(MINGW),1)
-	EXTRA_COPY_STEP_DEBUG=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/debug').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/debug/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_DEBUG)')"
-	EXTRA_COPY_STEP_RELEASE=$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./cmake_build/release').mkdir(parents=True, exist_ok=True);import shutil;shutil.copyfile('cmake_build/release/lib$(EXTENSION_LIB_FILENAME)', '$(OUTPUT_LIB_PATH_RELEASE)')"
-endif
 
 CMAKE_WRAPPER=
 CMAKE_BUILD_DEBUG = cmake --build cmake_build/debug --config Debug
