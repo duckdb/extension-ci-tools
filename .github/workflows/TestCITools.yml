@@ -23,6 +23,7 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3'
+      save_cache: ${{ github.event_name != 'pull_request' }}
 
   extension-template-capi:
     name: Extension template (C API)
@@ -35,6 +36,7 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
+      save_cache: ${{ github.event_name != 'pull_request' }}
 
   extension-template-rust:
     name: Extension template (Rust)
@@ -49,6 +51,7 @@ jobs:
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
       exclude_archs: 'windows_amd64_mingw;linux_amd64_musl;wasm_mvp;wasm_eh;wasm_threads' # TODO: remove once fixed upstream
+      save_cache: ${{ github.event_name != 'pull_request' }}
 
   delta-extension-main:
     name: Rust builds (using Delta extension)
@@ -62,3 +65,4 @@ jobs:
       duckdb_version: v1.3.0
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;windows_amd64;linux_amd64_musl'
       extra_toolchains: 'rust'
+      save_cache: ${{ github.event_name != 'pull_request' }}
