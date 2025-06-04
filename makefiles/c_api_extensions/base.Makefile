@@ -19,7 +19,7 @@
 PYTHON_BIN?=python3
 
 ifeq ($(OS),Windows_NT)
-	EXTENSION_LIB_FILENAME=$(EXTENSION_NAME).dll
+	EXTENSION_LIB_FILENAME=lib$(EXTENSION_NAME).dll
 	PYTHON_VENV_BIN=./configure/venv/Scripts/python.exe
 else
 	PYTHON_VENV_BIN=./configure/venv/bin/python3
