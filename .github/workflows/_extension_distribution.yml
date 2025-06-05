@@ -198,13 +198,6 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - name: Export GitHub Actions cache environment variables
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
       - name: Free up some unused space
         continue-on-error: true
         run: |
@@ -291,8 +284,6 @@ jobs:
       - name: Create env file for docker
         run: |
           cat <<-EOF > docker_env.txt
-          ACTIONS_CACHE_URL=$ACTIONS_CACHE_URL
-          ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN
           VCPKG_BINARY_SOURCES=$VCPKG_BINARY_SOURCES
           AWS_ACCESS_KEY_ID=${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY=${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
@@ -405,13 +396,6 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - name: Export GitHub Actions cache environment variables
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
       - uses: actions/checkout@v4
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
@@ -567,13 +551,6 @@ jobs:
       GEN: ninja
 
     steps:
-      - name: Export GitHub Actions cache environment variables
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
       - name: Keep \n line endings
         shell: bash
         run: |
