@@ -20,6 +20,7 @@ RUN mkdir /vcpkg && \
     VCPKG_FORCE_SYSTEM_BINARIES=1 ./bootstrap-vcpkg.sh
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
+ENV PATH="${VCPKG_ROOT}:${PATH}"
 
 # Common environment variables
 ENV GEN=ninja
