@@ -339,7 +339,7 @@ jobs:
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
             for dep in $DEPS; do
-              docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} vcpkg install $dep
+              docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} vcpkg install $dep --recurse
             done
           fi
 
@@ -521,7 +521,7 @@ jobs:
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
             for dep in $DEPS; do
-              vcpkg install "$dep"
+              vcpkg install "$dep" --recurse
             done
           fi
 
@@ -693,7 +693,7 @@ jobs:
           echo $DEPS
           if [ ! -z "$DEPS" ]; then
             for dep in $DEPS; do
-              vcpkg install "$dep"
+              vcpkg install "$dep" --recurse
             done
           fi
 
@@ -841,7 +841,7 @@ jobs:
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
             for dep in $DEPS; do
-              vcpkg install "$dep"
+              vcpkg install "$dep" --recurse
             done
           fi
 
