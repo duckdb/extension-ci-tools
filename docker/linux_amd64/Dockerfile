@@ -7,6 +7,7 @@ RUN yum install -y perl-IPC-Cmd
 RUN yum install -y ccache
 RUN yum install -y java-11-openjdk-devel maven
 RUN yum install -y wget
+RUN yum install -y kernel-headers
 
 # We need a recent CMake
 RUN mkdir /cmake_4_02 && \

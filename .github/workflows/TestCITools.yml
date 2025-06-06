@@ -24,6 +24,8 @@ jobs:
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3'
       save_cache: ${{ github.event_name != 'pull_request' }}
+      vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
+    secrets: inherit
 
   extension-template-capi:
     name: Extension template (C API)
@@ -66,3 +68,5 @@ jobs:
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;windows_amd64;linux_amd64_musl'
       extra_toolchains: 'rust'
       save_cache: ${{ github.event_name != 'pull_request' }}
+      vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
+    secrets: inherit
