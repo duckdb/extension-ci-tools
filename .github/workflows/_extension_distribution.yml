@@ -338,7 +338,9 @@ jobs:
           JSON='${{inputs.vcpkg_extra_dependencies}}'
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
-            docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} /vcpkg install $DEPS
+            for dep in $DEPS; do
+              docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} vcpkg install $dep
+            done
           fi
 
       - name: Run configure (inside Docker)
@@ -518,7 +520,9 @@ jobs:
           JSON='${{inputs.vcpkg_extra_dependencies}}'
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
-            vcpkg install $DEPS
+            for dep in $DEPS; do
+              vcpkg install "$dep"
+            done
           fi
 
       - name: Build extension
@@ -836,7 +840,9 @@ jobs:
           JSON='${{inputs.vcpkg_extra_dependencies}}'
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
-            vcpkg install $DEPS
+            for dep in $DEPS; do
+              vcpkg install "$dep"
+            done
           fi
 
       - name: Build Wasm module
