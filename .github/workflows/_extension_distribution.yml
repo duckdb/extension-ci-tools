@@ -475,6 +475,11 @@ jobs:
         run: |
           rustup target add x86_64-apple-darwin
 
+      - name: Install Fortran
+        if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';fortran;')) }}
+        run: |
+          brew install gcc
+
       - name: 'Setup go'
         if: ${{ (inputs.enable_go || contains(format(';{0};', inputs.extra_toolchains), ';go;'))}}
         uses: actions/setup-go@v4
