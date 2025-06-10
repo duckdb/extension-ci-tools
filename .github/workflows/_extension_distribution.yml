@@ -104,6 +104,10 @@ on:
         required: false
         type: boolean
         default: false
+      save_cache:
+        required: false
+        type: boolean
+        default: true
       # DEPRECATED: use extra_toolchains instead
       enable_rust:
         required: false
@@ -300,7 +304,7 @@ jobs:
           mkdir ccache_dir
 
       - name: Load Ccache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ./ccache_dir
           key: ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}-${{ steps.ccache_timestamp.outputs.timestamp }}
@@ -323,6 +327,13 @@ jobs:
       - name: Build extension (inside Docker)
         run: |
           docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make release
+
+      - name: Save Ccache
+        if: ${{ inputs.save_cache }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./ccache_dir
+          key: ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}-${{ steps.ccache_timestamp.outputs.timestamp }}
 
       - name: Test extension (inside docker)
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
@@ -404,6 +415,7 @@ jobs:
         continue-on-error: true
         with:
           key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
 
       - uses: actions/setup-python@v5
         with:
@@ -593,6 +605,7 @@ jobs:
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
 
       - uses: r-lib/actions/setup-r@v2
         if:  matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw'
@@ -784,6 +797,7 @@ jobs:
         continue-on-error: true
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
 
       - name: Run configure
         shell: bash
