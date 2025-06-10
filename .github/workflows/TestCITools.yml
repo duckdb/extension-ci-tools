@@ -42,7 +42,6 @@ jobs:
 
   extension-template-rust:
     name: Extension template (Rust)
-    if: false # Temporarily disabled: rust extension not yet ready for v1.3.0
     uses: ./.github/workflows/_extension_distribution.yml
     with:
       extension_name: rusty_quack
