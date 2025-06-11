@@ -29,7 +29,7 @@ on:
         required: false
       format_checks:
         type: string
-        required: true
+        required: false
         default: "format;tidy"
     secrets:
       GH_TOKEN:
