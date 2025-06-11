@@ -26,12 +26,6 @@ on:
       extra_toolchains:
         type: string
         required: false
-      save_cache:
-        type: boolean
-        required: false
-      vcpkg_binary_sources:
-        type: string
-        required: false
     secrets:
       GH_TOKEN:
         required: false
@@ -85,6 +79,7 @@ jobs:
           clang-format --version
           clang-format --dump-config
           black --version
+          ls
           make format-check
 
       - name: Generated Check
