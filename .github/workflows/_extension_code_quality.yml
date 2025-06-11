@@ -65,6 +65,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@v4
+        with:
+         path: extension-ci-tools
+         repository: ${{ inputs.override_ci_tools_repository }}
+         ref: ${{ inputs.ci_tools_version }}
+
       - name: Install
         shell: bash
         run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-format-11 && sudo pip3 install cmake-format 'black==24.*' cxxheaderparser pcpp 'clang_format==11.0.1'
