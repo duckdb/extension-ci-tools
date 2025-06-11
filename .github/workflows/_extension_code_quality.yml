@@ -68,7 +68,7 @@ jobs:
       - name: Checkout extension-ci-tools
         uses: actions/checkout@v4
         with:
-         path: extension-ci-tools
+         path: 'extension-ci-tools'
          repository: ${{ inputs.override_ci_tools_repository }}
          ref: ${{ inputs.ci_tools_version }}
 
@@ -86,7 +86,7 @@ jobs:
           clang-format --version
           clang-format --dump-config
           black --version
-          ls extension-ci-tools/makefiles
+          ls extension-ci-tools
           make format-check
 
       - name: Generated Check
