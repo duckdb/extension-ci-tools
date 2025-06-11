@@ -69,3 +69,18 @@ jobs:
       save_cache: ${{ github.event_name != 'pull_request' }}
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
     secrets: inherit
+
+  code-quality:
+    name: Code Quality
+    uses: ./.github/workflows/_extension_code_quality.yml
+    with:
+      extension_name: quack
+      override_repository: duckdb/extension-template
+      override_ref: main
+      duckdb_version: v1.3.0
+      override_ci_tools_repository: ${{ github.repository }}
+      ci_tools_version: ${{ github.sha }}
+      extra_toolchains: 'python3'
+      save_cache: ${{ github.event_name != 'pull_request' }}
+      vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
+    secrets: inherit
