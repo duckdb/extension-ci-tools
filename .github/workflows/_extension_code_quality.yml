@@ -2,12 +2,39 @@ name: CodeQuality
 on:
   workflow_call:
     inputs:
-      duckdb_version:
-        required: true
+      explicit_checks:
         type: string
+        required: false
       extension_name:
         type: string
         required: true
+      override_repository:
+        type: string
+        required: true
+      override_ref:
+        type: string
+        required: true
+      duckdb_version:
+        type: string
+        required: true
+      override_ci_tools_repository:
+        type: string
+        required: true
+      ci_tools_version:
+        type: string
+        required: true
+      extra_toolchains:
+        type: string
+        required: false
+      save_cache:
+        type: boolean
+        required: false
+      vcpkg_binary_sources:
+        type: string
+        required: false
+    secrets:
+      GH_TOKEN:
+        required: false
   repository_dispatch:
   push:
     paths-ignore:
