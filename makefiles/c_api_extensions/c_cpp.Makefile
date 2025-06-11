@@ -119,15 +119,15 @@ build_extension_library_debug: check_configure
 	$(CMAKE_WRAPPER) cmake $(CMAKE_BUILD_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(PROJ_DIR) -B cmake_build/debug $(EXTRA_CMAKE_FLAGS)
 	$(CMAKE_BUILD_DEBUG)
 	$(EXTRA_COPY_STEP_DEBUG)
-	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('$(EXTENSIONS_BUILD_PATH)/debug/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_DEBUG)', '$(EXTENSIONS_BUILD_PATH)/debug/$(EXTENSION_LIB_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('$(EXTENSION_BUILD_PATH)/debug/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_DEBUG)', '$(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_LIB_FILENAME)')"
 
 build_extension_library_release: check_configure
 	$(CMAKE_WRAPPER) cmake $(CMAKE_BUILD_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(PROJ_DIR) -B cmake_build/release $(EXTRA_CMAKE_FLAGS)
 	$(CMAKE_BUILD_RELEASE)
 	$(EXTRA_COPY_STEP_RELEASE)
-	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('$(EXTENSIONS_BUILD_PATH)/release/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_RELEASE)', '$(EXTENSIONS_BUILD_PATH)/release/$(EXTENSION_LIB_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('$(EXTENSION_BUILD_PATH)/release/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(OUTPUT_LIB_PATH_RELEASE)', '$(EXTENSION_BUILD_PATH)/release/$(EXTENSION_LIB_FILENAME)')"
 
 #############################################
 ### Misc

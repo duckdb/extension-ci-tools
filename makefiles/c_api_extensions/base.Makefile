@@ -52,7 +52,7 @@ ifneq ($(DUCKDB_WASM_PLATFORM),)
 	EXTENSION_LIB_FILENAME=lib$(EXTENSION_NAME).a
 	EXTENSION_BUILD_PATH=./build/$(DUCKDB_WASM_PLATFORM)
 else
-	EXTENSIONS_BUILD_PATH=./build
+	EXTENSION_BUILD_PATH=./build
 endif
 
 #############################################
@@ -194,10 +194,10 @@ output_distribution_matrix:
 ifneq ($(DUCKDB_WASM_PLATFORM),)
 
 link_wasm_debug:
-	emcc $(EXTENSIONS_BUILD_PATH)/debug/$(EXTENSION_LIB_FILENAME) -o $(EXTENSIONS_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
+	emcc $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_LIB_FILENAME) -o $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
 
 link_wasm_release:
-	emcc $(EXTENSIONS_BUILD_PATH)/release/$(EXTENSION_LIB_FILENAME) -o $(EXTENSIONS_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
+	emcc $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_LIB_FILENAME) -o $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
 
 else
 link_wasm_debug:
@@ -215,23 +215,23 @@ endif
 
 build_extension_with_metadata_debug: check_configure link_wasm_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l $(EXTENSIONS_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
-			-o $(EXTENSIONS_BUILD_PATH)/debug/$(EXTENSION_FILENAME) \
+			-l $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
+			-o $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSIONS_BUILD_PATH)/debug/$(EXTENSION_FILENAME)', '$(EXTENSIONS_BUILD_PATH)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME)', '$(EXTENSION_BUILD_PATH)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 build_extension_with_metadata_release: check_configure link_wasm_release
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
-			-l $(EXTENSIONS_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) \
-			-o $(EXTENSIONS_BUILD_PATH)/release/$(EXTENSION_FILENAME) \
+			-l $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) \
+			-o $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME) \
 			-n $(EXTENSION_NAME) \
 			-dv $(TARGET_DUCKDB_VERSION) \
 			-evf configure/extension_version.txt \
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSIONS_BUILD_PATH)/release/$(EXTENSION_FILENAME)', '$(EXTENSIONS_BUILD_PATH)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME)', '$(EXTENSION_BUILD_PATH)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 #############################################
 ### Python
@@ -266,8 +266,8 @@ check_configure:
 	@$(PYTHON_BIN) -c "import os; assert os.path.exists('configure/venv'), 'The configure step appears to not be run. Please try running make configure'"
 
 move_wasm_extension:
-	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('./$(EXTENSIONS_BUILD_PATH)/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
-	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSIONS_BUILD_PATH)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)', '$(EXTENSIONS_BUILD_PATH)/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
+	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('$(EXTENSION_BUILD_PATH)/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
+	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSION_BUILD_PATH)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)', '$(EXTENSION_BUILD_PATH)/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
 wasm_mvp:
 	DUCKDB_PLATFORM=wasm_mvp make configure release move_wasm_extension
