@@ -81,4 +81,4 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
-    secrets: inherit
+
