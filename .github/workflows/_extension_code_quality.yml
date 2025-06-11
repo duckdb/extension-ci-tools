@@ -20,6 +20,7 @@ on:
       override_ci_tools_repository:
         type: string
         required: false
+        default: "duckdb/extension-ci-tools"
       ci_tools_version:
         type: string
         required: true
