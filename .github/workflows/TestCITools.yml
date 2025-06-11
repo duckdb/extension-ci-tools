@@ -82,5 +82,6 @@ jobs:
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
       save_cache: ${{ github.event_name != 'pull_request' }}
+      format_checks: 'format;tidy'
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
     secrets: inherit
