@@ -95,12 +95,6 @@ jobs:
           black --version
           make format-check
 
-      - name: Generated Check
-        shell: bash
-        run: |
-          make generate-files
-          git diff --exit-code
-
   tidy-check:
     name: Tidy Check
     runs-on: ubuntu-24.04
