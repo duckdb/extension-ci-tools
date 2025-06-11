@@ -5,6 +5,9 @@ on:
       duckdb_version:
         required: true
         type: string
+      extension_name:
+        type: string
+        required: true
   repository_dispatch:
   push:
     paths-ignore:
