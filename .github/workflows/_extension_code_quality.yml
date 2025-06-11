@@ -10,16 +10,16 @@ on:
         required: true
       override_repository:
         type: string
-        required: true
+        required: false
       override_ref:
         type: string
-        required: true
+        required: false
       duckdb_version:
         type: string
         required: true
       override_ci_tools_repository:
         type: string
-        required: true
+        required: false
       ci_tools_version:
         type: string
         required: true
