@@ -86,8 +86,7 @@ jobs:
           clang-format --version
           clang-format --dump-config
           black --version
-          cd extension-ci-tools
-          ls
+          ls extension-ci-tools/makefiles
           make format-check
 
       - name: Generated Check
