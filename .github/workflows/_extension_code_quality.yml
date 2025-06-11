@@ -72,11 +72,12 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - name: Checkout extension-ci-tools
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        name: Checkout Extension CI tools
         with:
-         repository: "dtenwolde/extension-ci-tools"
-         ref: "code-quality-v2"
+          path: 'extension-ci-tools'
+          ref: ${{ inputs.ci_tools_version }}
+          repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Install
         shell: bash
