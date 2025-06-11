@@ -24,11 +24,16 @@ ifneq ($(DUCKDB_WASM_PLATFORM),)
 	TARGET_INFO=--target $(TARGET) --example $(EXTENSION_NAME)
 	IS_EXAMPLE=/examples
 	TARGET_PATH=./target/$(TARGET)
-	RUST_LIBNAME= $(EXTENSION_NAME).dll
 else
 	IS_EXAMPLE=
 	TARGET_PATH=./target
-	RUST_LIBNAME= $(EXTENSION_LIB_FILENAME)
+endif
+
+# Rust be slightly different
+ifeq ($(OS),Windows_NT)
+	RUST_LIBNAME=$(EXTENSION_NAME).dll
+else
+	RUST_LIBNAME=$(EXTENSION_LIB_FILENAME)
 endif
 
 #############################################
