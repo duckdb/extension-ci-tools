@@ -32,6 +32,14 @@ else
     endif
 endif
 
+# Override lib filename for mingw
+ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
+	EXTENSION_LIB_FILENAME=lib$(EXTENSION_NAME).dll
+endif
+ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
+	EXTENSION_LIB_FILENAME=lib$(EXTENSION_NAME).dll
+endif
+
 #############################################
 ### Main extension parameters
 #############################################
