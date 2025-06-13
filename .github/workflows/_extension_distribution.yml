@@ -512,6 +512,14 @@ jobs:
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
+      - name: Override AWS CLI
+        if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
+        shell: bash
+        run: |
+          curl https://awscli.amazonaws.com/AWSCLIV2-2.22.35.pkg -o ./AWSCLIV2.pkg
+          sudo installer -pkg ./AWSCLIV2.pkg -target /
+          aws --version
+
       - name: Run configure
         shell: bash
         env:
@@ -582,6 +590,20 @@ jobs:
       GEN: ninja
 
     steps:
+      - name: Downgrade AWS cli
+        shell: powershell
+        if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
+        run: |
+          $app = Get-WmiObject -Class Win32_Product -Filter "Name LIKE 'AWS Command Line Interface%'"
+          if ($app) { $app.Uninstall() }
+          msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2-2.22.35.msi  /qn
+          sleep 60
+
+      - name: Test AWS cli version
+        shell: powershell
+        run: |
+          aws --version
+
       - name: Keep \n line endings
         shell: bash
         run: |
@@ -749,7 +771,6 @@ jobs:
         run: |
           mv C:\rtools42\usr\bin\zstd.exe C:\rtools42\usr\bin\zstd-rtools.exe
 
-
   wasm:
     name: DuckDB-Wasm
     runs-on: ubuntu-latest
@@ -761,6 +782,11 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+      # VCPKG caching
+      AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
@@ -830,6 +856,14 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
           save: ${{ inputs.save_cache }}
+
+      - name: Downgrade AWS cli
+        if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.35.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install --update
+          aws --version
 
       - name: Run configure
         shell: bash
