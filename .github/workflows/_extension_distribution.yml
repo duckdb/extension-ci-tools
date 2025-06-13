@@ -466,17 +466,17 @@ jobs:
 
       - name: Setup vcpkg
         run: |
-          mkdir /vcpkg
+          mkdir local_vcpkg_installation
           cmake --version
-          cd /vcpkg
+          cd local_vcpkg_installation
           git init
           git remote add origin ${{ inputs.vcpkg_url }}
           git fetch origin ${{ inputs.vcpkg_commit }}
           git checkout ${{ inputs.vcpkg_commit }}
           ./bootstrap-vcpkg.sh
-          echo "VCPKG_ROOT=/vcpkg" >> $GITHUB_ENV
-          echo "VCPKG_TOOLCHAIN_PATH=//vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
-          echo "/vcpkg" >> $GITHUB_PATH
+          echo "VCPKG_ROOT=${{ github.workspace }}/local_vcpkg_installation" >> $GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=${{ github.workspace }}/local_vcpkg_installation/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/local_vcpkg_installation" >> $GITHUB_PATH
 
       - name: Install Rust cross compile dependency
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.osx_build_arch == 'x86_64'}}
@@ -854,17 +854,17 @@ jobs:
 
       - name: Setup vcpkg
         run: |
-          mkdir /vcpkg
+          mkdir local_vcpkg_installation
           cmake --version
-          cd /vcpkg
+          cd local_vcpkg_installation
           git init
           git remote add origin ${{ inputs.vcpkg_url }}
           git fetch origin ${{ inputs.vcpkg_commit }}
           git checkout ${{ inputs.vcpkg_commit }}
           ./bootstrap-vcpkg.sh
-          echo "VCPKG_ROOT=/vcpkg" >> $GITHUB_ENV
-          echo "VCPKG_TOOLCHAIN_PATH=//vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
-          echo "/vcpkg" >> $GITHUB_PATH
+          echo "VCPKG_ROOT=${{ github.workspace }}/local_vcpkg_installation" >> $GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=${{ github.workspace }}/local_vcpkg_installation/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/local_vcpkg_installation" >> $GITHUB_PATH
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
