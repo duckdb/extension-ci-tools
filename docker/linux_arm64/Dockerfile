@@ -7,6 +7,8 @@ RUN yum install -y perl-IPC-Cmd
 RUN yum install -y ccache
 RUN yum install -y java-11-openjdk-devel maven
 RUN yum install -y wget
+RUN yum install -y kernel-headers
+
 
 # We need a recent CMake
 RUN mkdir /cmake_4_02 && \
@@ -17,7 +19,7 @@ RUN mkdir /cmake_4_02 && \
     cmake --version
 
 # Install the AWS cli, since the packaged version is too old
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.22.35.zip" -o "awscliv2.zip"
 RUN unzip -q awscliv2.zip
 RUN ./aws/install
 RUN aws --version
@@ -35,6 +37,7 @@ RUN mkdir /vcpkg && \
     ./bootstrap-vcpkg.sh
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
+ENV PATH="${VCPKG_ROOT}:${PATH}"
 
 # Common environment variables
 ENV GEN=ninja
