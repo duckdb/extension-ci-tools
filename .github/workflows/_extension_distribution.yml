@@ -465,10 +465,18 @@ jobs:
           DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11.1
-        with:
-          vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
-          vcpkgGitURL: ${{ inputs.vcpkg_url }}
+        run: |
+          mkdir /vcpkg
+          cmake --version
+          cd /vcpkg
+          git init
+          git remote add origin ${{ inputs.vcpkg_url }}
+          git fetch origin ${{ inputs.vcpkg_commit }}
+          git checkout ${{ inputs.vcpkg_commit }}
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=/vcpkg" >> $GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=//vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          echo "/vcpkg" >> $GITHUB_PATH
 
       - name: Install Rust cross compile dependency
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.osx_build_arch == 'x86_64'}}
@@ -845,10 +853,18 @@ jobs:
           go-version: '1.23'
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11.1
-        with:
-          vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
-          vcpkgGitURL: ${{ inputs.vcpkg_url }}
+        run: |
+          mkdir /vcpkg
+          cmake --version
+          cd /vcpkg
+          git init
+          git remote add origin ${{ inputs.vcpkg_url }}
+          git fetch origin ${{ inputs.vcpkg_commit }}
+          git checkout ${{ inputs.vcpkg_commit }}
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=/vcpkg" >> $GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=//vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          echo "/vcpkg" >> $GITHUB_PATH
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
