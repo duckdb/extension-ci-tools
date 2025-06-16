@@ -32,7 +32,7 @@ index ffbb68dc5..2715b8489 100644
  int avro_file_writer_open_bs(const char *path, avro_file_writer_t * writer, size_t block_size);
  int avro_file_reader(const char *path, avro_file_reader_t * reader);
 diff --git a/lang/c/src/datafile.c b/lang/c/src/datafile.c
-index c9d4dfeb6..94f2ca8a6 100644
+index c9d4dfeb6..e7b0f5244 100644
 --- a/lang/c/src/datafile.c
 +++ b/lang/c/src/datafile.c
 @@ -22,6 +22,7 @@
@@ -65,7 +65,7 @@ index c9d4dfeb6..94f2ca8a6 100644
 +		metadata_obj = json_loads(metadata_json, 0, &error);
 +		if (!metadata_obj || !json_is_object(metadata_obj)) {
 +			// handle error: invalid JSON or not an object
-+			return AVRO_SCHEMA_PARSE_ERROR;
++			EINVAL;
 +		}
 +		meta_count = json_object_size(metadata_obj);
 +	}
@@ -103,6 +103,15 @@ index c9d4dfeb6..94f2ca8a6 100644
  	check(rval, enc->write_long(w->writer, 0));
  	return write_sync(w);
  }
+@@ -169,7 +201,7 @@ file_writer_create(FILE *fp, const char *path, int should_close, avro_schema_t s
+ 	}
+ 
+ 	w->writers_schema = avro_schema_incref(schema);
+-	return write_header(w);
++	return write_header(w, NULL);
+ }
+ 
+ int
 @@ -238,6 +270,47 @@ int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should
  	return 0;
  }
@@ -145,7 +154,7 @@ index c9d4dfeb6..94f2ca8a6 100644
 +
 +int avro_file_writer_create_from_writers(avro_writer_t writer_in, avro_writer_t datum_writer_in, avro_schema_t schema, avro_file_writer_t * writer)
 +{
-+	avro_file_writer_create_from_writers_with_metadata(writer_in, datum_writer_in, schema, writer, NULL);
++	return avro_file_writer_create_from_writers_with_metadata(writer_in, datum_writer_in, schema, writer, NULL);
 +}
 +
  static int file_read_header(avro_reader_t reader,
