@@ -1,5 +1,5 @@
 diff --git a/lang/c/src/avro/io.h b/lang/c/src/avro/io.h
-index ffbb68dc5..06253fe48 100644
+index ffbb68dc5..2715b8489 100644
 --- a/lang/c/src/avro/io.h
 +++ b/lang/c/src/avro/io.h
 @@ -52,6 +52,10 @@ avro_reader_memory_set_source(avro_reader_t reader, const char *buf, int64_t len
@@ -22,24 +22,84 @@ index ffbb68dc5..06253fe48 100644
  void avro_writer_flush(avro_writer_t writer);
  
  void avro_writer_dump(avro_writer_t writer, FILE * fp);
-@@ -109,6 +115,7 @@ int avro_file_writer_create_with_codec(const char *path,
+@@ -109,6 +115,8 @@ int avro_file_writer_create_with_codec(const char *path,
  int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should_close,
  				avro_schema_t schema, avro_file_writer_t * writer,
  				const char *codec, size_t block_size);
 +int avro_file_writer_create_from_writers(avro_writer_t writer_in, avro_writer_t datum_writer_in, avro_schema_t schema, avro_file_writer_t * writer);
++int avro_file_writer_create_from_writers_with_metadata(avro_writer_t writer_in, avro_writer_t datum_writer_in, avro_schema_t schema, avro_file_writer_t * writer, const char *metadata_json);
  int avro_file_writer_open(const char *path, avro_file_writer_t * writer);
  int avro_file_writer_open_bs(const char *path, avro_file_writer_t * writer, size_t block_size);
  int avro_file_reader(const char *path, avro_file_reader_t * reader);
 diff --git a/lang/c/src/datafile.c b/lang/c/src/datafile.c
-index c9d4dfeb6..45d8084ee 100644
+index c9d4dfeb6..a128cad90 100644
 --- a/lang/c/src/datafile.c
 +++ b/lang/c/src/datafile.c
-@@ -238,6 +238,43 @@ int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should
+@@ -73,7 +73,7 @@ static int write_sync(avro_file_writer_t w)
+ 	return avro_write(w->writer, w->sync, sizeof(w->sync));
+ }
+ 
+-static int write_header(avro_file_writer_t w)
++static int write_header(avro_file_writer_t w, const char *metadata_json)
+ {
+ 	int rval;
+ 	uint8_t version = 1;
+@@ -88,7 +88,21 @@ static int write_header(avro_file_writer_t w)
+ 	check(rval, avro_write(w->writer, "Obj", 3));
+ 	check(rval, avro_write(w->writer, &version, 1));
+ 
+-	check(rval, enc->write_long(w->writer, 2));
++	json_t *metadata_obj = NULL;
++	json_error_t error;
++	size_t meta_count = 0;
++
++	if (metadata_json) {
++		metadata_obj = json_loads(metadata_json, 0, &error);
++		if (!metadata_obj || !json_is_object(metadata_obj)) {
++			// handle error: invalid JSON or not an object
++			return AVRO_SCHEMA_PARSE_ERROR;
++		}
++		meta_count = json_object_size(metadata_obj);
++	}
++
++	check(rval, enc->write_long(w->writer, meta_count + 2)); // +2 for codec & schema
++
+ 	check(rval, enc->write_string(w->writer, "avro.codec"));
+ 	check(rval, enc->write_bytes(w->writer, w->codec->name, strlen(w->codec->name)));
+ 	check(rval, enc->write_string(w->writer, "avro.schema"));
+@@ -101,8 +115,25 @@ static int write_header(avro_file_writer_t w)
+ 	}
+ 	schema_len = avro_writer_tell(schema_writer);
+ 	avro_writer_free(schema_writer);
+-	check(rval,
+-	      enc->write_bytes(w->writer, w->schema_buf, schema_len));
++	check(rval, enc->write_bytes(w->writer, w->schema_buf, schema_len));
++
++	if (metadata_obj) {
++		const char *key;
++		json_t *value;
++
++		json_object_foreach(metadata_obj, key, value) {
++			check(rval, enc->write_string(w->writer, key));
++			if (!json_is_string(value)) {
++				json_decref(metadata_obj);
++				return EINVAL;
++			}
++
++			const char *val_str = json_string_value(value);
++			check(rval, enc->write_bytes(w->writer, val_str, strlen(val_str)));
++		}
++		json_decref(metadata_obj);
++	}
++
+ 	check(rval, enc->write_long(w->writer, 0));
+ 	return write_sync(w);
+ }
+@@ -238,6 +269,47 @@ int avro_file_writer_create_with_codec_fp(FILE *fp, const char *path, int should
  	return 0;
  }
  
-+int avro_file_writer_create_from_writers(avro_writer_t writer_in, avro_writer_t datum_writer_in, avro_schema_t schema, avro_file_writer_t * writer)
-+{
++int avro_file_writer_create_from_writers_with_metadata(avro_writer_t writer_in, avro_writer_t datum_writer_in, avro_schema_t schema, avro_file_writer_t * writer, const char *metadata_json) {
 +	avro_file_writer_t w;
 +	int rval;
 +	check_param(EINVAL, is_avro_schema(schema), "schema");
@@ -72,13 +132,18 @@ index c9d4dfeb6..45d8084ee 100644
 +	w->datum_writer = datum_writer_in;
 +
 +	w->writers_schema = avro_schema_incref(schema);
-+	return write_header(w);
++	return write_header(w, metadata_json);
++}
++
++int avro_file_writer_create_from_writers(avro_writer_t writer_in, avro_writer_t datum_writer_in, avro_schema_t schema, avro_file_writer_t * writer)
++{
++	avro_file_writer_create_from_writers_with_metadata(writer_in, datum_writer_in, schema, writer, NULL);
 +}
 +
  static int file_read_header(avro_reader_t reader,
  			    avro_schema_t * writers_schema, avro_codec_t codec,
  			    char *sync, int synclen)
-@@ -570,7 +607,7 @@ static int file_write_block(avro_file_writer_t w)
+@@ -570,7 +642,7 @@ static int file_write_block(avro_file_writer_t w)
  		check_prefix(rval, enc->write_long(w->writer, w->block_count),
  			     "Cannot write file block count: ");
  		/* Encode the block */
