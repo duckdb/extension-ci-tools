@@ -47,7 +47,7 @@ jobs:
       extension_name: rusty_quack
       override_repository: duckdb/extension-template-rs
       override_ref: main
-      duckdb_version: v1.3.1
+      duckdb_version: v1.3.0
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
