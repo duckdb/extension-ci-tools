@@ -20,15 +20,10 @@ separate_arguments(OPTIONAL_DUCKDB_PATCHES)
 
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO apache/avro
-    REF "release-${VERSION}"
-    SHA512 728609f562460e1115366663ede2c5d4acbdd6950c1ee3e434ffc65d28b72e3a43c3ebce93d0a8459f0c4f6c492ebb9444e2127a0385f38eb7cdf74b28f0c3ed
-    HEAD_REF master
+    REPO duckdb/duckdb-avro-c
+    REF 95884c03afff3664458bccf43125bd9b6815508d
+    SHA512 5263b2b9901ba55d269baa3a63825e69e93077839623798999dc606f6f22a6d31e457ba73cd0c8a1906c30cfc76a0d6161cfeabd760f5f7874012985e46c3815
     PATCHES
-        avro.patch          # Private vcpkg build fixes
-        duckdb.patch          # expose avro_file_reader_reader
-        field_id.patch        # add the 'avro_schema_record_field_id' method
-        avro_writer.patch     # add the 'avro_file_writer_create_from_writer' method
         ${OPTIONAL_DUCKDB_PATCHES}
 )
 
