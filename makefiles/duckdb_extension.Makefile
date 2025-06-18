@@ -7,6 +7,10 @@
 #   EXT_RELEASE_FLAGS : Extra CMake flags to pass to the release build
 #   EXT_DEBUG_FLAGS   : Extra CMake flags to pass to the debug build
 #   SKIP_TESTS        : Replaces all test targets with a NOP step
+#
+# 	BUILD_EXTENSION_TEST_DEPS   : Can be set to either `default`, `full`, or `none`. Toggles which extension dependencies are built
+#	DEFAULT_TEST_EXTENSION_DEPS : `;`-separated list of extensions that are built in `default` and `full` mode
+#	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
 .PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
 
@@ -16,6 +20,26 @@ TEST_PATH="/test/unittest"
 DUCKDB_PATH="/duckdb"
 
 DUCKDB_SRCDIR ?= "./duckdb/"
+
+#### Extension test dependency code
+ifeq (${BUILD_EXTENSION_TEST_DEPS},)
+	BUILD_EXTENSION_TEST_DEPS:=default
+endif
+
+ifeq (${BUILD_EXTENSION_TEST_DEPS},default)
+	ifneq (${DEFAULT_TEST_EXTENSION_DEPS},)
+		CORE_EXTENSIONS:=${CORE_EXTENSIONS};${DEFAULT_TEST_EXTENSION_DEPS}
+	endif
+else ifeq (${BUILD_EXTENSION_TEST_DEPS},full)
+	ifneq (${DEFAULT_TEST_EXTENSION_DEPS},)
+		CORE_EXTENSIONS:=${CORE_EXTENSIONS};${DEFAULT_TEST_EXTENSION_DEPS}
+	endif
+	ifneq (${FULL_TEST_EXTENSION_DEPS},)
+		CORE_EXTENSIONS:=${CORE_EXTENSIONS};${FULL_TEST_EXTENSION_DEPS}
+	endif
+else ifneq (${BUILD_EXTENSION_TEST_DEPS}, none)
+$(error Unknown option passed to BUILD_EXTENSION_TEST_DEPS variable: ${BUILD_EXTENSION_TEST_DEPS})
+endif
 
 #### Core extensions, allows easily building one of the core extensions
 ifneq ($(CORE_EXTENSIONS),)
@@ -93,6 +117,9 @@ ifeq (${DISABLE_UBSAN}, 1)
 endif
 ifeq (${THREADSAN}, 1)
 	BUILD_FLAGS += -DENABLE_THREAD_SANITIZER=1
+endif
+ifneq (${BUILD_EXTENSION_TEST_DEPS}, )
+	BUILD_FLAGS += -DBUILD_EXTENSION_TEST_DEPS=${BUILD_EXTENSION_TEST_DEPS}
 endif
 
 #### Clang Tidy
