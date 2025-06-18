@@ -20,9 +20,9 @@ separate_arguments(OPTIONAL_DUCKDB_PATCHES)
 
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO Tishj/avro
-    REF 35eebeaf9b3541d5bb5a53b5e1bbbf2fd58e2ba4
-    SHA512 f6c54e6ba4fb4bcceb6935d1085b6e2b071c0ec0bcafa23dd989ba069c09e070f5dbc726ad4f2f76bca37ef1b8eaf327ae53b5f2c93597035f9dc9b39ad6e494
+    REPO duckdb/duckdb-avro-c
+    REF 9d852bb30d15c081bc42b00f1442c8a92bac8e2d
+    SHA512 d57c5fc220063c77a5bcaff5b9b89195bbc8184c831a5edb6e7ed5c0a8875a290e6db487e101df389816f36f72f9eaec51964e9a251f5f486e1163f60103c65e
     PATCHES
         ${OPTIONAL_DUCKDB_PATCHES}
 )
