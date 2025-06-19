@@ -43,7 +43,6 @@ jobs:
   extension-template-rust:
     name: Extension template (Rust)
     uses: ./.github/workflows/_extension_distribution.yml
-    if: false # TODO: enable when duckdb-rs is updated
     with:
       extension_name: rusty_quack
       override_repository: duckdb/extension-template-rs
@@ -82,4 +81,3 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
-
