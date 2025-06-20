@@ -24,6 +24,9 @@ ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
 ENV PATH="${VCPKG_ROOT}:${PATH}"
 
+# Add ninja to path
+ENV PATH="/usr/lib/ninja-build/bin:${PATH}"
+
 # Common environment variables
 ENV GEN=ninja
 ENV DUCKDB_PLATFORM=linux_amd64_musl
