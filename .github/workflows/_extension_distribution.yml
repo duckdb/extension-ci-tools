@@ -305,6 +305,7 @@ jobs:
           EXTENSION_NAME=${{ inputs.extension_name }}
           EXTENSION_CANONICAL=${{ inputs.extension_canonical }}
           LINUX_CI_IN_DOCKER=1
+          TOOLCHAINS=${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}
           EOF
 
       - name: Generate timestamp for Ccache entry
@@ -412,6 +413,7 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      TOOLCHAINS: ${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -509,19 +511,11 @@ jobs:
           (echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> /Users/runner/.bash_profile
           eval "$(/usr/local/bin/brew shellenv)"
           arch -x86_64 brew install libomp
-          echo "LDFLAGS=-L/usr/local/opt/libomp/lib" >> $GITHUB_ENV
-          echo "CFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
-          echo "CXXFLAGS=-I/usr/local/opt/libomp/include" >> $GITHUB_ENV
 
       - name: install omp (arm)
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_arm64' }}
         run: |
           brew install libomp
-          echo "LDFLAGS=-L/opt/homebrew/opt/libomp/lib" >> $GITHUB_ENV
-          echo "CFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
-          echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
       - name: Override AWS CLI
         if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
@@ -597,8 +591,7 @@ jobs:
       # Misc
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || '' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || '' }}
+      TOOLCHAINS: ${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}
       GEN: ninja
 
     steps:
