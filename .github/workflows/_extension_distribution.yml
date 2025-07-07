@@ -131,6 +131,10 @@ on:
         required: false
         type: boolean
         default: false
+      test_config:
+        required: false
+        type: string
+        default: "{}"
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -312,6 +316,7 @@ jobs:
           EXTENSION_CANONICAL=${{ inputs.extension_canonical }}
           LINUX_CI_IN_DOCKER=1
           EOF
+          echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
       - name: Generate timestamp for Ccache entry
         shell: cmake -P {0}
@@ -378,6 +383,7 @@ jobs:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
           LINUX_CI_IN_DOCKER: 0
         run: |
+          eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_release
 
       - uses: actions/upload-artifact@v4
@@ -565,6 +571,7 @@ jobs:
         if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
         shell: bash
         run: |
+          eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_release
 
       - uses: actions/upload-artifact@v4
@@ -669,6 +676,10 @@ jobs:
         run: |
           choco install ninja -y
 
+      - name: Install jq
+        run: |
+          choco install jq -y
+
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
         continue-on-error: true
@@ -762,10 +773,12 @@ jobs:
 
       - name: Test extension
         if: ${{ inputs.skip_tests == false }}
+        shell: bash
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
         run: |
+          eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_release
 
       - uses: actions/upload-artifact@v4
