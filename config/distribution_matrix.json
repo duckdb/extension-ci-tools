@@ -41,8 +41,8 @@
     "include": [
       {
         "duckdb_arch": "windows_amd64",
-        "vcpkg_target_triplet": "x64-windows-static-md-release",
-        "vcpkg_host_triplet": "x64-windows-static-md-release"
+        "vcpkg_target_triplet": "x64-windows-static-md-release-vs2019comp",
+        "vcpkg_host_triplet": "x64-windows-static-md-release-vs2019comp"
       },
       {
         "duckdb_arch": "windows_amd64_mingw",
