@@ -7,12 +7,10 @@ DuckDB's [Extension Template](https://github.com/duckdb/extension-template/actio
 | Extension-ci-tools Branch | DuckDB target version | Actively maintained? |
 |---------------------------|-----------------------|----------------------|
 | main                      | main                  | yes                  |
-| v1.3.1                    | v1.3.1                | yes                  |
+| v1.3.2                    | v1.3.2                | yes                  |
+| v1.3.1                    | v1.3.1                | no                   |
 | v1.3.0                    | v1.3.0                | no                   |
-| v1.2.2                    | v1.2.1                | no                   |
-| v1.2.1                    | v1.2.1                | no                   |
-| v1.2.0                    | v1.2.0                | no                   |
-| <= v1.1.3                 |                       | no                   |
+| <= v1.2.2                 |                       | no                   |
 
 Each branch in this repository targets a specific version of DuckDB. Note that these branches will be continually updated to ensure the build environment is functional for that version of DuckDB.
 Also note that at some point, support for versions will be dropped. Currently, we aim to support the latest 2 DuckDB versions, to allow extensions devs to transition to a new DuckDB version.
