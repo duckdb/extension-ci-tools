@@ -139,6 +139,14 @@ on:
         required: false
         type: string
         default: "release"
+      upload_all_extensions_with_prefix:
+        required: false
+        type: string
+        default: ""
+      extra_extension_config:
+        required: false
+        type: string
+        default: ""
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -360,6 +368,13 @@ jobs:
             done
           fi
 
+      - name: Inject extra extension config
+        if: ${{ inputs.extra_extension_config }}
+        shell: bash
+        run: |
+          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          cat ./extension_config.cmake
+
       - name: Run configure (inside Docker)
         shell: bash
         run: |
@@ -395,6 +410,13 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.upload_all_extensions != '' }}
+        with:
+          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -519,6 +541,13 @@ jobs:
         run: |
           brew install bison flex
 
+      - name: Inject extra extension config
+        if: ${{ inputs.extra_extension_config }}
+        shell: bash
+        run: |
+          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          cat ./extension_config.cmake
+
       - name: install omp (x86)
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_amd64' }}
         run: |
@@ -585,6 +614,13 @@ jobs:
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.upload_all_extensions != '' }}
+        with:
+          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
+
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
         run: |
@@ -621,14 +657,14 @@ jobs:
       GEN: ninja
 
     steps:
-      - name: Downgrade AWS cli
-        shell: powershell
-        if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
-        run: |
-          $app = Get-WmiObject -Class Win32_Product -Filter "Name LIKE 'AWS Command Line Interface%'"
-          if ($app) { $app.Uninstall() }
-          msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2-2.22.35.msi  /qn
-          sleep 60
+#      - name: Downgrade AWS cli
+#        shell: powershell
+#        if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
+#        run: |
+#          $app = Get-WmiObject -Class Win32_Product -Filter "Name LIKE 'AWS Command Line Interface%'"
+#          if ($app) { $app.Uninstall() }
+#          msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2-2.22.35.msi  /qn
+#          sleep 60
 
       - name: Test AWS cli version
         shell: powershell
@@ -737,6 +773,13 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
 
+      - name: Inject extra extension config
+        if: ${{ inputs.extra_extension_config }}
+        shell: bash
+        run: |
+          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          cat ./extension_config.cmake
+
       - name: Run configure
         shell: bash
         env:
@@ -791,6 +834,13 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.upload_all_extensions != '' }}
+        with:
+          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -913,6 +963,13 @@ jobs:
           sudo ./aws/install --update
           aws --version
 
+      - name: Inject extra extension config
+        if: ${{ inputs.extra_extension_config }}
+        shell: bash
+        run: |
+          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          cat ./extension_config.cmake
+
       - name: Run configure
         shell: bash
         env:
@@ -942,6 +999,13 @@ jobs:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.upload_all_extensions != '' }}
+        with:
+          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          path: |
+            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
