@@ -268,6 +268,9 @@ clean:
 clean-python:
 	make $@ -C $(DUCKDB_SRCDIR)
 
+set_duckdb_repository:
+	cd duckdb && git remote add ci-tools-injected $(DUCKDB_GIT_REPOSITORY) && git fetch ci-tools-injected
+
 set_duckdb_version:
 	cd duckdb && git checkout $(DUCKDB_GIT_VERSION)
 

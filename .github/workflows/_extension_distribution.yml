@@ -92,6 +92,11 @@ on:
         required: false
         type: string
         default: "duckdb/extension-ci-tools"
+      # Override the duckdb repository (for using this workflow from a DuckDB fork)
+      override_duckdb_repository:
+        required: false
+        type: string
+        default: ""
       # Pass extra toolchains
       #   available: (parser_tools, rust, fortran, omp, python3)
       extra_toolchains:
@@ -139,10 +144,10 @@ on:
         required: false
         type: string
         default: "release"
-      upload_all_extensions_with_prefix:
+      upload_all_extensions:
         required: false
-        type: string
-        default: ""
+        type: boolean
+        default: false
       extra_extension_config:
         required: false
         type: string
@@ -274,6 +279,11 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Fetch override repository
+        if: ${{inputs.override_duckdb_repository != ''}}
+        run: |
+          DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
+
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
         run: |
@@ -371,8 +381,10 @@ jobs:
       - name: Inject extra extension config
         if: ${{ inputs.extra_extension_config }}
         shell: bash
+        env:
+          EXTENSION_CONFIG: ${{ inputs.extra_extension_config }}
         run: |
-          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
       - name: Run configure (inside Docker)
@@ -406,17 +418,20 @@ jobs:
           make test_${{ inputs.build_type }}
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.upload_all_extensions }}
         with:
+          if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - uses: actions/upload-artifact@v4
-        if: ${{ inputs.upload_all_extensions != '' }}
+        if: ${{ inputs.upload_all_extensions }}
         with:
-          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          if-no-files-found: error
+          name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
+            build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -491,6 +506,11 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Fetch override repository
+        if: ${{inputs.override_duckdb_repository != ''}}
+        run: |
+          DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
+
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
         run: |
@@ -544,8 +564,10 @@ jobs:
       - name: Inject extra extension config
         if: ${{ inputs.extra_extension_config }}
         shell: bash
+        env:
+          EXTENSION_CONFIG: ${{ inputs.extra_extension_config }}
         run: |
-          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
       - name: install omp (x86)
@@ -608,6 +630,7 @@ jobs:
           make test_${{ inputs.build_type }}
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
@@ -615,11 +638,12 @@ jobs:
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - uses: actions/upload-artifact@v4
-        if: ${{ inputs.upload_all_extensions != '' }}
+        if: ${{ inputs.upload_all_extensions }}
         with:
-          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          if-no-files-found: error
+          name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
+            build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -748,6 +772,13 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Fetch override repository
+        if: ${{inputs.override_duckdb_repository != ''}}
+        env:
+          DUCKDB_GIT_REPOSITORY: ${{ inputs.override_duckdb_repository }}
+        run: |
+          make set_duckdb_repository
+
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
         env:
@@ -776,8 +807,10 @@ jobs:
       - name: Inject extra extension config
         if: ${{ inputs.extra_extension_config }}
         shell: bash
+        env:
+          EXTENSION_CONFIG: ${{ inputs.extra_extension_config }}
         run: |
-          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
       - name: Run configure
@@ -829,6 +862,7 @@ jobs:
           make test_${{ inputs.build_type }}
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
@@ -836,11 +870,12 @@ jobs:
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - uses: actions/upload-artifact@v4
-        if: ${{ inputs.upload_all_extensions != '' }}
+        if: ${{ inputs.upload_all_extensions }}
         with:
-          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          if-no-files-found: error
+          name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
+            build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
@@ -902,6 +937,11 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Fetch override repository
+        if: ${{inputs.override_duckdb_repository != ''}}
+        run: |
+          DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
       - name: Checkout DuckDB to version
         if: ${{inputs.duckdb_version != ''}}
@@ -966,8 +1006,10 @@ jobs:
       - name: Inject extra extension config
         if: ${{ inputs.extra_extension_config }}
         shell: bash
+        env:
+          EXTENSION_CONFIG: ${{ inputs.extra_extension_config }}
         run: |
-          echo -e "\n# Injected Extension Config\n${{ inputs.extra_extension_config }}" >> ./extension_config.cmake
+          echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
       - name: Run configure
@@ -994,6 +1036,7 @@ jobs:
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} make ${{ matrix.duckdb_arch }}
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
@@ -1001,11 +1044,12 @@ jobs:
             build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
 
       - uses: actions/upload-artifact@v4
-        if: ${{ inputs.upload_all_extensions != '' }}
+        if: ${{ inputs.upload_all_extensions}}
         with:
-          name: all-extensions-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
+          if-no-files-found: error
+          name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/*/*.duckdb_extension
+            build/${{ matrix.duckdb_arch }}/repository/**/*.duckdb_extension.wasm
 
       - name: Print Rust logs
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
