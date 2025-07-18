@@ -40,6 +40,11 @@ ifeq ($(DUCKDB_PLATFORM),windows_amd64_mingw)
 	EXTENSION_LIB_FILENAME=lib$(EXTENSION_NAME).dll
 endif
 
+# Propagate toolchains
+ifeq ($(DUCKDB_PLATFORM),windows_amd64)
+       TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_OVERLAY_TRIPLETS=${PROJ_DIR}extension-ci-tools/toolchains/
+endif
+
 #############################################
 ### Main extension parameters
 #############################################
