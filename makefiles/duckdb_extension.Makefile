@@ -67,6 +67,7 @@ endif
 
 #### VCPKG config
 EXTENSION_CONFIG_STEP ?=
+EXTENSION_CONFIG_STEP_WASM ?=
 
 # Set the toolchain
 VCPKG_TOOLCHAIN_PATH?=
@@ -77,6 +78,7 @@ endif
 # Add the extension config step which ensures the vcpkg dependencies of all extensions get merged properly
 ifeq (${USE_MERGED_VCPKG_MANIFEST}, 1)
 	EXTENSION_CONFIG_STEP= build/extension_configuration/vcpkg.json
+	EXTENSION_CONFIG_STEP_WASM=extension_configuration_wasm
 	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}build/extension_configuration'
 else ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}'
@@ -168,15 +170,6 @@ reldebug: ${EXTENSION_CONFIG_STEP}
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(DUCKDB_SRCDIR) -B build/reldebug
 	cmake --build build/reldebug
 
-extension_configuration: build/extension_configuration/vcpkg.json
-
-build/extension_configuration/vcpkg.json:
-	mkdir -p build/extension_configuration
-	mkdir -p duckdb/build/extension_configuration
-	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DEXTENSION_CONFIG_BUILD=TRUE -DVCPKG_BUILD=1 -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/extension_configuration
-	cmake --build build/extension_configuration
-	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
-
 # Main tests
 test: test_release
 
@@ -219,20 +212,42 @@ WASM_CXX_THREADS_FLAGS=$(WASM_COMPILE_TIME_EH_FLAGS) -DWITH_WASM_THREADS=1 -DWIT
 wasm_pre_build_step:
 
 # WASM targets
-wasm_mvp: wasm_pre_build_step ${EXTENSION_CONFIG_STEP}
+wasm_mvp: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p build/wasm_mvp
 	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) -Bbuild/wasm_mvp -DCMAKE_CXX_FLAGS="$(WASM_CXX_MVP_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_mvp -DDUCKDB_CUSTOM_PLATFORM=wasm_mvp
 	emmake make -j8 -Cbuild/wasm_mvp
 
-wasm_eh: wasm_pre_build_step ${EXTENSION_CONFIG_STEP}
+wasm_eh: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p build/wasm_eh
 	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) -Bbuild/wasm_eh -DCMAKE_CXX_FLAGS="$(WASM_CXX_EH_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_eh -DDUCKDB_CUSTOM_PLATFORM=wasm_eh
 	emmake make -j8 -Cbuild/wasm_eh
 
-wasm_threads: wasm_pre_build_step ${EXTENSION_CONFIG_STEP}
+wasm_threads: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p ./build/wasm_threads
 	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) -Bbuild/wasm_threads -DCMAKE_CXX_FLAGS="$(WASM_CXX_THREADS_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_threads -DDUCKDB_CUSTOM_PLATFORM=wasm_threads
 	emmake make -j8 -Cbuild/wasm_threads
+
+
+###### Extension config step
+extension_configuration_default:
+	mkdir -p build/extension_configuration
+	mkdir -p duckdb/build/extension_configuration
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DEXTENSION_CONFIG_BUILD=TRUE -DVCPKG_BUILD=1 -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/extension_configuration
+	cmake --build build/extension_configuration
+	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
+
+extension_configuration_wasm:
+	mkdir -p build/extension_configuration
+	mkdir -p duckdb/build/extension_configuration
+	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) -DEXTENSION_CONFIG_BUILD=TRUE -Bbuild/extension_configuration -S $(DUCKDB_SRCDIR)
+	emmake make -j8 -Cbuild/extension_configuration
+	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
+
+EXTENSION_CONFIG_TARGET?=extension_configuration_default
+
+extension_configuration: build/extension_configuration/vcpkg.json
+
+build/extension_configuration/vcpkg.json: ${EXTENSION_CONFIG_TARGET}
 
 #### Misc
 format-check:
