@@ -214,17 +214,17 @@ wasm_pre_build_step:
 # WASM targets
 wasm_mvp: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p build/wasm_mvp
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) -Bbuild/wasm_mvp -DCMAKE_CXX_FLAGS="$(WASM_CXX_MVP_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_mvp -DDUCKDB_CUSTOM_PLATFORM=wasm_mvp
+	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) $(BUILD_FLAGS) -Bbuild/wasm_mvp -DCMAKE_CXX_FLAGS="$(WASM_CXX_MVP_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_mvp -DDUCKDB_CUSTOM_PLATFORM=wasm_mvp
 	emmake make -j8 -Cbuild/wasm_mvp
 
 wasm_eh: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p build/wasm_eh
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) -Bbuild/wasm_eh -DCMAKE_CXX_FLAGS="$(WASM_CXX_EH_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_eh -DDUCKDB_CUSTOM_PLATFORM=wasm_eh
+	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) $(BUILD_FLAGS) -Bbuild/wasm_eh -DCMAKE_CXX_FLAGS="$(WASM_CXX_EH_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_eh -DDUCKDB_CUSTOM_PLATFORM=wasm_eh
 	emmake make -j8 -Cbuild/wasm_eh
 
 wasm_threads: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p ./build/wasm_threads
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) -Bbuild/wasm_threads -DCMAKE_CXX_FLAGS="$(WASM_CXX_THREADS_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_threads -DDUCKDB_CUSTOM_PLATFORM=wasm_threads
+	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) $(BUILD_FLAGS) -Bbuild/wasm_threads -DCMAKE_CXX_FLAGS="$(WASM_CXX_THREADS_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_threads -DDUCKDB_CUSTOM_PLATFORM=wasm_threads
 	emmake make -j8 -Cbuild/wasm_threads
 
 
@@ -239,7 +239,7 @@ extension_configuration_default:
 extension_configuration_wasm:
 	mkdir -p build/extension_configuration
 	mkdir -p duckdb/build/extension_configuration
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) -DEXTENSION_CONFIG_BUILD=TRUE -Bbuild/extension_configuration -S $(DUCKDB_SRCDIR)
+	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DEXTENSION_CONFIG_BUILD=TRUE -Bbuild/extension_configuration -S $(DUCKDB_SRCDIR)
 	emmake make -j8 -Cbuild/extension_configuration
 	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
 

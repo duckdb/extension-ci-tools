@@ -913,6 +913,7 @@ jobs:
       AWS_REQUEST_CHECKSUM_CALCULATION: when_required
 
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      WASM_EXTENSIONS: 1
 
     steps:
       - uses: actions/checkout@v4
