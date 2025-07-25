@@ -97,6 +97,7 @@ on:
         required: false
         type: string
         default: ""
+      # Internal tooling option: allows automatically fetching the duckdb repo and ref from the calling repository.
       set_caller_as_duckdb:
         required: false
         type: boolean
