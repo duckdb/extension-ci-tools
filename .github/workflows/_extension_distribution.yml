@@ -289,7 +289,7 @@ jobs:
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{inputs.duckdb_version != '' && !inputs.set_caller_as_duckdb}}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
@@ -524,7 +524,7 @@ jobs:
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{inputs.duckdb_version != '' && !inputs.set_caller_as_duckdb}}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
@@ -799,7 +799,7 @@ jobs:
           make set_duckdb_repository
 
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{inputs.duckdb_version != '' && !inputs.set_caller_as_duckdb}}
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
@@ -971,7 +971,7 @@ jobs:
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{inputs.duckdb_version != '' && !inputs.set_caller_as_duckdb}}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
