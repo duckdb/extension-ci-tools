@@ -809,8 +809,8 @@ jobs:
         if: ${{ inputs.duckdb_version != '' }}
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
-          run: |
-            make set_duckdb_version
+        run: |
+          make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
