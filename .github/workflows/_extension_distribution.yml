@@ -97,6 +97,11 @@ on:
         required: false
         type: string
         default: ""
+      # Internal tooling option: allows automatically fetching the duckdb repo and ref from the calling repository.
+      set_caller_as_duckdb:
+        required: false
+        type: boolean
+        default: false
       # Pass extra toolchains
       #   available: (parser_tools, rust, fortran, omp, python3)
       extra_toolchains:
@@ -284,8 +289,14 @@ jobs:
         run: |
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
+      - name: Set DuckDB to ref of calling workflow
+        if: ${{inputs.set_caller_as_duckdb}}
+        uses: actions/checkout@v4
+        with:
+          path: 'duckdb'
+
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{ inputs.duckdb_version != '' }}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
@@ -513,8 +524,14 @@ jobs:
         run: |
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
+      - name: Set DuckDB to ref of calling workflow
+        if: ${{inputs.set_caller_as_duckdb}}
+        uses: actions/checkout@v4
+        with:
+          path: 'duckdb'
+
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{ inputs.duckdb_version != '' }}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
@@ -782,12 +799,18 @@ jobs:
         run: |
           make set_duckdb_repository
 
+      - name: Set DuckDB to ref of calling workflow
+        if: ${{inputs.set_caller_as_duckdb}}
+        uses: actions/checkout@v4
+        with:
+          path: 'duckdb'
+
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{ inputs.duckdb_version != '' }}
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
-        run: |
-          make set_duckdb_version
+          run: |
+            make set_duckdb_version
 
       - name: Tag extension
         if: ${{inputs.extension_tag != ''}}
@@ -947,8 +970,14 @@ jobs:
         run: |
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
 
+      - name: Set DuckDB to ref of calling workflow
+        if: ${{inputs.set_caller_as_duckdb}}
+        uses: actions/checkout@v4
+        with:
+          path: 'duckdb'
+
       - name: Checkout DuckDB to version
-        if: ${{inputs.duckdb_version != ''}}
+        if: ${{ inputs.duckdb_version != '' }}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
