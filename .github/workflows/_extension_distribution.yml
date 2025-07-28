@@ -294,6 +294,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'duckdb'
+          fetch-tags: true
 
       - name: Checkout DuckDB to version
         if: ${{ inputs.duckdb_version != '' }}
@@ -529,6 +530,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'duckdb'
+          fetch-tags: true
 
       - name: Checkout DuckDB to version
         if: ${{ inputs.duckdb_version != '' }}
@@ -804,6 +806,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'duckdb'
+          fetch-tags: true
 
       - name: Checkout DuckDB to version
         if: ${{ inputs.duckdb_version != '' }}
@@ -975,6 +978,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'duckdb'
+          fetch-tags: true
 
       - name: Checkout DuckDB to version
         if: ${{ inputs.duckdb_version != '' }}
