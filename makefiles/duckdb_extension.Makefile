@@ -193,11 +193,11 @@ test_debug: $(TEST_DEBUG_TARGET)
 test_reldebug: $(TEST_RELDEBUG_TARGET)
 
 test_release_internal:
-	./build/release/$(TEST_PATH) "$(PROJ_DIR)test/*"
+	./build/release/$(TEST_PATH) "test/*"
 test_debug_internal:
-	./build/debug/$(TEST_PATH) "$(PROJ_DIR)test/*"
+	./build/debug/$(TEST_PATH) "test/*"
 test_reldebug_internal:
-	./build/reldebug/$(TEST_PATH) "$(PROJ_DIR)test/*"
+	./build/reldebug/$(TEST_PATH) "test/*"
 
 tests_skipped:
 	@echo "Tests are skipped in this run..."
