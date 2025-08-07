@@ -1,7 +1,7 @@
 FROM quay.io/pypa/manylinux_2_28_aarch64
 
 # Setup the basic necessities
-RUN yum install -y curl zip unzip tar autoconf
+RUN yum install -y curl zip unzip tar autoconf libtool
 RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
 RUN yum install -y ccache
