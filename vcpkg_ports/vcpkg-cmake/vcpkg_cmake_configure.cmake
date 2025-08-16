@@ -8,6 +8,26 @@ macro(z_vcpkg_cmake_configure_both_set_or_unset var1 var2)
     endif()
 endmacro()
 
+if (VCPKG_TARGET_IS_EMSCRIPTEN)
+   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+   set(CMAKE_CXX_FLAGS " -fPIC ${VCPKG_CXX_FLAGS}" CACHE STRING "")
+   set(CMAKE_C_FLAGS " -fPIC ${VCPKG_C_FLAGS}" CACHE STRING "")
+
+   set(IS_CROSS_COMPILE 1)
+   set(cross_compiling 1)
+   set(VCPKG_CROSSCOMPILING 1)
+endif()
+
+if (VCPKG_TARGET_IS_WINDOWS AND NOT VCPKG_TARGET_IS_MINGW)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
+   set(VCPKG_CXX_FLAGS "${VCPKG_CXX_FLAGS} /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
+   set(VCPKG_C_FLAGS "${VCPKG_C_FLAGS} /D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
+endif()
+
+if (VCPKG_TARGET_IS_OSX)
+   set(VCPKG_OSX_DEPLOYMENT_TARGET 11.0 CACHE STRING "Minimum OS X deployment version" FORCE)
+endif()
+
 function(vcpkg_cmake_configure)
     cmake_parse_arguments(PARSE_ARGV 0 "arg"
         "PREFER_NINJA;DISABLE_PARALLEL_CONFIGURE;WINDOWS_USE_MSBUILD;NO_CHARSET_FLAG;Z_CMAKE_GET_VARS_USAGE"
@@ -44,7 +64,13 @@ function(vcpkg_cmake_configure)
 
     set(manually_specified_variables "")
 
-    vcpkg_list(APPEND arg_OPTIONS "-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
+    if (VCPKG_TARGET_IS_EMSCRIPTEN)
+        vcpkg_list(APPEND arg_OPTIONS "-DCMAKE_POLICY_VERSION_MINIMUM=3.20")
+        vcpkg_list(APPEND arg_OPTIONS "-DCMAKE_POSITION_INDEPENDENT_CODE=1")
+
+	set(VCPKG_C_FLAGS "${VCPKG_C_FLAGS} -fPIC")
+	set(VCPKG_CXX_FLAGS "${VCPKG_CXX_FLAGS} -fPIC")
+    endif()
 
     if(arg_Z_CMAKE_GET_VARS_USAGE)
         set(configuring_message "Getting CMake variables for ${TARGET_TRIPLET}")
