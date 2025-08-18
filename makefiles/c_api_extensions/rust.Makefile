@@ -25,8 +25,20 @@ ifneq ($(DUCKDB_WASM_PLATFORM),)
 	IS_EXAMPLE=/examples
 	TARGET_PATH=./target/$(TARGET)
 else
+	# Handle macOS cross-compilation
+	ifeq ($(DUCKDB_PLATFORM),osx_amd64)
+		TARGET=x86_64-apple-darwin
+		TARGET_INFO=--target $(TARGET)
+		TARGET_PATH=./target/$(TARGET)
+	else ifeq ($(DUCKDB_PLATFORM),osx_arm64)
+		TARGET=aarch64-apple-darwin
+		TARGET_INFO=--target $(TARGET)
+		TARGET_PATH=./target/$(TARGET)
+	else
+		TARGET_INFO=
+		TARGET_PATH=./target
+	endif
 	IS_EXAMPLE=
-	TARGET_PATH=./target
 endif
 
 # Rust be slightly different
