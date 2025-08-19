@@ -24,6 +24,14 @@ ifneq ($(DUCKDB_WASM_PLATFORM),)
 	TARGET_INFO=--target $(TARGET) --example $(EXTENSION_NAME)
 	IS_EXAMPLE=/examples
 	TARGET_PATH=./target/$(TARGET)
+else ifeq ($(OSX_BUILD_ARCH),x86_64)
+  TARGET=x86_64-apple-darwin
+  TARGET_INFO=--target $(TARGET)
+  TARGET_PATH=./target/$(TARGET)
+else ifeq ($(OSX_BUILD_ARCH),arm64)
+  TARGET=aarch64-apple-darwin
+  TARGET_INFO=--target $(TARGET)
+  TARGET_PATH=./target/$(TARGET)
 else
 	IS_EXAMPLE=
 	TARGET_PATH=./target
