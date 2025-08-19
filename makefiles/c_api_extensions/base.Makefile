@@ -72,9 +72,6 @@ endif
 ### Platform Detection
 #############################################
 
-# Write the platform we are building for
-platform: configure/platform.txt
-
 # Either autodetect or use the provided value
 PLATFORM_COMMAND?=
 ifeq ($(DUCKDB_PLATFORM),)
@@ -84,8 +81,9 @@ else
 	PLATFORM_COMMAND=echo $(DUCKDB_PLATFORM) > configure/platform.txt
 endif
 
-configure/platform.txt:
-	@ $(PLATFORM_COMMAND)
+# Write the platform we are building for
+platform:
+	@$(PLATFORM_COMMAND)
 
 #############################################
 ### Extension Version Detection
