@@ -767,6 +767,10 @@ jobs:
         run: |
           choco install jq -y
 
+      - name: Install curl
+        run: |
+          choco install curl -y
+
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
         continue-on-error: true
