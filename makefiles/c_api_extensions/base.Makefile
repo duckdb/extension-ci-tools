@@ -7,7 +7,6 @@
 #   EXTENSION_VERSION      : the version of the extension, if left blank it will be autodetected
 #   DUCKDB_PLATFORM        : the platform of the extension, if left blank it will be autodetected
 #   DUCKDB_TEST_VERSION    : the version of DuckDB to test with, if left blank will default to latest stable on PyPi
-#   DUCKDB_GIT_VERSION     : set by CI currently, should probably be removed at some point
 #   LINUX_CI_IN_DOCKER     : indicates that the build is being run in/out of Docker in the linux CI
 #   SKIP_TESTS             : makes the test targets turn into NOPs
 
@@ -126,8 +125,6 @@ endif
 # has stabilized the C API for the upcoming release.
 ifeq ($(DUCKDB_GIT_VERSION),main)
 	DUCKDB_PIP_INSTALL=--pre duckdb
-else ifneq ($(DUCKDB_GIT_VERSION),)
-	DUCKDB_PIP_INSTALL=duckdb==$(DUCKDB_GIT_VERSION)
 endif
 
 TEST_RELEASE_TARGET=test_extension_release_internal
