@@ -18,7 +18,7 @@ jobs:
     with:
       extension_name: quack
       override_repository: duckdb/extension-template
-      override_ref: main
+      override_ref: v1.4-andium
       duckdb_version: v1.4.0
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
@@ -52,6 +52,7 @@ jobs:
       override_repository: duckdb/extension-template-rs
       override_ref: main
       duckdb_version: v1.3.2 # TODO: bump as well
+      skip_tests: true # TODO: remove, fix upstream
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
@@ -64,7 +65,7 @@ jobs:
     with:
       extension_name: delta
       override_repository: duckdb/duckdb_delta
-      override_ref: main
+      override_ref: v1.4-andium
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       duckdb_version: v1.4.0
