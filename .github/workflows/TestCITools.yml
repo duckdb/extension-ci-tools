@@ -29,6 +29,7 @@ jobs:
       extra_extension_config: |
         duckdb_extension_load(json)
         duckdb_extension_load(tpch)
+      reduced_ci_mode: true # TODO remove
     secrets: inherit
 
   extension-template-capi:
