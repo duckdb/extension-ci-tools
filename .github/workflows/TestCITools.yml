@@ -1,6 +1,7 @@
 #
 # This tests the extension-ci-tools works as expected
 #
+
 name: Test CI Tools
 on:
   push:
