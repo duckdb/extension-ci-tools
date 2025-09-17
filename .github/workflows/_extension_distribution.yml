@@ -186,10 +186,10 @@ jobs:
       - id: parse-matrices
         run: |
           mkdir build
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux --output build/linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode ' || ''}}"
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx --output build/osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode ' || ''}}"
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode ' || ''}}"
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm --output build/wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode ' || ''}}"
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux --output build/linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode' || ''}}"
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx --output build/osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode' || ''}}"
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode' || ''}}"
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm --output build/wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode' || ''}}"
 
       - id: set-matrix-linux
         run: |
