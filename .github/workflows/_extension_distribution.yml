@@ -254,7 +254,6 @@ jobs:
       - name: Restart docker to run on /mnt
         run: |
           sudo systemctl stop docker
-          exit 1
 
       - name: Configure Docker with custom data directory
         run: |
