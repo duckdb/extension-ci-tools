@@ -58,6 +58,11 @@ on:
         required: false
         type: string
         default: "./extension-ci-tools/scripts/modify_distribution_matrix.py"
+      # matches the reduced_ci_mode in .github/workflows/_extension_distribution.yml. Ensures the deploy step is still tested with correct archs
+      reduced_ci_mode:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   generate_matrix:
@@ -75,7 +80,7 @@ jobs:
 
       - id: parse-matrices
         run: |
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --deploy_matrix --output deploy_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --deploy_matrix --output deploy_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty "${{ inputs.reduced_ci_mode && '--reduced_ci_mode' || ''}}"
           deploy_matrix="`cat deploy_matrix.json`"
           echo deploy_matrix=$deploy_matrix >> $GITHUB_OUTPUT
           echo `cat $GITHUB_OUTPUT`
