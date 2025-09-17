@@ -157,7 +157,7 @@ on:
         required: false
         type: string
         default: ""
-      # auto/enabled/disabled: when enabled (
+      # auto/enabled/disabled: when enabled (or enabled through auto) will skip redundant architectures to reduce CI load
       reduced_ci_mode:
         required: false
         type: string
