@@ -93,5 +93,5 @@ jobs:
       extra_toolchains: 'rust'
       save_cache: ${{ github.event_name != 'pull_request' }}
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
-      reduced_ci_mode: true
+      reduced_ci_mode: enabled
     secrets: inherit
