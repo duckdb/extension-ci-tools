@@ -470,6 +470,7 @@ jobs:
       - linux
     if: |
       always() &&
+      !cancelled() &&
       needs.generate_matrix.outputs.osx_matrix != '{}' &&
       needs.generate_matrix.outputs.osx_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
@@ -698,6 +699,7 @@ jobs:
       - linux
     if: |
       always() &&
+      !cancelled() &&
       needs.generate_matrix.outputs.windows_matrix != '{}' &&
       needs.generate_matrix.outputs.windows_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
@@ -953,6 +955,7 @@ jobs:
       - linux
     if: |
       always() &&
+      !cancelled() &&
       needs.generate_matrix.outputs.wasm_matrix != '{}' &&
       needs.generate_matrix.outputs.wasm_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
