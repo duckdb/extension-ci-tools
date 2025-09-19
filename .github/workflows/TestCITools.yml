@@ -48,7 +48,7 @@ jobs:
       extension_name: quack
       override_repository: duckdb/extension-template
       override_ref: main
-      duckdb_version:
+      duckdb_version: v1.4.0
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3;downgraded_aws_cli;'

@@ -33,9 +33,9 @@ elif reduced_ci_mode == "enabled":
 elif reduced_ci_mode == "disabled":
     reduced_ci_mode = False
 elif reduced_ci_mode is None:
-    raise Exception("Unknown reduced_ci_mode value: None - must be default/enabled/disabled.")
+    raise Exception("Unknown reduced_ci_mode value: None - must be auto/enabled/disabled.")
 else:
-    raise Exception("Unknown reduced_ci_mode value: " + reduced_ci_mode + " - must be default/enabled/disabled.")
+    raise Exception("Unknown reduced_ci_mode value: " + reduced_ci_mode + " - must be auto/enabled/disabled.")
 
 # Read the input JSON file
 with open(input_json_file_path, "r") as json_file:
