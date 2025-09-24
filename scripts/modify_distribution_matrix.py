@@ -11,7 +11,7 @@ parser.add_argument("--input", required=True, help="Input JSON file path")
 parser.add_argument("--exclude", required=True, help="Semicolon-separated list of excluded duckdb_arch values")
 parser.add_argument("--output", help="Output JSON file path")
 parser.add_argument("--pretty", action="store_true", help="Pretty print the output JSON")
-parser.add_argument("--reduced_ci_mode", required=True, help="Set to default/enabled/disabled, when enabled, filters out redundant archs for testing")
+parser.add_argument("--reduced_ci_mode", help="Set to default/enabled/disabled, when enabled, filters out redundant archs for testing")
 parser.add_argument("--select_os", help="Select an OS to include in the output JSON")
 parser.add_argument("--deploy_matrix", action="store_true", help="Create a merged list used in deploy step")
 args = parser.parse_args()
@@ -33,7 +33,7 @@ elif reduced_ci_mode == "enabled":
 elif reduced_ci_mode == "disabled":
     reduced_ci_mode = False
 elif reduced_ci_mode is None:
-    raise Exception("Unknown reduced_ci_mode value: None - must be auto/enabled/disabled.")
+    reduced_ci_mode = False
 else:
     raise Exception("Unknown reduced_ci_mode value: " + reduced_ci_mode + " - must be auto/enabled/disabled.")
 
