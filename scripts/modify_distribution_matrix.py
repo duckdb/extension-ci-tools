@@ -11,26 +11,44 @@ parser.add_argument("--input", required=True, help="Input JSON file path")
 parser.add_argument("--exclude", required=True, help="Semicolon-separated list of excluded duckdb_arch values")
 parser.add_argument("--output", help="Output JSON file path")
 parser.add_argument("--pretty", action="store_true", help="Pretty print the output JSON")
+parser.add_argument("--reduced_ci_mode", required=True, help="Set to default/enabled/disabled, when enabled, filters out redundant archs for testing")
 parser.add_argument("--select_os", help="Select an OS to include in the output JSON")
 parser.add_argument("--deploy_matrix", action="store_true", help="Create a merged list used in deploy step")
 args = parser.parse_args()
+
 
 # Parse the input file path, excluded arch values, and output file path
 input_json_file_path = args.input
 excluded_arch_values = args.exclude.split(";")
 output_json_file_path = args.output
 select_os = args.select_os
+reduced_ci_mode = args.reduced_ci_mode
+
+# Parse reduced CI mode
+if reduced_ci_mode == "auto":
+    # Note auto is off for now TODO: change?
+    reduced_ci_mode = False
+elif reduced_ci_mode == "enabled":
+    reduced_ci_mode = True
+elif reduced_ci_mode == "disabled":
+    reduced_ci_mode = False
+elif reduced_ci_mode is None:
+    raise Exception("Unknown reduced_ci_mode value: None - must be auto/enabled/disabled.")
+else:
+    raise Exception("Unknown reduced_ci_mode value: " + reduced_ci_mode + " - must be auto/enabled/disabled.")
 
 # Read the input JSON file
 with open(input_json_file_path, "r") as json_file:
     data = json.load(json_file)
 
+def should_run(config, reduced_ci_mode):
+    return not reduced_ci_mode or config["run_in_reduced_ci_mode"]
 
 # Function to filter entries based on duckdb_arch values
 def filter_entries(data, arch_values):
     for os, config in data.items():
         if "include" in config:
-            config["include"] = [entry for entry in config["include"] if entry["duckdb_arch"] not in arch_values]
+            config["include"] = [entry for entry in config["include"] if (entry["duckdb_arch"] not in arch_values and should_run(entry, reduced_ci_mode))]
         if not config["include"]:
             del config["include"]
 
