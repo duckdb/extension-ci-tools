@@ -1030,7 +1030,7 @@ jobs:
 
       - uses: mymindstorm/setup-emsdk@v13
         with:
-          version: 3.1.71
+          version: 4.0.14
 
       - name: Setup Rust for cross compilation
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;'))}}
