@@ -769,6 +769,12 @@ jobs:
         if: (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;'))
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup Rust for Mingw
+        if: (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
       - name: 'Setup go'
         if: ${{ (inputs.enable_go || contains(format(';{0};', inputs.extra_toolchains), ';go;'))}}
         uses: actions/setup-go@v4
