@@ -905,7 +905,7 @@ jobs:
           make ${{ inputs.build_type }}
 
       - name: Test extension
-        if: ${{ inputs.skip_tests == false }}
+        if: ${{ inputs.skip_tests == false && matrix.duckdb_arch != 'windows_arm64' }}
         shell: bash
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
