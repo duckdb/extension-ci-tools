@@ -731,7 +731,7 @@ jobs:
 
   windows:
     name: Windows
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
     needs:
       - generate_matrix
       - linux
@@ -945,14 +945,19 @@ jobs:
         shell: cmd
         run: |
           if "%DUCKDB_PLATFORM_RTOOLS%" == "0" (
-            call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+            if "%DUCKDB_PLATFORM%" == "windows_amd64" (
+              call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+            )
+            if "%DUCKDB_PLATFORM%" == "windows_arm64" (
+              call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsarm64.bat"
+            )
             REM Rename link.exe to link-git.exe to avoid conflicts with git supplied linker.
             mv "C:\Program Files\Git\usr\bin\link.exe" "C:\Program Files\Git\usr\bin\link-git.exe"
           )
           make ${{ inputs.build_type }}
 
       - name: Test extension
-        if: ${{ inputs.skip_tests == false && matrix.duckdb_arch != 'windows_arm64' }}
+        if: ${{ inputs.skip_tests == false }}
         shell: bash
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
