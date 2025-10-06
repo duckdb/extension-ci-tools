@@ -221,7 +221,7 @@ ifeq ($(USE_UNSTABLE_C_API),1)
 	UNSTABLE_C_API_FLAG+=--abi-type C_STRUCT_UNSTABLE
 endif
 
-build_extension_with_metadata_debug: check_configure link_wasm_debug
+build_extension_with_metadata_debug: check_configure link_wasm_debug build_extension_library_debug
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
 			-l $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME) \
@@ -231,7 +231,7 @@ build_extension_with_metadata_debug: check_configure link_wasm_debug
 			-pf configure/platform.txt $(UNSTABLE_C_API_FLAG)
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME)', '$(EXTENSION_BUILD_PATH)/debug/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
-build_extension_with_metadata_release: check_configure link_wasm_release
+build_extension_with_metadata_release: check_configure link_wasm_release build_extension_library_release
 	$(PYTHON_VENV_BIN) extension-ci-tools/scripts/append_extension_metadata.py \
 			-l $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) \
 			-o $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME) \
