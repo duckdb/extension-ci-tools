@@ -347,7 +347,7 @@ jobs:
           AWS_REQUEST_CHECKSUM_CALCULATION=when_required
           VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_target_triplet }}
           VCPKG_OVERLAY_TRIPLETS=/duckdb_build_dir/extensions-ci-tools/toolchains
-          VCPKG_OVERLAY_PORTS= /duckdb_build_dir/extension-ci-tools/vcpkg_ports
+          VCPKG_OVERLAY_PORTS=/duckdb_build_dir/extension-ci-tools/vcpkg_ports
           BUILD_SHELL=${{ inputs.build_duckdb_shell && '1' || '0' }}
           OPENSSL_ROOT_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
           OPENSSL_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
