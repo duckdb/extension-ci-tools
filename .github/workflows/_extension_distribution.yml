@@ -162,6 +162,11 @@ on:
         required: false
         type: string
         default: 'auto'
+      # disabling this can result in faster builds, but may run out of space on some runners
+      run_disk_clean_step:
+        required: false
+        type: boolean
+        default: true
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -239,8 +244,23 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - name: Free up some unused space
+      - name: Free disk space 1
+        uses: endersonmenezes/free-disk-space@v2.1.1
         continue-on-error: true
+        if: inputs.run_disk_clean_step
+        with:
+#          remove_android: true # ~9.5GB in #52s
+#          remove_dotnet: true
+          remove_haskell: true # ~6.5GB in ~3s
+          remove_tool_cache: true # ~4.8GB in ~17s
+#          remove_swap: true
+#          remove_packages_one_command: true # ~7.5 GB in ~94s
+          remove_folders: "/usr/local/share/powershell /usr/share/swift" # ~ 4GB in ?s
+          testing: false
+
+      - name: Free disk space 2
+        continue-on-error: true
+        if: inputs.run_disk_clean_step
         run: |
           docker images -a -q > package.list
           if [ -s package.list ]; then
