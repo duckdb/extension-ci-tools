@@ -375,6 +375,8 @@ jobs:
           EXTENSION_NAME=${{ inputs.extension_name }}
           EXTENSION_CANONICAL=${{ inputs.extension_canonical }}
           LINUX_CI_IN_DOCKER=1
+          CCACHE_MAXSIZE=1G
+          CCACHE_NOCOMPRESS=1
           EOF
           echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
