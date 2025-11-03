@@ -55,6 +55,7 @@ jobs:
       save_cache: ${{ github.event_name != 'pull_request' }}
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
       upload_all_extensions: true
+      extensions_test_selection: complete
       extra_extension_config: |
         duckdb_extension_load(json)
         duckdb_extension_load(tpch)
