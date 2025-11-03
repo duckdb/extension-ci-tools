@@ -167,6 +167,10 @@ on:
         required: false
         type: boolean
         default: true
+      extensions_test_selection:
+        required: false
+        type: string
+        default: 'regular'
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -379,6 +383,7 @@ jobs:
           LINUX_CI_IN_DOCKER=1
           CCACHE_MAXSIZE=1G
           CCACHE_NOCOMPRESS=1
+          SUBSET_EXTENSIONS_TESTS=${{ inputs.extensions_test_selection }}
           EOF
           echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
@@ -456,6 +461,7 @@ jobs:
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
           LINUX_CI_IN_DOCKER: 0
+          SUBSET_EXTENSIONS_TESTS: ${{ inputs.extensions_test_selection }}
         run: |
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
@@ -686,6 +692,8 @@ jobs:
 
       - name: Test Extension
         if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
+        env:
+          SUBSET_EXTENSIONS_TESTS: ${{ inputs.extensions_test_selection }}
         shell: bash
         run: |
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
@@ -944,6 +952,7 @@ jobs:
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           DUCKDB_PLATFORM_RTOOLS: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 1 || 0 }}
+          SUBSET_EXTENSIONS_TESTS: ${{ inputs.extensions_test_selection }}
         run: |
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
