@@ -21,6 +21,12 @@ DUCKDB_PATH="/duckdb"
 
 DUCKDB_SRCDIR ?= "./duckdb/"
 
+TESTS_BASE_DIRECTORY = "test/"
+
+ifeq (${SUBSET_EXTENSIONS_TESTS},complete)
+	TESTS_BASE_DIRECTORY=""
+endif
+
 #### Extension test dependency code
 ifeq (${BUILD_EXTENSION_TEST_DEPS},)
 	BUILD_EXTENSION_TEST_DEPS:=default
@@ -193,11 +199,11 @@ test_debug: $(TEST_DEBUG_TARGET)
 test_reldebug: $(TEST_RELDEBUG_TARGET)
 
 test_release_internal:
-	./build/release/$(TEST_PATH) "test/*"
+	./build/release/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
 test_debug_internal:
-	./build/debug/$(TEST_PATH) "test/*"
+	./build/debug/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
 test_reldebug_internal:
-	./build/reldebug/$(TEST_PATH) "test/*"
+	./build/reldebug/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
 
 tests_skipped:
 	@echo "Tests are skipped in this run..."
