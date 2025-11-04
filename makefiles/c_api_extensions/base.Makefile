@@ -252,7 +252,7 @@ venv: configure/venv
 configure/venv:
 	$(PYTHON_BIN) -m venv configure/venv
 	$(PYTHON_VENV_BIN) -m pip install $(DUCKDB_PIP_INSTALL)
-	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python
+	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python@2ac8dbc012ddbd96a57dca37784fd8ee3c0eb021
 	$(PYTHON_VENV_BIN) -m pip install packaging
 
 #############################################
