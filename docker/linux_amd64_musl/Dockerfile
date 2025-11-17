@@ -91,3 +91,10 @@ RUN case "$extra_toolchains" in \
     apk add -qq python3 \
   ;; \
 esac
+
+# Install unixODBC
+RUN case "$extra_toolchains" in \
+  *\;unixodbc\;*) \
+    apk add -qq unixodbc-dev \
+  ;; \
+esac
