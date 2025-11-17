@@ -98,3 +98,9 @@ RUN case "$extra_toolchains" in \
   ;; \
 esac
 
+# Install unixODBC
+RUN case "$extra_toolchains" in \
+  *\;unixodbc\;*) \
+    yum install -y unixODBC-devel \
+  ;; \
+esac
