@@ -101,6 +101,9 @@ jobs:
 
       - name: Checkout DuckDB to version
         run: |
+          if [ ! -d duckdb ]; then
+            git clone https://github.com/duckdb/duckdb.git
+          fi
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
 
