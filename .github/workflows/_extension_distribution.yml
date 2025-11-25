@@ -43,6 +43,11 @@ on:
         required: false
         type: string
         default: ""
+      # ';' separated list of architectures to opt into, for example: 'windows_arm64;linux_arm64_musl'
+      opt_in_archs:
+        required: false
+        type: string
+        default: ""
       # Postfix added to artifact names. Can be used to guarantee unique names when this workflow is called multiple times
       artifact_postfix:
         required: false
@@ -195,10 +200,10 @@ jobs:
       - id: parse-matrices
         run: |
           mkdir build
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux --output build/linux_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx --output build/osx_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm --output build/wasm_matrix.json --exclude "${{ inputs.exclude_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux   --output build/linux_matrix.json   --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx     --output build/osx_matrix.json     --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm    --output build/wasm_matrix.json    --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
 
       - id: set-matrix-linux
         run: |
