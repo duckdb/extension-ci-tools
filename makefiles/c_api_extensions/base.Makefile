@@ -132,11 +132,14 @@ endif
 TEST_RELEASE_TARGET=test_extension_release_internal
 TEST_DEBUG_TARGET=test_extension_debug_internal
 
-# _musl tests would need to be run in the container
+# Disable testing inside docker: configure is not run there so there is no test runner available
+ifeq ($(LINUX_CI_IN_DOCKER),1)
+	SKIP_TESTS=1
+endif
+
+# _musl tests would need to be run in the container, but currently we don't have a test runner there
 ifeq ($(DUCKDB_PLATFORM),linux_amd64_musl)
-	ifeq ($(LINUX_CI_IN_DOCKER),0)
-		SKIP_TESTS=1
-	endif
+	SKIP_TESTS=1
 endif
 
 # The mingw/rtools can not be tested using the python test runner unfortunately

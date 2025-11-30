@@ -6,7 +6,6 @@ RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
 RUN yum install -y ccache
 RUN yum install -y java-11-openjdk-devel maven
-RUN yum install -y wget
 RUN yum install -y kernel-headers
 RUN yum install -y jq
 
@@ -15,13 +14,13 @@ RUN yum install -y jq
 # We need a recent CMake
 RUN mkdir /cmake_4_02 && \
     cd /cmake_4_02 && \
-    wget https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-aarch64.sh && \
+    curl --no-progress-meter -LO https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-aarch64.sh && \
     chmod +x cmake-4.0.2-linux-aarch64.sh  && \
     ./cmake-4.0.2-linux-aarch64.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
 # Install the AWS cli, since the packaged version is too old
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.22.35.zip" -o "awscliv2.zip"
+RUN curl --no-progress-meter "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.22.35.zip" -o "awscliv2.zip"
 RUN unzip -q awscliv2.zip
 RUN ./aws/install
 RUN aws --version
