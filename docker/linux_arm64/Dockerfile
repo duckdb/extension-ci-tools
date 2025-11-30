@@ -92,7 +92,7 @@ esac
 ENV PATH="/usr/local/go/bin:${PATH}"
 RUN case "$extra_toolchains" in \
   *\;go\;*) \
-    wget https://go.dev/dl/go1.20.5.linux-arm64.tar.gz && \
+    curl -sSLO https://go.dev/dl/go1.20.5.linux-arm64.tar.gz && \
     tar -xzvf go1.20.5.linux-arm64.tar.gz && \
     mv go /usr/local &&\
     go version \
