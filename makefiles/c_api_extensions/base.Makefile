@@ -132,18 +132,6 @@ endif
 TEST_RELEASE_TARGET=test_extension_release_internal
 TEST_DEBUG_TARGET=test_extension_debug_internal
 
-# Disable testing outside docker: the unittester is currently dynamically linked by default
-ifeq ($(LINUX_CI_IN_DOCKER),1)
-	SKIP_TESTS=1
-endif
-
-# TODO: for some weird reason the Ubuntu 22.04 Runners on Github Actions don't actually grab the glibc 2.24 wheels but the
-#       gilbc 2.17 ones. What this means is that we can't run the tests on linux_amd64 because we are installing the duckdb
-#	    linux_amd64_gcc4 test runner
-ifeq ($(DUCKDB_PLATFORM),linux_amd64)
-	SKIP_TESTS=1
-endif
-
 # _musl tests would need to be run in the container
 ifeq ($(DUCKDB_PLATFORM),linux_amd64_musl)
 	SKIP_TESTS=1
