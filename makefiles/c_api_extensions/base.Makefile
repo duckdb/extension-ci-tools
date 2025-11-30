@@ -134,7 +134,9 @@ TEST_DEBUG_TARGET=test_extension_debug_internal
 
 # _musl tests would need to be run in the container
 ifeq ($(DUCKDB_PLATFORM),linux_amd64_musl)
-	SKIP_TESTS=1
+	ifeq ($(LINUX_CI_IN_DOCKER),0)
+		SKIP_TESTS=1
+	endif
 endif
 
 # The mingw/rtools can not be tested using the python test runner unfortunately
