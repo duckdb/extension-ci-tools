@@ -12,13 +12,13 @@ RUN yum install -y jq
 # We need a recent CMake
 RUN mkdir /cmake_4_02 && \
     cd /cmake_4_02 && \
-    curl --no-progress-meter -LO https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-x86_64.sh && \
+    curl -sSLO https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-x86_64.sh && \
     chmod +x cmake-4.0.2-linux-x86_64.sh  && \
     ./cmake-4.0.2-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
 # Install the AWS cli, since the packaged version is too old
-RUN curl --no-progress-meter "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.35.zip" -o "awscliv2.zip"
+RUN curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.35.zip" -o "awscliv2.zip"
 RUN unzip -q awscliv2.zip
 RUN ./aws/install
 RUN aws --version
