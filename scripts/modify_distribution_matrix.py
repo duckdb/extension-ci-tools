@@ -9,6 +9,7 @@ import logging
 parser = argparse.ArgumentParser(description="Filter a JSON file based on excluded duckdb_arch values and select an OS")
 parser.add_argument("--input", required=True, help="Input JSON file path")
 parser.add_argument("--exclude", required=True, help="Semicolon-separated list of excluded duckdb_arch values")
+parser.add_argument("--opt_in", required=False, default="", help="Semicolon-separated list of opt-in duckdb_arch values")
 parser.add_argument("--output", help="Output JSON file path")
 parser.add_argument("--pretty", action="store_true", help="Pretty print the output JSON")
 parser.add_argument("--reduced_ci_mode", required=True, help="Set to default/enabled/disabled, when enabled, filters out redundant archs for testing")
@@ -20,6 +21,7 @@ args = parser.parse_args()
 # Parse the input file path, excluded arch values, and output file path
 input_json_file_path = args.input
 excluded_arch_values = args.exclude.split(";")
+opt_in_arch_values = args.opt_in.split(";")
 output_json_file_path = args.output
 select_os = args.select_os
 reduced_ci_mode = args.reduced_ci_mode
@@ -41,14 +43,21 @@ else:
 with open(input_json_file_path, "r") as json_file:
     data = json.load(json_file)
 
-def should_run(config, reduced_ci_mode):
-    return not reduced_ci_mode or config["run_in_reduced_ci_mode"]
+def should_run(config, reduced_ci_mode, excluded_arch_values, opt_in_arch_values):
+    arch = config["duckdb_arch"]
+    if arch in excluded_arch_values:
+        return False
+    if reduced_ci_mode and not config["run_in_reduced_ci_mode"]:
+        return False
+    if config["opt_in"] and arch not in opt_in_arch_values:
+        return False
+    return True
 
 # Function to filter entries based on duckdb_arch values
-def filter_entries(data, arch_values):
+def filter_entries(data, excluded_arch_values, opt_in_arch_values):
     for os, config in data.items():
         if "include" in config:
-            config["include"] = [entry for entry in config["include"] if (entry["duckdb_arch"] not in arch_values and should_run(entry, reduced_ci_mode))]
+            config["include"] = [entry for entry in config["include"] if should_run(entry, reduced_ci_mode, excluded_arch_values, opt_in_arch_values)]
         if not config["include"]:
             del config["include"]
 
@@ -56,7 +65,7 @@ def filter_entries(data, arch_values):
 
 
 # Filter the JSON data
-filtered_data = filter_entries(data, excluded_arch_values)
+filtered_data = filter_entries(data, excluded_arch_values, opt_in_arch_values)
 
 # Select an OS if specified
 if select_os:
