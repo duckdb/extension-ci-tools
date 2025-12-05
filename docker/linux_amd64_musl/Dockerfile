@@ -1,4 +1,4 @@
-FROM alpine:3
+FROM alpine:3.22
 
 ###
 # Base image setup
