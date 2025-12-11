@@ -52,16 +52,16 @@
       {
         "duckdb_arch": "windows_amd64",
         "runner": "windows-latest",
-        "vcpkg_target_triplet": "x64-windows-static-md-release-vs2019comp",
-        "vcpkg_host_triplet": "x64-windows-static-md-release-vs2019comp",
+        "vcpkg_target_triplet": "x64-windows-static-release",
+        "vcpkg_host_triplet": "x64-windows-static-release",
         "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
       {
         "duckdb_arch": "windows_arm64",
         "runner": "windows-11-arm",
-        "vcpkg_target_triplet": "arm64-windows-static-md-release-vs2019comp",
-        "vcpkg_host_triplet": "arm64-windows-static-md-release-vs2019comp",
+        "vcpkg_target_triplet": "arm64-windows-static-release",
+        "vcpkg_host_triplet": "arm64-windows-static-release",
         "run_in_reduced_ci_mode": false,
         "opt_in": true
       },
