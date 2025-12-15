@@ -109,11 +109,11 @@ configure/extension_version.txt:
 #############################################
 
 # Note: to override the default test runner, create a symlink to a different venv
-TEST_RUNNER=$(PYTHON_VENV_BIN) -m duckdb_sqllogictest
+TEST_RUNNER=$(PYTHON_VENV_BIN) -m sqllogic.test_sqllogic
 
-TEST_RUNNER_BASE=$(TEST_RUNNER) --test-dir test/sql $(EXTRA_EXTENSIONS_PARAM)
-TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --external-extension build/debug/$(EXTENSION_NAME).duckdb_extension
-TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --external-extension build/release/$(EXTENSION_NAME).duckdb_extension
+TEST_RUNNER_BASE=$(TEST_RUNNER) --duckdb-root-dir . --test-dir test/sql $(EXTRA_EXTENSIONS_PARAM)
+TEST_RUNNER_DEBUG=$(TEST_RUNNER_BASE) --build-dir ${EXTENSION_BUILD_PATH}/debug
+TEST_RUNNER_RELEASE=$(TEST_RUNNER_BASE) --build-dir ${EXTENSION_BUILD_PATH}/release
 
 # By default latest duckdb is installed, set DUCKDB_TEST_VERSION to switch to a different version
 DUCKDB_PIP_INSTALL?=duckdb
@@ -128,6 +128,9 @@ endif
 ifeq ($(DUCKDB_GIT_VERSION),main)
 	DUCKDB_PIP_INSTALL=--pre duckdb
 endif
+
+# Allow overriding the sqllogictest version in the event of incompatible changes
+DUCKDB_SQLLOGICTEST_VERSION?=main
 
 TEST_RELEASE_TARGET=test_extension_release_internal
 TEST_DEBUG_TARGET=test_extension_debug_internal
@@ -254,7 +257,9 @@ venv: configure/venv
 configure/venv:
 	$(PYTHON_BIN) -m venv configure/venv
 	$(PYTHON_VENV_BIN) -m pip install $(DUCKDB_PIP_INSTALL)
-	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python@2ac8dbc012ddbd96a57dca37784fd8ee3c0eb021
+	# Restore install from the real repo once https://github.com/duckdb/duckdb-sqllogictest-python/pull/15 is merged
+	# $(PYTHON_VENV_BIN) -m pip install git+https://github.com/duckdb/duckdb-sqllogictest-python@${DUCKDB_SQLLOGICTEST_VERSION}
+	$(PYTHON_VENV_BIN) -m pip install git+https://github.com/troycurtisjr/duckdb-sqllogictest-python@update-testing-for-inet
 	$(PYTHON_VENV_BIN) -m pip install packaging
 
 #############################################
