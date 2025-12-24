@@ -48,7 +48,7 @@ env:
 jobs:
   format-check:
     name: Format Check
-    if: contains(inputs.format_checks, 'format')
+    if: contains(inputs.format_checks, 'format') || (github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))
     runs-on: ubuntu-22.04
 
     env:
