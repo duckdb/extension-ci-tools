@@ -72,6 +72,7 @@ on:
 jobs:
   generate_matrix:
     name: Generate matrix
+    if: (github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))
     runs-on: ubuntu-latest
     outputs:
       deploy_matrix: ${{ steps.parse-matrices.outputs.deploy_matrix }}
@@ -94,7 +95,7 @@ jobs:
     name: Deploy to nightly
     runs-on: ubuntu-latest
     needs: generate_matrix
-    if: ${{ needs.generate_matrix.outputs.deploy_matrix != '{}' && needs.generate_matrix.outputs.deploy_matrix != '' }}
+    if: ${{ (needs.generate_matrix.outputs.deploy_matrix != '{}' && needs.generate_matrix.outputs.deploy_matrix != '') || ((github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))) }}
     strategy:
       matrix: ${{fromJson(needs.generate_matrix.outputs.deploy_matrix)}}
 

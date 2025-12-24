@@ -11,6 +11,7 @@ on:
 jobs:
   python:
     name: Python
+    if: (github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))
     runs-on: ubuntu-latest
     env:
       GEN: ninja

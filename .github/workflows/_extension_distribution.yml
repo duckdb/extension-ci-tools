@@ -183,6 +183,7 @@ env:
 jobs:
   generate_matrix:
     name: Generate matrix
+    if: (github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))
     runs-on: ubuntu-latest
     outputs:
       linux_matrix: ${{ steps.set-matrix-linux.outputs.linux_matrix }}
@@ -233,7 +234,7 @@ jobs:
     name: Linux
     runs-on: ${{ matrix.runner }}
     needs: generate_matrix
-    if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
+    if: ${{ (needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '') || ((github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))) }}
     strategy:
       matrix: ${{fromJson(needs.generate_matrix.outputs.linux_matrix)}}
     env:
@@ -503,12 +504,14 @@ jobs:
       - generate_matrix
       - linux
     if: |
-      always() &&
+      (always() &&
       !cancelled() &&
       needs.generate_matrix.outputs.osx_matrix != '{}' &&
       needs.generate_matrix.outputs.osx_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
-      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
+      (needs.linux.result == 'success' || needs.linux.result == 'skipped')) ||
+      ((github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && 
+      (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]')))
     strategy:
       matrix: ${{fromJson(needs.generate_matrix.outputs.osx_matrix)}}
     env:
@@ -741,12 +744,14 @@ jobs:
       - generate_matrix
       - linux
     if: |
-      always() &&
+      (always() &&
       !cancelled() &&
       needs.generate_matrix.outputs.windows_matrix != '{}' &&
       needs.generate_matrix.outputs.windows_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
-      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
+      (needs.linux.result == 'success' || needs.linux.result == 'skipped')) ||
+      ((github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) &&
+      (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]')))
     strategy:
       matrix: ${{fromJson(needs.generate_matrix.outputs.windows_matrix)}}
     env:
@@ -1011,12 +1016,14 @@ jobs:
       - generate_matrix
       - linux
     if: |
-      always() &&
+      (always() &&
       !cancelled() &&
       needs.generate_matrix.outputs.wasm_matrix != '{}' &&
       needs.generate_matrix.outputs.wasm_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
-      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
+      (needs.linux.result == 'success' || needs.linux.result == 'skipped')) ||
+      (github.event_name != 'push' || !contains(join(github.event.commits.*.message, ' '), '[SKIP_CI]')) && 
+      (github.event_name != 'pull_request' || !contains(github.event.pull_request.title, '[SKIP_CI]'))
     strategy:
       matrix: ${{fromJson(needs.generate_matrix.outputs.wasm_matrix)}}
     env:
