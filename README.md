@@ -8,6 +8,7 @@ DuckDB's [Extension Template](https://github.com/duckdb/extension-template/actio
 |---------------------------|-----------------------|----------------------|
 | main                      | main                  | yes                  |
 | v1.4.2                    | v1.4.2                | yes                  |
+| v1.4.2                    | v1.4.2                | no                  |
 | v1.4.3                    | v1.4.3                | no                  |
 | v1.4.2                    | v1.4.2                | no                   |
 | v1.4.1                    | v1.4.1                | no                   |
