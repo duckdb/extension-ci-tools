@@ -1,13 +1,17 @@
 FROM quay.io/pypa/manylinux_2_28_aarch64
 
 # Setup the basic necessities
+RUN yum groupinstall -y "Development Tools"
 RUN yum install -y curl zip unzip tar autoconf libtool
 RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
+RUN yum install -y perl-core
 RUN yum install -y ccache
 RUN yum install -y java-11-openjdk-devel maven
 RUN yum install -y wget
 RUN yum install -y kernel-headers
+RUN yum install -y kernel-devel
+RUN yum install -y glibc-devel
 RUN yum install -y jq
 
 
