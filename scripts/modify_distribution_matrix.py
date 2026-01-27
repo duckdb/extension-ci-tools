@@ -15,6 +15,7 @@ parser.add_argument("--pretty", action="store_true", help="Pretty print the outp
 parser.add_argument("--reduced_ci_mode", required=True, help="Set to default/enabled/disabled, when enabled, filters out redundant archs for testing")
 parser.add_argument("--select_os", help="Select an OS to include in the output JSON")
 parser.add_argument("--deploy_matrix", action="store_true", help="Create a merged list used in deploy step")
+parser.add_argument("--vcpkg_triplets_override", required=False, default="", help="Format: 'arch_name1:triplet1;arch_name2:triplet2'")
 args = parser.parse_args()
 
 
@@ -39,6 +40,19 @@ elif reduced_ci_mode is None:
 else:
     raise Exception("Unknown reduced_ci_mode value: " + reduced_ci_mode + " - must be auto/enabled/disabled.")
 
+# Parse VCPKG triplets override
+triplet_pairs = args.vcpkg_triplets_override.split(";")
+triplet_dict = {}
+for pair in triplet_pairs:
+    stripped = pair.strip()
+    if len(stripped) == 0:
+        continue
+    parts = stripped.split(":")
+    if len(parts) != 2:
+        raise Exception(f"Invalid 'vcpkg_triplets_override' entry: {stripped},\
+ must be in format: 'arch_name1:triplet1'")
+    triplet_dict[parts[0]] = parts[1]
+
 # Read the input JSON file
 with open(input_json_file_path, "r") as json_file:
     data = json.load(json_file)
@@ -58,6 +72,14 @@ def filter_entries(data, excluded_arch_values, opt_in_arch_values):
     for os, config in data.items():
         if "include" in config:
             config["include"] = [entry for entry in config["include"] if should_run(entry, reduced_ci_mode, excluded_arch_values, opt_in_arch_values)]
+
+            # Override VCPKG triplets
+            for entry in config["include"]:
+                override = triplet_dict.get(entry["duckdb_arch"])
+                if override is not None:
+                    entry["vcpkg_target_triplet"] = override
+                    entry["vcpkg_host_triplet"] = override
+
         if not config["include"]:
             del config["include"]
 
@@ -66,6 +88,7 @@ def filter_entries(data, excluded_arch_values, opt_in_arch_values):
 
 # Filter the JSON data
 filtered_data = filter_entries(data, excluded_arch_values, opt_in_arch_values)
+
 
 # Select an OS if specified
 if select_os:
