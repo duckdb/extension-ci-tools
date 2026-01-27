@@ -1,5 +1,8 @@
 FROM quay.io/pypa/manylinux_2_28_aarch64
 
+RUN yum --verbose clean all
+RUN yum --verbose makecache
+
 # Setup the basic necessities
 RUN yum groupinstall -y "Development Tools"
 RUN yum install -y curl zip unzip tar autoconf libtool
