@@ -89,7 +89,7 @@ jobs:
     with:
       extension_name: delta
       override_repository: duckdb/duckdb_delta
-      override_ref: main
+      override_ref: v1-4.andium
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       duckdb_version: v1.4.4
