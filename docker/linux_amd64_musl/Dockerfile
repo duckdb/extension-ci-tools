@@ -98,3 +98,10 @@ RUN case "$extra_toolchains" in \
     apk add -qq unixodbc-dev \
   ;; \
 esac
+
+# Install multimedia libraries (FFmpeg, SDL2) for audio/video extensions
+RUN case "$extra_toolchains" in \
+  *\;multimedia\;*) \
+    apk add -qq nasm sdl2-dev ffmpeg-dev \
+  ;; \
+esac
