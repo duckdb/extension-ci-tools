@@ -1,8 +1,5 @@
 FROM quay.io/pypa/manylinux_2_28_aarch64
 
-RUN yum --verbose clean all
-RUN yum --verbose makecache
-
 # Setup the basic necessities
 RUN yum groupinstall -y "Development Tools"
 RUN yum install -y curl zip unzip tar autoconf libtool
@@ -111,5 +108,15 @@ esac
 RUN case "$extra_toolchains" in \
   *\;unixodbc\;*) \
     yum install -y unixODBC-devel \
+  ;; \
+esac
+
+# Install multimedia libraries (FFmpeg, SDL2) for audio/video extensions
+# Requires EPEL and RPM Fusion repositories
+RUN case "$extra_toolchains" in \
+  *\;multimedia\;*) \
+    yum install -y epel-release && \
+    yum install -y --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm && \
+    yum install -y nasm SDL2-devel ffmpeg-devel \
   ;; \
 esac
