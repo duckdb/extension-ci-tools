@@ -57,7 +57,7 @@ jobs:
       GEN: ninja
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -66,14 +66,14 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -109,7 +109,7 @@ jobs:
       TIDY_CHECKS: ${{ inputs.explicit_checks && inputs.explicit_checks || '' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -118,14 +118,14 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
