@@ -12,6 +12,9 @@ RUN apk add --allow-untrusted aws-cli-2.22.10-r0.apk
 RUN wget https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/ninja-build-1.13.2-r0.apk
 RUN apk add --allow-untrusted ninja-build-1.13.2-r0.apk
 
+# Add ninja to path
+ENV PATH="/usr/lib/ninja-build/bin:${PATH}"
+
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
 ARG vcpkg_url
 ARG vcpkg_commit
@@ -25,9 +28,6 @@ RUN mkdir /vcpkg && \
 ENV VCPKG_ROOT=/vcpkg
 ENV VCPKG_TOOLCHAIN_PATH=/vcpkg/scripts/buildsystems/vcpkg.cmake
 ENV PATH="${VCPKG_ROOT}:${PATH}"
-
-# Add ninja to path
-ENV PATH="/usr/lib/ninja-build/bin:${PATH}"
 
 # Common environment variables
 ENV GEN=ninja
