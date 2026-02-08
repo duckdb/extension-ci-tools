@@ -72,6 +72,11 @@ on:
         required: false
         type: string
         default: ''
+      # format: 'arch_name1:triplet1;arch_name2:triplet2'
+      vcpkg_triplets_override:
+        required: false
+        type: string
+        default: ''
       # Override the default script producing the matrices. Allows specifying custom matrices.
       matrix_parse_script:
         required: false
@@ -200,10 +205,42 @@ jobs:
       - id: parse-matrices
         run: |
           mkdir build
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux   --output build/linux_matrix.json   --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx     --output build/osx_matrix.json     --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm    --output build/wasm_matrix.json    --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }}                    \
+            --input extension-ci-tools/config/distribution_matrix.json \
+            --select_os linux                                          \
+            --output build/linux_matrix.json                           \
+            --exclude "${{ inputs.exclude_archs }}"                    \
+            --opt_in "${{ inputs.opt_in_archs }}"                      \
+            --pretty                                                   \
+            --reduced_ci_mode ${{ inputs.reduced_ci_mode }}            \
+            --vcpkg_triplets_override "${{ inputs.vcpkg_triplets_override }}"
+          python3 ${{ inputs.matrix_parse_script }}                    \
+            --input extension-ci-tools/config/distribution_matrix.json \
+            --select_os osx                                            \
+            --output build/osx_matrix.json                             \
+            --exclude "${{ inputs.exclude_archs }}"                    \
+            --opt_in "${{ inputs.opt_in_archs }}"                      \
+            --pretty                                                   \
+            --reduced_ci_mode ${{ inputs.reduced_ci_mode }}            \
+            --vcpkg_triplets_override "${{ inputs.vcpkg_triplets_override }}"
+          python3 ${{ inputs.matrix_parse_script }}                    \
+            --input extension-ci-tools/config/distribution_matrix.json \
+            --select_os windows                                        \
+            --output build/windows_matrix.json                         \
+            --exclude "${{ inputs.exclude_archs }}"                    \
+            --opt_in "${{ inputs.opt_in_archs }}"                      \
+            --pretty                                                   \
+            --reduced_ci_mode ${{ inputs.reduced_ci_mode }}            \
+            --vcpkg_triplets_override "${{ inputs.vcpkg_triplets_override }}"
+          python3 ${{ inputs.matrix_parse_script }}                    \
+            --input extension-ci-tools/config/distribution_matrix.json \
+            --select_os wasm                                           \
+            --output build/wasm_matrix.json                            \
+            --exclude "${{ inputs.exclude_archs }}"                    \
+            --opt_in "${{ inputs.opt_in_archs }}"                      \
+            --pretty                                                   \
+            --reduced_ci_mode ${{ inputs.reduced_ci_mode }}            \
+            --vcpkg_triplets_override "${{ inputs.vcpkg_triplets_override }}"
 
       - id: set-matrix-linux
         run: |

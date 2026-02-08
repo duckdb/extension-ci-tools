@@ -39,6 +39,7 @@ jobs:
       # mingw arch below is not opt-in, included to check that it is allowed in the list
       opt_in_archs: 'windows_arm64;windows_amd64_mingw;'
       save_cache: ${{ github.event_name != 'pull_request' }}
+      vcpkg_triplets_override: 'windows_arm64:arm64-windows-static-md-release-vs2019comp;'
 
   extension-template-main:
     name: Extension template

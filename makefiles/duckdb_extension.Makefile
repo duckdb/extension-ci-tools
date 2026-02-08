@@ -97,6 +97,12 @@ ifneq ("${VCPKG_HOST_TRIPLET}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_HOST_TRIPLET='${VCPKG_HOST_TRIPLET}'
 endif
 
+ifeq ($(DUCKDB_PLATFORM),windows_amd64)
+	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_OVERLAY_TRIPLETS=${PROJ_DIR}extension-ci-tools/toolchains/
+else ifeq ($(DUCKDB_PLATFORM),windows_arm64)
+	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_OVERLAY_TRIPLETS=${PROJ_DIR}extension-ci-tools/toolchains/
+endif
+
 #### Enable Ninja as generator
 ifeq ($(GEN),ninja)
 	GENERATOR=-G "Ninja" -DFORCE_COLORED_OUTPUT=1
