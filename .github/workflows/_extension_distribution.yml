@@ -672,7 +672,7 @@ jobs:
           brew ls -v unixodbc
 
       - name: Install unixODBC (amd64)
-        if: ${{ matrix.duckdb_arch == "osx_amd64" && contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;')}}
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;') && matrix.duckdb_arch == 'osx_amd64' }}
         run: |
           arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           /usr/local/bin/brew config
