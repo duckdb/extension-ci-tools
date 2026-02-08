@@ -667,7 +667,14 @@ jobs:
       - name: Install unixODBC
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;')}}
         run: |
+          brew config
           brew install unixodbc
+          brew ls -v unixodbc
+          # also install it for x86_64
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          /usr/local/bin/brew config
+          /usr/local/bin/brew install unixodbc
+          /usr/local/bin/brew ls -v unixodbc
 
       - name: Override AWS CLI
         if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
