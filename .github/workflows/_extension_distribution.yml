@@ -664,10 +664,20 @@ jobs:
           echo "CPPFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
           echo "CXXFLAGS=-I/opt/homebrew/opt/libomp/include" >> $GITHUB_ENV
 
-      - name: Install unixODBC
-        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;')}}
+      - name: Install unixODBC (arm64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;') && matrix.duckdb_arch == 'osx_arm64' }}
         run: |
+          brew config
           brew install unixodbc
+          brew ls -v unixodbc
+
+      - name: Install unixODBC (amd64)
+        if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;') && matrix.duckdb_arch == 'osx_amd64' }}
+        run: |
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          /usr/local/bin/brew config
+          /usr/local/bin/brew install unixodbc
+          /usr/local/bin/brew ls -v unixodbc
 
       - name: Override AWS CLI
         if: ${{ (contains(format(';{0};', inputs.extra_toolchains), ';downgraded_aws_cli;')) }}
