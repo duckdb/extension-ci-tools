@@ -7,9 +7,9 @@ FROM alpine:3.22
 # Setup the basic necessities
 RUN apk update -q
 RUN apk add -qq ccache cmake git clang19 gcc libssl3 wget bash zip gettext unzip build-base curl make libffi-dev zlib openssh autoconf linux-headers libunwind-dev jq libtool
-RUN curl --no-progress-meter -LO https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/aws-cli-2.22.10-r0.apk
+RUN curl --no-progress-meter -LO https://dl-cdn.alpinelinux.org/alpine/v3.21/community/aarch64/aws-cli-2.22.10-r0.apk
 RUN apk add --allow-untrusted aws-cli-2.22.10-r0.apk
-RUN curl --no-progress-meter -LO https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/ninja-build-1.13.2-r0.apk
+RUN curl --no-progress-meter -LO https://dl-cdn.alpinelinux.org/alpine/v3.23/community/aarch64/ninja-build-1.13.2-r0.apk
 RUN apk add --allow-untrusted ninja-build-1.13.2-r0.apk
 
 # Add ninja to path
@@ -31,7 +31,7 @@ ENV PATH="${VCPKG_ROOT}:${PATH}"
 
 # Common environment variables
 ENV GEN=ninja
-ENV DUCKDB_PLATFORM=linux_amd64_musl
+ENV DUCKDB_PLATFORM=linux_arm64_musl
 ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 
 # Specify where we expect the extension to be mounted and use that as working dir
