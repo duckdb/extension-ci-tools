@@ -1,10 +1,12 @@
 package distmatrix
 
 import (
+	"bytes"
 	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 )
@@ -60,9 +62,15 @@ type ComputeOptions struct {
 }
 
 func ParseMatrixFile(data []byte) (MatrixFile, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+
 	var matrix MatrixFile
-	if err := json.Unmarshal(data, &matrix); err != nil {
+	if err := decoder.Decode(&matrix); err != nil {
 		return nil, err
+	}
+	if err := decoder.Decode(new(struct{})); err != io.EOF {
+		return nil, errors.New("invalid JSON: multiple top-level values")
 	}
 	return matrix, nil
 }
