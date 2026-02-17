@@ -197,6 +197,13 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: extension-ci-tools/go.mod
+          cache: true
+          cache-dependency-path: extension-ci-tools/go.sum
+
       - name: Dump event path file
         run: |
           echo "$GITHUB_EVENT_PATH"
