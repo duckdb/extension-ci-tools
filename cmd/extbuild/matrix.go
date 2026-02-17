@@ -21,7 +21,7 @@ func newMatrixCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "matrix",
 		Short: "Compute distribution matrices and emit GitHub output lines",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, err := os.ReadFile(inputPath)
 			if err != nil {
 				return fmt.Errorf("read input matrix %q: %w", inputPath, err)
@@ -41,14 +41,22 @@ func newMatrixCommand() *cobra.Command {
 				return fmt.Errorf("compute platform matrices: %w", err)
 			}
 
-			content, err := distmatrix.RenderGitHubOutputLines(result)
+			content, err := distmatrix.RenderGitHubOutputLines(result, distmatrix.MachineReadable)
 			if err != nil {
 				return fmt.Errorf("render GitHub output lines: %w", err)
 			}
-
-			if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
-				return fmt.Errorf("write output file %q: %w", outPath, err)
+			readable, err := distmatrix.RenderGitHubOutputLines(result, distmatrix.HumanReadable)
+			if err != nil {
+				return fmt.Errorf("render readable output: %w", err)
 			}
+
+			if outPath != "" {
+				if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
+					return fmt.Errorf("write output file %q: %w", outPath, err)
+				}
+			}
+
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), readable)
 
 			return nil
 		},
@@ -62,8 +70,6 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 
 	must(cmd.MarkFlagRequired("platform"))
-	must(cmd.MarkFlagRequired("reduced-ci-mode"))
-	must(cmd.MarkFlagRequired("out"))
 
 	return cmd
 }

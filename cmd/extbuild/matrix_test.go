@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -194,6 +195,8 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(inputPath, []byte(inputJSON), 0o600))
 
 	cmd := newRootCommand()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
 	cmd.SetArgs([]string{
 		"matrix",
 		"--input", inputPath,
@@ -207,8 +210,11 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 
 	out, err := os.ReadFile(outputPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(out), "linux_matrix={")
-	assert.Contains(t, string(out), "windows_matrix={")
+
+	for _, content := range []string{string(out), stdout.String()} {
+		assert.Contains(t, content, "linux_matrix={")
+		assert.Contains(t, content, "windows_matrix={")
+	}
 }
 
 func extractArchs(entries []distmatrix.PlatformOutput) []string {

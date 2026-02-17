@@ -6,7 +6,22 @@ import (
 	"strings"
 )
 
-func RenderGitHubOutputLines(matrices map[string]PlatformMatrix) (string, error) {
+type OutputMode string
+
+const (
+	MachineReadable OutputMode = "machine"
+	HumanReadable   OutputMode = "human"
+)
+
+func RenderGitHubOutputLines(matrices map[string]PlatformMatrix, mode OutputMode) (string, error) {
+	marshall := func(matrix PlatformMatrix) ([]byte, error) {
+		if mode == MachineReadable {
+			return json.Marshal(matrix)
+		} else {
+			return json.MarshalIndent(matrix, "", "  ")
+		}
+	}
+
 	var b strings.Builder
 	orderedPlatforms := sortedPlatforms(matrices)
 	for _, platform := range orderedPlatforms {
@@ -14,7 +29,7 @@ func RenderGitHubOutputLines(matrices map[string]PlatformMatrix) (string, error)
 		if !ok {
 			return "", fmt.Errorf("missing matrix for platform: %s", platform)
 		}
-		payload, err := json.Marshal(matrix)
+		payload, err := marshall(matrix)
 		if err != nil {
 			return "", err
 		}
