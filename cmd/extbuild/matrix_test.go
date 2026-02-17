@@ -211,11 +211,10 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	assert.Contains(t, string(out), "windows_matrix={")
 }
 
-func extractArchs(entries []distmatrix.Entry) []string {
+func extractArchs(entries []distmatrix.PlatformOutput) []string {
 	out := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		arch, _ := entry["duckdb_arch"].(string)
-		out = append(out, arch)
+		out = append(out, entry.DuckDBArch)
 	}
 	return out
 }

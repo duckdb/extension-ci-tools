@@ -20,10 +20,28 @@ type PlatformConfig struct {
 	Include []Entry `json:"include"`
 }
 
-type Entry map[string]any
+type Entry struct {
+	DuckDBArch   string  `json:"duckdb_arch"`
+	Runner       *string `json:"runner"`
+	OSXBuildArch *string `json:"osx_build_arch"`
+
+	VCPKGTargetTriplet string `json:"vcpkg_target_triplet"`
+	VCPKGHostTriplet   string `json:"vcpkg_host_triplet"`
+	RunInReducedCIMode bool   `json:"run_in_reduced_ci_mode"`
+	OptIn              bool   `json:"opt_in"`
+}
 
 type PlatformMatrix struct {
-	Include []Entry `json:"include,omitempty"`
+	Include []PlatformOutput `json:"include,omitempty"`
+}
+
+type PlatformOutput struct {
+	DuckDBArch   string  `json:"duckdb_arch"`
+	Runner       *string `json:"runner,omitempty"`
+	OSXBuildArch *string `json:"osx_build_arch,omitempty"`
+
+	VCPKGTargetTriplet string `json:"vcpkg_target_triplet,omitempty"`
+	VCPKGHostTriplet   string `json:"vcpkg_host_triplet,omitempty"`
 }
 
 type ReducedCIMode string
@@ -74,15 +92,15 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 			return nil, fmt.Errorf("unknown platform: %s", platform)
 		}
 
-		filtered := make([]Entry, 0, len(cfg.Include))
+		filtered := make([]PlatformOutput, 0, len(cfg.Include))
 		for _, entry := range cfg.Include {
 			if includeEntry(entry, archTokens, reducedCI, optInSet) {
-				filtered = append(filtered, cloneEntry(entry))
+				filtered = append(filtered, toPlatformOutput(entry))
 			}
 		}
 
-		slices.SortFunc(filtered, func(a, b Entry) int {
-			return cmp.Compare(getString(a, "duckdb_arch"), getString(b, "duckdb_arch"))
+		slices.SortFunc(filtered, func(a, b PlatformOutput) int {
+			return cmp.Compare(a.DuckDBArch, b.DuckDBArch)
 		})
 
 		results[platform] = PlatformMatrix{Include: filtered}
@@ -101,7 +119,7 @@ func sortedPlatforms(m map[string]PlatformMatrix) []string {
 }
 
 func includeEntry(entry Entry, archTokens map[string]struct{}, reducedCI bool, optInSet map[string]struct{}) bool {
-	duckdbArch := getString(entry, "duckdb_arch")
+	duckdbArch := entry.DuckDBArch
 	if duckdbArch == "" {
 		return false
 	}
@@ -110,11 +128,11 @@ func includeEntry(entry Entry, archTokens map[string]struct{}, reducedCI bool, o
 		return false
 	}
 
-	if reducedCI && !getBool(entry, "run_in_reduced_ci_mode") {
+	if reducedCI && !entry.RunInReducedCIMode {
 		return false
 	}
 
-	if getBool(entry, "opt_in") {
+	if entry.OptIn {
 		if _, ok := optInSet[duckdbArch]; !ok {
 			return false
 		}
@@ -188,34 +206,12 @@ func toSet(values []string) map[string]struct{} {
 	return set
 }
 
-func getString(entry Entry, key string) string {
-	value, ok := entry[key]
-	if !ok {
-		return ""
+func toPlatformOutput(entry Entry) PlatformOutput {
+	return PlatformOutput{
+		DuckDBArch:         entry.DuckDBArch,
+		Runner:             entry.Runner,
+		OSXBuildArch:       entry.OSXBuildArch,
+		VCPKGTargetTriplet: entry.VCPKGTargetTriplet,
+		VCPKGHostTriplet:   entry.VCPKGHostTriplet,
 	}
-	str, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	return str
-}
-
-func getBool(entry Entry, key string) bool {
-	value, ok := entry[key]
-	if !ok {
-		return false
-	}
-	flag, ok := value.(bool)
-	if !ok {
-		return false
-	}
-	return flag
-}
-
-func cloneEntry(entry Entry) Entry {
-	cloned := make(Entry, len(entry))
-	for key, value := range entry {
-		cloned[key] = value
-	}
-	return cloned
 }
