@@ -108,7 +108,6 @@ indent = 2 if args.pretty else None
 # If no output file is provided, print to stdout
 if output_json_file_path:
     with open(output_json_file_path, "w") as output_json_file:
-        if filtered_data:
-            json.dump(filtered_data, output_json_file, indent=indent)
+        json.dump(filtered_data, output_json_file, indent=indent)
 else:
     json.dump(filtered_data, sys.stdout, indent=indent)
