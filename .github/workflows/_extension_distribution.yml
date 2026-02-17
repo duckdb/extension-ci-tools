@@ -233,8 +233,8 @@ jobs:
           for platform in linux osx windows wasm; do
             echo "=== ${platform} matrix diff (extbuild vs python) ==="
             if ! diff -u \
-              <(jq -S -c . "build/extbuild_ref/${platform}_matrix.json") \
-              <(jq -S -c . "build/python_ref/${platform}_matrix.json"); then
+              <(jq -S . "build/extbuild_ref/${platform}_matrix.json") \
+              <(jq -S . "build/python_ref/${platform}_matrix.json"); then
               has_diff=1
             else
               echo "No differences."
