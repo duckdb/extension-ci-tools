@@ -228,6 +228,23 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	}
 }
 
+func TestMatrixSubcommandWithoutArgs(t *testing.T) {
+	t.Chdir(filepath.Join("..", ".."))
+
+	cmd := newRootCommand()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"matrix"})
+
+	require.NoError(t, cmd.Execute())
+
+	output := stdout.String()
+	assert.Contains(t, output, "linux_matrix=")
+	assert.Contains(t, output, "osx_matrix=")
+	assert.Contains(t, output, "windows_matrix=")
+	assert.Contains(t, output, "wasm_matrix=")
+}
+
 func extractArchs(entries []distmatrix.PlatformOutput) []string {
 	out := make([]string, 0, len(entries))
 	for _, entry := range entries {

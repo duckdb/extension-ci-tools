@@ -76,9 +76,18 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 }
 
 func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string]PlatformMatrix, error) {
-	platforms, err := normalizePlatforms(splitList(opts.Platform))
-	if err != nil {
-		return nil, err
+	platforms := splitList(opts.Platform)
+	if len(platforms) == 0 {
+		platforms = sortedMatrixPlatforms(matrix)
+		if len(platforms) == 0 {
+			return nil, errors.New("at least one platform must be provided")
+		}
+	} else {
+		var err error
+		platforms, err = normalizePlatforms(platforms)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	archTokens, err := normalizeArchTokens(splitList(opts.Arch))
@@ -118,6 +127,15 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 }
 
 func sortedPlatforms(m map[string]PlatformMatrix) []string {
+	platforms := make([]string, 0, len(m))
+	for platform := range m {
+		platforms = append(platforms, platform)
+	}
+	slices.Sort(platforms)
+	return platforms
+}
+
+func sortedMatrixPlatforms(m MatrixFile) []string {
 	platforms := make([]string, 0, len(m))
 	for platform := range m {
 		platforms = append(platforms, platform)

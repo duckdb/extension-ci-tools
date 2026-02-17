@@ -69,8 +69,6 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&reducedCIMode, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 
-	must(cmd.MarkFlagRequired("platform"))
-
 	return cmd
 }
 
