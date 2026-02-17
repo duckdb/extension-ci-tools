@@ -14,7 +14,7 @@ import (
 func TestComputePlatformMatrices(t *testing.T) {
 	t.Parallel()
 
-	const inputJSON = `{
+	inputJSON := `{
   "linux": {
     "include": [
       {
@@ -80,8 +80,7 @@ func TestComputePlatformMatrices(t *testing.T) {
   }
 }`
 
-	matrix, err := distmatrix.ParseMatrixFile([]byte(inputJSON))
-	require.NoError(t, err)
+	matrix := mustParseMatrixFixture(t, inputJSON)
 
 	tests := []struct {
 		name     string
@@ -185,7 +184,7 @@ func TestComputePlatformMatrices(t *testing.T) {
 func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	t.Parallel()
 
-	const inputJSON = `{
+	inputJSON := `{
   "linux": {
     "include": [
       {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
@@ -199,30 +198,16 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
   }
 }`
 
-	tmpDir := t.TempDir()
-	inputPath := filepath.Join(tmpDir, "distribution_matrix.json")
-	outputPath := filepath.Join(tmpDir, "matrices.env")
-
-	require.NoError(t, os.WriteFile(inputPath, []byte(inputJSON), 0o600))
-
-	cmd := newRootCommand()
-	var stdout bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetArgs([]string{
-		"matrix",
-		"--input", inputPath,
+	outputPath, stdout := runMatrixCommand(t, inputJSON, []string{
 		"--platform", "linux;windows",
 		"--arch", "amd64",
 		"--reduced-ci-mode", "disabled",
-		"--out", outputPath,
 	})
-
-	require.NoError(t, cmd.Execute())
 
 	out, err := os.ReadFile(outputPath)
 	require.NoError(t, err)
 
-	for _, content := range []string{string(out), stdout.String()} {
+	for _, content := range []string{string(out), stdout} {
 		assert.Contains(t, content, "linux_matrix={")
 		assert.Contains(t, content, "windows_matrix={")
 	}
@@ -231,18 +216,46 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 func TestMatrixSubcommandWithoutArgs(t *testing.T) {
 	t.Chdir(filepath.Join("..", ".."))
 
-	cmd := newRootCommand()
-	var stdout bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetArgs([]string{"matrix"})
-
-	require.NoError(t, cmd.Execute())
-
-	output := stdout.String()
+	output := executeRootCommand(t, []string{"matrix"})
 	assert.Contains(t, output, "linux_matrix=")
 	assert.Contains(t, output, "osx_matrix=")
 	assert.Contains(t, output, "windows_matrix=")
 	assert.Contains(t, output, "wasm_matrix=")
+}
+
+func mustParseMatrixFixture(t *testing.T, inputJSON string) distmatrix.MatrixFile {
+	t.Helper()
+
+	matrix, err := distmatrix.ParseMatrixFile([]byte(inputJSON))
+	require.NoError(t, err)
+	return matrix
+}
+
+func runMatrixCommand(t *testing.T, inputJSON string, extraArgs []string) (string, string) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	inputPath := filepath.Join(tmpDir, "distribution_matrix.json")
+	outputPath := filepath.Join(tmpDir, "matrices.env")
+	require.NoError(t, os.WriteFile(inputPath, []byte(inputJSON), 0o600))
+
+	stdout := executeRootCommand(t, append(
+		[]string{"matrix", "--input", inputPath, "--out", outputPath},
+		extraArgs...,
+	))
+
+	return outputPath, stdout
+}
+
+func executeRootCommand(t *testing.T, args []string) string {
+	t.Helper()
+
+	cmd := newRootCommand()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetArgs(args)
+	require.NoError(t, cmd.Execute())
+	return stdout.String()
 }
 
 func extractArchs(entries []distmatrix.PlatformOutput) []string {
