@@ -10,10 +10,10 @@ import (
 func TestRenderGitHubOutputLines(t *testing.T) {
 	matrices := map[string]PlatformMatrix{
 		"linux": {
-			Include: []Entry{{"duckdb_arch": "linux_amd64"}},
+			Include: []PlatformOutput{{DuckDBArch: "linux_amd64"}},
 		},
 		"windows": {
-			Include: []Entry{},
+			Include: []PlatformOutput{},
 		},
 	}
 
