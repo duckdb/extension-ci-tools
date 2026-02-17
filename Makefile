@@ -1,7 +1,12 @@
-.PHONY: test build clean
+GO_TEST_FLAGS ?= -coverprofile=coverage.out -timeout 2s
+
+.PHONY: test cov build clean
 
 test:
-	go test ./...
+	go test ${GO_TEST_FLAGS} ./...
+
+cov: test
+	go tool cover -html=coverage.out
 
 build:
 	mkdir -p build
