@@ -1,6 +1,6 @@
 module github.com/duckdb/extension-ci-tools
 
-go 1.26
+go 1.25
 
 require (
 	github.com/spf13/cobra v1.8.1
