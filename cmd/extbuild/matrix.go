@@ -13,6 +13,7 @@ func newMatrixCommand() *cobra.Command {
 		inputPath     string
 		platformsRaw  string
 		archsRaw      string
+		excludeRaw    string
 		optInRaw      string
 		reducedCIMode string
 		outPath       string
@@ -34,6 +35,7 @@ func newMatrixCommand() *cobra.Command {
 			result, err := distmatrix.ComputePlatformMatrices(matrix, distmatrix.ComputeOptions{
 				Platform:      platformsRaw,
 				Arch:          archsRaw,
+				Exclude:       excludeRaw,
 				OptIn:         optInRaw,
 				ReducedCIMode: distmatrix.ReducedCIMode(reducedCIMode),
 			})
@@ -63,17 +65,12 @@ func newMatrixCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&inputPath, "input", "config/distribution_matrix.json", "Input distribution matrix JSON file")
-	cmd.Flags().StringVar(&platformsRaw, "platform", "", "Semicolon-separated list of platforms")
-	cmd.Flags().StringVar(&archsRaw, "arch", "", "Semicolon-separated list of arch tokens (amd64;arm64)")
-	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Semicolon-separated list of opt-in duckdb_arch values")
+	cmd.Flags().StringVar(&platformsRaw, "platform", "", "Comma-separated list of platforms")
+	cmd.Flags().StringVar(&archsRaw, "arch", "", "Comma-separated list of arch tokens (amd64;arm64)")
+	cmd.Flags().StringVar(&excludeRaw, "exclude", "", "Comma-separated list of duckdb_arch values to exclude")
+	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Comma-separated list of opt-in duckdb_arch values")
 	cmd.Flags().StringVar(&reducedCIMode, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 
 	return cmd
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

@@ -57,6 +57,7 @@ const (
 type ComputeOptions struct {
 	Platform      string
 	Arch          string
+	Exclude       string
 	OptIn         string
 	ReducedCIMode ReducedCIMode
 }
@@ -101,6 +102,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 	}
 
 	optInSet := toSet(splitList(opts.OptIn))
+	excludedSet := toSet(splitList(opts.Exclude))
 	results := make(map[string]PlatformMatrix, len(platforms))
 
 	for _, platform := range platforms {
@@ -111,7 +113,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 
 		filtered := make([]PlatformOutput, 0, len(cfg.Include))
 		for _, entry := range cfg.Include {
-			if includeEntry(entry, archTokens, reducedCI, optInSet) {
+			if includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet) {
 				filtered = append(filtered, toPlatformOutput(entry))
 			}
 		}
@@ -144,9 +146,13 @@ func sortedMatrixPlatforms(m MatrixFile) []string {
 	return platforms
 }
 
-func includeEntry(entry Entry, archTokens map[string]struct{}, reducedCI bool, optInSet map[string]struct{}) bool {
+func includeEntry(entry Entry, archTokens map[string]struct{}, excludedSet map[string]struct{}, reducedCI bool, optInSet map[string]struct{}) bool {
 	duckdbArch := entry.DuckDBArch
 	if duckdbArch == "" {
+		return false
+	}
+
+	if _, excluded := excludedSet[duckdbArch]; excluded {
 		return false
 	}
 
