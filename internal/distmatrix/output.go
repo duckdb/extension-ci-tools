@@ -41,11 +41,13 @@ func RenderGitHubOutputLines(matrices map[string]PlatformMatrix, mode OutputMode
 	return b.String(), nil
 }
 
-func splitSemicolonList(raw string) []string {
+func splitList(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return nil
 	}
-	parts := strings.Split(raw, ";")
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ';' || r == ','
+	})
 	out := make([]string, 0, len(parts))
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
