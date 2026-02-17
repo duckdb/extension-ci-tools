@@ -142,6 +142,17 @@ func TestComputePlatformMatrices(t *testing.T) {
 			},
 		},
 		{
+			name: "comma separated lists are supported",
+			opts: distmatrix.ComputeOptions{
+				Platform: "linux,windows",
+				Arch:     "amd64,arm64",
+			},
+			expected: map[string][]string{
+				"linux":   {"linux_amd64", "linux_arm64"},
+				"windows": {"windows_amd64", "windows_amd64_mingw"},
+			},
+		},
+		{
 			name: "empty filtered result keeps include key",
 			opts: distmatrix.ComputeOptions{
 				Platform:      "windows",

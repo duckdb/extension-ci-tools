@@ -76,12 +76,12 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 }
 
 func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string]PlatformMatrix, error) {
-	platforms, err := normalizePlatforms(splitSemicolonList(opts.Platform))
+	platforms, err := normalizePlatforms(splitList(opts.Platform))
 	if err != nil {
 		return nil, err
 	}
 
-	archTokens, err := normalizeArchTokens(splitSemicolonList(opts.Arch))
+	archTokens, err := normalizeArchTokens(splitList(opts.Arch))
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		return nil, err
 	}
 
-	optInSet := toSet(splitSemicolonList(opts.OptIn))
+	optInSet := toSet(splitList(opts.OptIn))
 	results := make(map[string]PlatformMatrix, len(platforms))
 
 	for _, platform := range platforms {
