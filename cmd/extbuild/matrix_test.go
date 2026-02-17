@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/duckdb/extension-ci-tools/internal/distmatrix"
@@ -67,6 +69,11 @@ func TestComputePlatformMatrices(t *testing.T) {
         "duckdb_arch": "wasm_eh",
         "run_in_reduced_ci_mode": false,
         "opt_in": false
+      },
+      {
+        "duckdb_arch": "wasm_threads",
+        "run_in_reduced_ci_mode": false,
+        "opt_in": false
       }
     ]
   }
@@ -83,9 +90,8 @@ func TestComputePlatformMatrices(t *testing.T) {
 		{
 			name: "selected platforms only with arch token filters",
 			opts: distmatrix.ComputeOptions{
-				Platforms:     []string{"linux", "windows"},
-				ArchTokens:    []string{"amd64"},
-				ReducedCIMode: distmatrix.ReducedCIDisabled,
+				Platform: "linux;windows",
+				Arch:     "amd64",
 			},
 			expected: map[string][]string{
 				"linux":   {"linux_amd64"},
@@ -95,17 +101,26 @@ func TestComputePlatformMatrices(t *testing.T) {
 		{
 			name: "arch omitted includes all for selected platform",
 			opts: distmatrix.ComputeOptions{
-				Platforms:     []string{"wasm"},
-				ReducedCIMode: distmatrix.ReducedCIDisabled,
+				Platform: "wasm",
 			},
 			expected: map[string][]string{
-				"wasm": {"wasm_eh", "wasm_mvp"},
+				"wasm": {"wasm_eh", "wasm_mvp", "wasm_threads"},
+			},
+		},
+		{
+			name: "wasm reduced mode enabled includes only mvp",
+			opts: distmatrix.ComputeOptions{
+				Platform:      "wasm",
+				ReducedCIMode: distmatrix.ReducedCIEnabled,
+			},
+			expected: map[string][]string{
+				"wasm": {"wasm_mvp"},
 			},
 		},
 		{
 			name: "reduced ci mode enabled",
 			opts: distmatrix.ComputeOptions{
-				Platforms:     []string{"linux"},
+				Platform:      "linux",
 				ReducedCIMode: distmatrix.ReducedCIEnabled,
 			},
 			expected: map[string][]string{
@@ -115,9 +130,9 @@ func TestComputePlatformMatrices(t *testing.T) {
 		{
 			name: "opt in entries require explicit opt in list",
 			opts: distmatrix.ComputeOptions{
-				Platforms:     []string{"linux", "windows"},
-				ArchTokens:    []string{"amd64", "arm64"},
-				OptInArchs:    []string{"windows_arm64"},
+				Platform:      "linux;windows",
+				Arch:          "amd64;arm64",
+				OptIn:         "windows_arm64",
 				ReducedCIMode: distmatrix.ReducedCIDisabled,
 			},
 			expected: map[string][]string{
@@ -128,8 +143,8 @@ func TestComputePlatformMatrices(t *testing.T) {
 		{
 			name: "empty filtered result keeps include key",
 			opts: distmatrix.ComputeOptions{
-				Platforms:     []string{"windows"},
-				ArchTokens:    []string{"arm64"},
+				Platform:      "windows",
+				Arch:          "arm64",
 				ReducedCIMode: distmatrix.ReducedCIEnabled,
 			},
 			expected: map[string][]string{
@@ -155,25 +170,45 @@ func TestComputePlatformMatrices(t *testing.T) {
 	}
 }
 
-func TestRenderGitHubOutputLines(t *testing.T) {
+func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	t.Parallel()
 
-	matrices := map[string]distmatrix.PlatformMatrix{
-		"linux": {
-			Include: []distmatrix.Entry{{"duckdb_arch": "linux_amd64"}},
-		},
-		"windows": {
-			Include: []distmatrix.Entry{},
-		},
-	}
+	const inputJSON = `{
+  "linux": {
+    "include": [
+      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":true,"opt_in":false}
+    ]
+  },
+  "windows": {
+    "include": [
+      {"duckdb_arch":"windows_amd64","run_in_reduced_ci_mode":true,"opt_in":false}
+    ]
+  }
+}`
 
-	content, err := distmatrix.RenderGitHubOutputLines(matrices)
+	tmpDir := t.TempDir()
+	inputPath := filepath.Join(tmpDir, "distribution_matrix.json")
+	outputPath := filepath.Join(tmpDir, "matrices.env")
+
+	require.NoError(t, os.WriteFile(inputPath, []byte(inputJSON), 0o600))
+
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{
+		"matrix",
+		"--input", inputPath,
+		"--platform", "linux;windows",
+		"--arch", "amd64",
+		"--reduced-ci-mode", "disabled",
+		"--out", outputPath,
+	})
+
+	require.NoError(t, cmd.Execute())
+
+	out, err := os.ReadFile(outputPath)
 	require.NoError(t, err)
-	assert.Equal(
-		t,
-		"linux_matrix={\"include\":[{\"duckdb_arch\":\"linux_amd64\"}]}\nwindows_matrix={\"include\":[]}\n",
-		content,
-	)
+	assert.Contains(t, string(out), "linux_matrix={")
+	assert.Contains(t, string(out), "windows_matrix={")
 }
 
 func extractArchs(entries []distmatrix.Entry) []string {

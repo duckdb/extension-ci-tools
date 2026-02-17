@@ -21,4 +21,14 @@ func TestParseDistributionMatrixConfigFile(t *testing.T) {
 	assert.Contains(t, matrix, "osx")
 	assert.Contains(t, matrix, "windows")
 	assert.Contains(t, matrix, "wasm")
+
+	platforms, err := ComputePlatformMatrices(matrix, ComputeOptions{
+		Platform: "linux;osx;windows;wasm",
+		Arch:     "amd64;arm64",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, platforms, "linux")
+	assert.Contains(t, platforms, "osx")
+	assert.Contains(t, platforms, "windows")
+	assert.Contains(t, platforms, "wasm")
 }
