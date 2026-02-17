@@ -17,8 +17,13 @@ func TestRenderGitHubOutputLines(t *testing.T) {
 		},
 	}
 
-	content, err := RenderGitHubOutputLines(matrices)
+	content, err := RenderGitHubOutputLines(matrices, MachineReadable)
 	require.NoError(t, err)
 	assert.Contains(t, content, "linux_matrix={\"include\":[{\"duckdb_arch\":\"linux_amd64\"}]}")
 	assert.Contains(t, content, "windows_matrix={}")
+
+	readable, err := RenderGitHubOutputLines(matrices, HumanReadable)
+	require.NoError(t, err)
+	assert.Contains(t, readable, "linux_matrix={\n")
+	assert.Contains(t, readable, "windows_matrix={}")
 }
