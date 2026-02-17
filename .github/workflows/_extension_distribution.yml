@@ -241,8 +241,8 @@ jobs:
           for platform in linux osx windows wasm; do
             echo "=== ${platform} matrix diff (extbuild vs python) ==="
             if ! diff -u \
-              <(jq -S 'del(.. | .opt_in?, .. | .run_in_reduced_ci_mode?)' "build/extbuild_ref/${platform}_matrix.json") \
-              <(jq -S 'del(.. | .opt_in?, .. | .run_in_reduced_ci_mode?)' "build/python_ref/${platform}_matrix.json"); then
+              <(jq -S 'walk(if type == "object" then del(.opt_in, .run_in_reduced_ci_mode) else . end)' "build/extbuild_ref/${platform}_matrix.json") \
+              <(jq -S 'walk(if type == "object" then del(.opt_in, .run_in_reduced_ci_mode) else . end)' "build/python_ref/${platform}_matrix.json"); then
               has_diff=1
             else
               echo "No differences."
