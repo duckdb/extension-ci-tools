@@ -252,6 +252,11 @@ jobs:
 
           if [ "$has_diff" -ne 0 ]; then
             echo "Matrix differences detected."
+            echo "::warning title=Matrix differences detected::extbuild and python matrix outputs differ. See diff logs in this step."
+            {
+              echo "### Matrix differences detected"
+              echo "extbuild and python matrix outputs differ. See the diff logs in this step."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
