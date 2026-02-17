@@ -152,6 +152,17 @@ func TestComputePlatformMatrices(t *testing.T) {
 			},
 		},
 		{
+			name: "exclude removes specific duckdb_arch values",
+			opts: distmatrix.ComputeOptions{
+				Platform: "windows;wasm",
+				Exclude:  "windows_amd64_mingw,wasm_mvp,wasm_eh,wasm_threads",
+			},
+			expected: map[string][]string{
+				"windows": {"windows_amd64"},
+				"wasm":    {},
+			},
+		},
+		{
 			name: "empty filtered result keeps include key",
 			opts: distmatrix.ComputeOptions{
 				Platform:      "windows",

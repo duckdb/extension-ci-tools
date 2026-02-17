@@ -216,6 +216,7 @@ jobs:
           mkdir -p build
           extension-ci-tools/build/extbuild matrix \
             --input extension-ci-tools/config/distribution_matrix.json \
+            --exclude "${{ inputs.exclude_archs }}" \
             --opt-in "${{ inputs.opt_in_archs }}" \
             --reduced-ci-mode "${{ inputs.reduced_ci_mode }}" \
             --out build/extbuild_matrix.env
