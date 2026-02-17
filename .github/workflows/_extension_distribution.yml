@@ -202,9 +202,54 @@ jobs:
           echo "$GITHUB_EVENT_PATH"
           cat "$GITHUB_EVENT_PATH"
 
+      - name: Compute extension build matrix
+        continue-on-error: true
+        run: |
+          make -C extension-ci-tools test build -sj4
+          mkdir -p build
+          extension-ci-tools/build/extbuild matrix \
+            --input extension-ci-tools/config/distribution_matrix.json \
+            --opt-in "${{ inputs.opt_in_archs }}" \
+            --reduced-ci-mode "${{ inputs.reduced_ci_mode }}" \
+            --out build/extbuild_matrix.env
+          echo "extbuild matrix output:"
+          cat build/extbuild_matrix.env
+
+      - name: Compare extbuild vs python matrices
+        continue-on-error: true
+        run: |
+          mkdir -p build/python_ref build/extbuild_ref
+
+          python3 extension-ci-tools/scripts/modify_distribution_matrix.py --input extension-ci-tools/config/distribution_matrix.json --select_os linux   --output build/python_ref/linux_matrix.json   --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 extension-ci-tools/scripts/modify_distribution_matrix.py --input extension-ci-tools/config/distribution_matrix.json --select_os osx     --output build/python_ref/osx_matrix.json     --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 extension-ci-tools/scripts/modify_distribution_matrix.py --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/python_ref/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 extension-ci-tools/scripts/modify_distribution_matrix.py --input extension-ci-tools/config/distribution_matrix.json --select_os wasm    --output build/python_ref/wasm_matrix.json    --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+
+          for platform in linux osx windows wasm; do
+            grep "^${platform}_matrix=" build/extbuild_matrix.env | sed "s/^${platform}_matrix=//" > "build/extbuild_ref/${platform}_matrix.json"
+          done
+
+          has_diff=0
+          for platform in linux osx windows wasm; do
+            echo "=== ${platform} matrix diff (extbuild vs python) ==="
+            if ! diff -u \
+              <(jq -S -c . "build/extbuild_ref/${platform}_matrix.json") \
+              <(jq -S -c . "build/python_ref/${platform}_matrix.json"); then
+              has_diff=1
+            else
+              echo "No differences."
+            fi
+            echo
+          done
+
+          if [ "$has_diff" -ne 0 ]; then
+            echo "Matrix differences detected."
+            exit 1
+          fi
+
       - id: parse-matrices
         run: |
-          mkdir build
+          mkdir -p build
           python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux   --output build/linux_matrix.json   --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
           python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx     --output build/osx_matrix.json     --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
           python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
