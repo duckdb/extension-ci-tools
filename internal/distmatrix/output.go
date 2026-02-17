@@ -26,7 +26,7 @@ func RenderGitHubOutputLines(matrices map[string]PlatformMatrix) (string, error)
 	return b.String(), nil
 }
 
-func SplitSemicolonList(raw string) []string {
+func splitSemicolonList(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return nil
 	}

@@ -23,7 +23,7 @@ type PlatformConfig struct {
 type Entry map[string]any
 
 type PlatformMatrix struct {
-	Include []Entry `json:"include"`
+	Include []Entry `json:"include,omitempty"`
 }
 
 type ReducedCIMode string
@@ -35,9 +35,9 @@ const (
 )
 
 type ComputeOptions struct {
-	Platforms     []string
-	ArchTokens    []string
-	OptInArchs    []string
+	Platform      string
+	Arch          string
+	OptIn         string
 	ReducedCIMode ReducedCIMode
 }
 
@@ -50,12 +50,12 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 }
 
 func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string]PlatformMatrix, error) {
-	platforms, err := normalizePlatforms(opts.Platforms)
+	platforms, err := normalizePlatforms(splitSemicolonList(opts.Platform))
 	if err != nil {
 		return nil, err
 	}
 
-	archTokens, err := normalizeArchTokens(opts.ArchTokens)
+	archTokens, err := normalizeArchTokens(splitSemicolonList(opts.Arch))
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		return nil, err
 	}
 
-	optInSet := toSet(opts.OptInArchs)
+	optInSet := toSet(splitSemicolonList(opts.OptIn))
 	results := make(map[string]PlatformMatrix, len(platforms))
 
 	for _, platform := range platforms {
@@ -134,7 +134,7 @@ func matchesArchToken(duckdbArch string, tokens map[string]struct{}) bool {
 
 func parseReducedCIMode(mode ReducedCIMode) (bool, error) {
 	switch mode {
-	case ReducedCIAuto, ReducedCIDisabled:
+	case "", ReducedCIAuto, ReducedCIDisabled:
 		return false, nil
 	case ReducedCIEnabled:
 		return true, nil

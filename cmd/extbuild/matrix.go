@@ -21,7 +21,7 @@ func newMatrixCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "matrix",
 		Short: "Compute distribution matrices and emit GitHub output lines",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			data, err := os.ReadFile(inputPath)
 			if err != nil {
 				return fmt.Errorf("read input matrix %q: %w", inputPath, err)
@@ -31,14 +31,10 @@ func newMatrixCommand() *cobra.Command {
 				return fmt.Errorf("parse input matrix %q: %w", inputPath, err)
 			}
 
-			platforms := distmatrix.SplitSemicolonList(platformsRaw)
-			archTokens := distmatrix.SplitSemicolonList(archsRaw)
-			optInArchs := distmatrix.SplitSemicolonList(optInRaw)
-
 			result, err := distmatrix.ComputePlatformMatrices(matrix, distmatrix.ComputeOptions{
-				Platforms:     platforms,
-				ArchTokens:    archTokens,
-				OptInArchs:    optInArchs,
+				Platform:      platformsRaw,
+				Arch:          archsRaw,
+				OptIn:         optInRaw,
 				ReducedCIMode: distmatrix.ReducedCIMode(reducedCIMode),
 			})
 			if err != nil {
@@ -52,10 +48,6 @@ func newMatrixCommand() *cobra.Command {
 
 			if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
 				return fmt.Errorf("write output file %q: %w", outPath, err)
-			}
-
-			if len(archTokens) == 0 {
-				fmt.Fprintln(cmd.ErrOrStderr(), "note: wasm arch token filtering (mvp/eh/threads) is not implemented yet")
 			}
 
 			return nil
