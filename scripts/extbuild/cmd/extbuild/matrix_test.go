@@ -225,7 +225,7 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 }
 
 func TestMatrixSubcommandWithoutArgs(t *testing.T) {
-	t.Chdir(filepath.Join("..", ".."))
+	t.Chdir(filepath.Join("..", "..", "..", ".."))
 
 	output := executeRootCommand(t, []string{"matrix"})
 	assert.Contains(t, output, "linux_matrix=")

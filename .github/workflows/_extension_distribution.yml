@@ -200,9 +200,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: extension-ci-tools/go.mod
+          go-version-file: extension-ci-tools/scripts/extbuild/go.mod
           cache: true
-          cache-dependency-path: extension-ci-tools/go.sum
+          cache-dependency-path: extension-ci-tools/scripts/extbuild/go.sum
 
       - name: Dump event path file
         run: |
@@ -212,9 +212,9 @@ jobs:
       - name: Compute extension build matrix
         continue-on-error: true
         run: |
-          make -C extension-ci-tools test build -sj4
+          make -C extension-ci-tools/scripts/extbuild test build -sj4
           mkdir -p build
-          extension-ci-tools/build/extbuild matrix \
+          extension-ci-tools/scripts/extbuild/build/extbuild matrix \
             --input extension-ci-tools/config/distribution_matrix.json \
             --exclude "${{ inputs.exclude_archs }}" \
             --opt-in "${{ inputs.opt_in_archs }}" \
