@@ -12,7 +12,7 @@ import (
 func TestParseDistributionMatrixConfigFile(t *testing.T) {
 	t.Parallel()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "config", "distribution_matrix.json"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "config", "distribution_matrix.json"))
 	require.NoError(t, err)
 
 	matrix, err := ParseMatrixFile(data)
