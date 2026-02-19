@@ -41,6 +41,48 @@ func RenderGitHubOutputLines(matrices map[string]PlatformMatrix, mode OutputMode
 	return b.String(), nil
 }
 
+type DeployOutput struct {
+	Include []DeployOutputEntry `json:"include,omitempty"`
+}
+
+type DeployOutputEntry struct {
+	DuckDBArch string `json:"duckdb_arch"`
+}
+
+func RenderDeployGitHubOutputLine(matrices map[string]PlatformMatrix) (string, error) {
+	deploy := buildDeployOutput(matrices)
+	payload, err := json.Marshal(deploy)
+	if err != nil {
+		return "", err
+	}
+	return "deploy_matrix=" + string(payload) + "\n", nil
+}
+
+func RenderDeployReadableLines(matrices map[string]PlatformMatrix) string {
+	deploy := buildDeployOutput(matrices)
+	var b strings.Builder
+	for _, entry := range deploy.Include {
+		_, _ = b.WriteString(entry.DuckDBArch)
+		_, _ = b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func buildDeployOutput(matrices map[string]PlatformMatrix) DeployOutput {
+	orderedPlatforms := sortedPlatforms(matrices)
+	include := make([]DeployOutputEntry, 0)
+	for _, platform := range orderedPlatforms {
+		matrix, ok := matrices[platform]
+		if !ok {
+			continue
+		}
+		for _, entry := range matrix.Include {
+			include = append(include, DeployOutputEntry{DuckDBArch: entry.DuckDBArch})
+		}
+	}
+	return DeployOutput{Include: include}
+}
+
 func splitList(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return nil
