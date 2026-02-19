@@ -74,11 +74,14 @@ func TestDetectGitHubEventTypeFromEnvInvalidJSON(t *testing.T) {
 
 func TestMatrixSubcommandLogsDetectedEventType(t *testing.T) {
 	t.Chdir(filepath.Join("..", "..", "..", ".."))
-	t.Setenv("GITHUB_EVENT_PATH", filepath.Join("scripts", "extbuild", "testdata", "github", "events", "extension_template_pull_request.json"))
+	eventPath := filepath.Join("scripts", "extbuild", "testdata", "github", "events", "extension_template_pull_request.json")
+	t.Setenv("GITHUB_EVENT_PATH", eventPath)
 	_, stderr, err := executeRootCommandWithResult(t, []string{"matrix", "--platform", "linux"})
 	require.NoError(t, err)
 	assert.Contains(t, stderr, "\x1b[90m")
 	assert.Contains(t, stderr, "\x1b[34mINF\x1b[0m")
+	assert.Contains(t, stderr, "Using GitHub event payload file")
+	assert.Contains(t, stderr, "event_path="+eventPath)
 	assert.Contains(t, stderr, "Detected GitHub event type")
 	assert.Contains(t, stderr, "event_type=pull_request")
 }
@@ -89,6 +92,30 @@ func TestMatrixSubcommandFailsWhenEventPathInvalid(t *testing.T) {
 	_, _, err := executeRootCommandWithResult(t, []string{"matrix", "--platform", "linux"})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "detect GitHub event type")
+}
+
+func TestMatrixSubcommandPullRequestEnablesReducedCIWhenAuto(t *testing.T) {
+	t.Chdir(filepath.Join("..", "..", "..", ".."))
+	t.Setenv("GITHUB_EVENT_PATH", filepath.Join("scripts", "extbuild", "testdata", "github", "events", "extension_template_pull_request.json"))
+
+	inputJSON := `{
+  "linux": {
+    "include": [
+      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":false,"opt_in":false}
+    ]
+  }
+}`
+
+	outputPath, _ := runMatrixCommand(t, inputJSON, []string{
+		"--platform", "linux",
+		"--reduced-ci-mode", "auto",
+	})
+
+	out, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(out), "linux_amd64")
+	assert.NotContains(t, string(out), "linux_arm64")
 }
 
 func fixturePath(name string) string {

@@ -96,10 +96,11 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		return nil, err
 	}
 
-	reducedCI, err := parseReducedCIMode(opts.ReducedCIMode)
+	parsedReducedCIMode, err := ParseReducedCIMode(string(opts.ReducedCIMode))
 	if err != nil {
 		return nil, err
 	}
+	reducedCI := parsedReducedCIMode == ReducedCIEnabled
 
 	optInSet := toSet(splitList(opts.OptIn))
 	excludedSet := toSet(splitList(opts.Exclude))
@@ -182,14 +183,16 @@ func matchesArchToken(duckdbArch string, tokens map[string]struct{}) bool {
 	return false
 }
 
-func parseReducedCIMode(mode ReducedCIMode) (bool, error) {
+func ParseReducedCIMode(mode string) (ReducedCIMode, error) {
 	switch mode {
-	case "", ReducedCIAuto, ReducedCIDisabled:
-		return false, nil
-	case ReducedCIEnabled:
-		return true, nil
+	case "", string(ReducedCIAuto):
+		return ReducedCIAuto, nil
+	case string(ReducedCIEnabled):
+		return ReducedCIEnabled, nil
+	case string(ReducedCIDisabled):
+		return ReducedCIDisabled, nil
 	default:
-		return false, fmt.Errorf("invalid reduced CI mode: %q (must be auto|enabled|disabled)", mode)
+		return "", fmt.Errorf("invalid reduced CI mode: %q (must be auto|enabled|disabled)", mode)
 	}
 }
 

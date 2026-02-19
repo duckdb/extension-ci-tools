@@ -11,24 +11,39 @@ import (
 
 func newMatrixCommand() *cobra.Command {
 	var (
-		inputPath     string
-		platformsRaw  string
-		archsRaw      string
-		excludeRaw    string
-		optInRaw      string
-		reducedCIMode string
-		outPath       string
+		inputPath        string
+		platformsRaw     string
+		archsRaw         string
+		excludeRaw       string
+		optInRaw         string
+		reducedCIModeRaw string
+		outPath          string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "matrix",
 		Short: "Compute distribution matrices and emit GitHub output lines",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if eventPath := os.Getenv("GITHUB_EVENT_PATH"); eventPath != "" {
+				slog.Info("Using GitHub event payload file", "event_path", eventPath)
+			} else {
+				slog.Info("GITHUB_EVENT_PATH is not set so event type is unknown")
+			}
+
 			eventType, err := detectGitHubEventTypeFromEnv()
 			if err != nil {
 				return fmt.Errorf("detect GitHub event type: %w", err)
 			}
 			slog.Info("Detected GitHub event type", "event_type", eventType)
+
+			reducedCIMode, err := distmatrix.ParseReducedCIMode(reducedCIModeRaw)
+			if err != nil {
+				return err
+			}
+			if eventType == githubEventPullRequest && reducedCIMode == distmatrix.ReducedCIAuto {
+				reducedCIMode = distmatrix.ReducedCIEnabled
+				slog.Info("Enabled reduced CI mode for pull_request event when mode is auto")
+			}
 
 			data, err := os.ReadFile(inputPath)
 			if err != nil {
@@ -44,7 +59,7 @@ func newMatrixCommand() *cobra.Command {
 				Arch:          archsRaw,
 				Exclude:       excludeRaw,
 				OptIn:         optInRaw,
-				ReducedCIMode: distmatrix.ReducedCIMode(reducedCIMode),
+				ReducedCIMode: reducedCIMode,
 			})
 			if err != nil {
 				return fmt.Errorf("compute platform matrices: %w", err)
@@ -76,7 +91,7 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&archsRaw, "arch", "", "Comma-separated list of arch tokens (amd64;arm64)")
 	cmd.Flags().StringVar(&excludeRaw, "exclude", "", "Comma-separated list of duckdb_arch values to exclude")
 	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Comma-separated list of opt-in duckdb_arch values")
-	cmd.Flags().StringVar(&reducedCIMode, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
+	cmd.Flags().StringVar(&reducedCIModeRaw, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 
 	return cmd
