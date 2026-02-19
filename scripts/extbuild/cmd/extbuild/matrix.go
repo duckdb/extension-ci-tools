@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/duckdb/extension-ci-tools/internal/distmatrix"
@@ -23,6 +24,12 @@ func newMatrixCommand() *cobra.Command {
 		Use:   "matrix",
 		Short: "Compute distribution matrices and emit GitHub output lines",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			eventType, err := detectGitHubEventTypeFromEnv()
+			if err != nil {
+				return fmt.Errorf("detect GitHub event type: %w", err)
+			}
+			slog.Info("Detected GitHub event type", "event_type", eventType)
+
 			data, err := os.ReadFile(inputPath)
 			if err != nil {
 				return fmt.Errorf("read input matrix %q: %w", inputPath, err)
