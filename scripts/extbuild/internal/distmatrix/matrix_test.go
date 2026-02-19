@@ -28,6 +28,27 @@ func TestRenderGitHubOutputLines(t *testing.T) {
 	assert.Contains(t, readable, "windows_matrix={}")
 }
 
+func TestRenderDeployOutput(t *testing.T) {
+	matrices := map[string]PlatformMatrix{
+		"windows": {
+			Include: []PlatformOutput{{DuckDBArch: "windows_amd64"}},
+		},
+		"linux": {
+			Include: []PlatformOutput{
+				{DuckDBArch: "linux_amd64"},
+				{DuckDBArch: "linux_arm64"},
+			},
+		},
+	}
+
+	content, err := RenderDeployGitHubOutputLine(matrices)
+	require.NoError(t, err)
+	assert.Equal(t, "deploy_matrix={\"include\":[{\"duckdb_arch\":\"linux_amd64\"},{\"duckdb_arch\":\"linux_arm64\"},{\"duckdb_arch\":\"windows_amd64\"}]}\n", content)
+
+	readable := RenderDeployReadableLines(matrices)
+	assert.Equal(t, "linux_amd64\nlinux_arm64\nwindows_amd64\n", readable)
+}
+
 func TestParseReducedCIMode(t *testing.T) {
 	t.Parallel()
 
