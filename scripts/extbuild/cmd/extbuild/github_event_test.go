@@ -22,17 +22,17 @@ func TestDetectGitHubEventTypeFromEnv(t *testing.T) {
 		},
 		{
 			name:      "pull request fixture",
-			eventPath: fixturePath("extension_template_pull_request.json"),
+			eventPath: fixturePath(t, "extension_template_pull_request.json"),
 			want:      githubEventPullRequest,
 		},
 		{
 			name:      "push fixture",
-			eventPath: fixturePath("extension_template_push.json"),
+			eventPath: fixturePath(t, "extension_template_push.json"),
 			want:      githubEventPush,
 		},
 		{
 			name:      "unknown fixture",
-			eventPath: fixturePath("extension_template_unknown.json"),
+			eventPath: fixturePath(t, "extension_template_unknown.json"),
 			want:      githubEventUnknown,
 		},
 		{
@@ -73,10 +73,13 @@ func TestDetectGitHubEventTypeFromEnvInvalidJSON(t *testing.T) {
 }
 
 func TestMatrixSubcommandLogsDetectedEventType(t *testing.T) {
-	t.Chdir(filepath.Join("..", "..", "..", ".."))
-	eventPath := filepath.Join("scripts", "extbuild", "testdata", "github", "events", "extension_template_pull_request.json")
+	eventPath := fixturePath(t, "extension_template_pull_request.json")
 	t.Setenv("GITHUB_EVENT_PATH", eventPath)
-	_, stderr, err := executeRootCommandWithResult(t, []string{"matrix", "--platform", "linux"})
+	_, stderr, err := executeRootCommandWithResult(t, []string{
+		"matrix",
+		"--input", matrixConfigPath(t),
+		"--platform", "linux",
+	})
 	require.NoError(t, err)
 	assert.Contains(t, stderr, "\x1b[90m")
 	assert.Contains(t, stderr, "\x1b[34mINF\x1b[0m")
@@ -87,16 +90,18 @@ func TestMatrixSubcommandLogsDetectedEventType(t *testing.T) {
 }
 
 func TestMatrixSubcommandFailsWhenEventPathInvalid(t *testing.T) {
-	t.Chdir(filepath.Join("..", "..", "..", ".."))
 	t.Setenv("GITHUB_EVENT_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	_, _, err := executeRootCommandWithResult(t, []string{"matrix", "--platform", "linux"})
+	_, _, err := executeRootCommandWithResult(t, []string{
+		"matrix",
+		"--input", matrixConfigPath(t),
+		"--platform", "linux",
+	})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "detect GitHub event type")
 }
 
 func TestMatrixSubcommandPullRequestEnablesReducedCIWhenAuto(t *testing.T) {
-	t.Chdir(filepath.Join("..", "..", "..", ".."))
-	t.Setenv("GITHUB_EVENT_PATH", filepath.Join("scripts", "extbuild", "testdata", "github", "events", "extension_template_pull_request.json"))
+	t.Setenv("GITHUB_EVENT_PATH", fixturePath(t, "extension_template_pull_request.json"))
 
 	inputJSON := `{
   "linux": {
@@ -118,6 +123,19 @@ func TestMatrixSubcommandPullRequestEnablesReducedCIWhenAuto(t *testing.T) {
 	assert.NotContains(t, string(out), "linux_arm64")
 }
 
-func fixturePath(name string) string {
-	return filepath.Join("..", "..", "testdata", "github", "events", name)
+func fixturePath(t *testing.T, name string) string {
+	t.Helper()
+	return filepath.Join(moduleRootPath(t), "testdata", "github", "events", name)
+}
+
+func matrixConfigPath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(moduleRootPath(t), "..", "..", "config", "distribution_matrix.json")
+}
+
+func moduleRootPath(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	return filepath.Clean(filepath.Join(wd, "..", ".."))
 }
