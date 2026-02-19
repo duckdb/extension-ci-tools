@@ -27,3 +27,55 @@ func TestRenderGitHubOutputLines(t *testing.T) {
 	assert.Contains(t, readable, "linux_matrix={\n")
 	assert.Contains(t, readable, "windows_matrix={}")
 }
+
+func TestParseReducedCIMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   string
+		want    ReducedCIMode
+		wantErr bool
+	}{
+		{
+			name:  "empty maps to auto",
+			input: "",
+			want:  ReducedCIAuto,
+		},
+		{
+			name:  "auto stays auto",
+			input: string(ReducedCIAuto),
+			want:  ReducedCIAuto,
+		},
+		{
+			name:  "enabled stays enabled",
+			input: string(ReducedCIEnabled),
+			want:  ReducedCIEnabled,
+		},
+		{
+			name:  "disabled stays disabled",
+			input: string(ReducedCIDisabled),
+			want:  ReducedCIDisabled,
+		},
+		{
+			name:    "invalid value errors",
+			input:   "sometimes",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ParseReducedCIMode(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
