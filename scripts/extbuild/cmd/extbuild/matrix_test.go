@@ -261,12 +261,22 @@ func runMatrixCommand(t *testing.T, inputJSON string, extraArgs []string) (strin
 func executeRootCommand(t *testing.T, args []string) string {
 	t.Helper()
 
+	stdout, _, err := executeRootCommandWithResult(t, args)
+	require.NoError(t, err)
+	return stdout
+}
+
+func executeRootCommandWithResult(t *testing.T, args []string) (string, string, error) {
+	t.Helper()
+
 	cmd := newRootCommand()
 	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
 	cmd.SetArgs(args)
-	require.NoError(t, cmd.Execute())
-	return stdout.String()
+	err := cmd.Execute()
+	return stdout.String(), stderr.String(), err
 }
 
 func extractArchs(entries []distmatrix.PlatformOutput) []string {
