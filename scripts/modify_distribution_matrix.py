@@ -63,6 +63,15 @@ def filter_entries(data, excluded_arch_values, opt_in_arch_values):
 
     return data
 
+def sort_include_entries(value):
+    if isinstance(value, dict):
+        if "include" in value and isinstance(value["include"], list):
+            value["include"] = sorted(value["include"], key=lambda item: item.get("duckdb_arch", ""))
+        for nested in value.values():
+            sort_include_entries(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            sort_include_entries(nested)
 
 # Filter the JSON data
 filtered_data = filter_entries(data, excluded_arch_values, opt_in_arch_values)
@@ -90,13 +99,15 @@ elif args.deploy_matrix:
 
     filtered_data = {"include": deploy_archs}
 
+# Keep matrix includes deterministic for easier diffs and comparisons.
+sort_include_entries(filtered_data)
+
 # Determine the JSON formatting
 indent = 2 if args.pretty else None
 
 # If no output file is provided, print to stdout
 if output_json_file_path:
     with open(output_json_file_path, "w") as output_json_file:
-        if filtered_data:
-            json.dump(filtered_data, output_json_file, indent=indent)
+        json.dump(filtered_data, output_json_file, indent=indent)
 else:
     json.dump(filtered_data, sys.stdout, indent=indent)
