@@ -58,11 +58,6 @@ on:
         required: false
         type: string
         default: "./duckdb/scripts/extension-upload-single.sh"
-      # Override the default matrix parse script with a custom script
-      matrix_parse_script:
-        required: false
-        type: string
-        default: "./extension-ci-tools/scripts/modify_distribution_matrix.py"
       # auto/enabled/disabled: when enabled (or enabled through auto) will skip redundant architectures to reduce CI load
       reduced_ci_mode:
         required: false
@@ -83,12 +78,24 @@ jobs:
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: extension-ci-tools/scripts/extbuild/go.mod
+          cache: true
+          cache-dependency-path: extension-ci-tools/scripts/extbuild/go.sum
+
       - id: parse-matrices
         run: |
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --deploy_matrix --output deploy_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          deploy_matrix="`cat deploy_matrix.json`"
-          echo deploy_matrix=$deploy_matrix >> $GITHUB_OUTPUT
-          echo `cat $GITHUB_OUTPUT`
+          make -C extension-ci-tools/scripts/extbuild build -sj4
+          extension-ci-tools/scripts/extbuild/build/extbuild matrix \
+            --input extension-ci-tools/config/distribution_matrix.json \
+            --exclude "${{ inputs.exclude_archs }}" \
+            --opt-in "${{ inputs.opt_in_archs }}" \
+            --reduced-ci-mode "${{ inputs.reduced_ci_mode }}" \
+            --deploy \
+            --out "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
 
   deploy:
     name: Deploy to nightly

@@ -18,6 +18,7 @@ func newMatrixCommand() *cobra.Command {
 		optInRaw         string
 		reducedCIModeRaw string
 		outPath          string
+		deployOnly       bool
 	)
 
 	cmd := &cobra.Command{
@@ -65,13 +66,25 @@ func newMatrixCommand() *cobra.Command {
 				return fmt.Errorf("compute platform matrices: %w", err)
 			}
 
-			content, err := distmatrix.RenderGitHubOutputLines(result, distmatrix.MachineReadable)
-			if err != nil {
-				return fmt.Errorf("render GitHub output lines: %w", err)
-			}
-			readable, err := distmatrix.RenderGitHubOutputLines(result, distmatrix.HumanReadable)
-			if err != nil {
-				return fmt.Errorf("render readable output: %w", err)
+			var (
+				content  string
+				readable string
+			)
+			if deployOnly {
+				content, err = distmatrix.RenderDeployGitHubOutputLine(result)
+				if err != nil {
+					return fmt.Errorf("render deploy GitHub output line: %w", err)
+				}
+				readable = distmatrix.RenderDeployReadableLines(result)
+			} else {
+				content, err = distmatrix.RenderGitHubOutputLines(result, distmatrix.MachineReadable)
+				if err != nil {
+					return fmt.Errorf("render GitHub output lines: %w", err)
+				}
+				readable, err = distmatrix.RenderGitHubOutputLines(result, distmatrix.HumanReadable)
+				if err != nil {
+					return fmt.Errorf("render readable output: %w", err)
+				}
 			}
 
 			if outPath != "" {
@@ -93,6 +106,7 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Comma-separated list of opt-in duckdb_arch values")
 	cmd.Flags().StringVar(&reducedCIModeRaw, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
+	cmd.Flags().BoolVar(&deployOnly, "deploy", false, "Emit only deploy_matrix output with duckdb_arch values")
 
 	return cmd
 }

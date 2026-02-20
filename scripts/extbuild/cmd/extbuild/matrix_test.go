@@ -234,6 +234,40 @@ func TestMatrixSubcommandWithoutArgs(t *testing.T) {
 	assert.Contains(t, output, "wasm_matrix=")
 }
 
+func TestMatrixSubcommandDeployMode(t *testing.T) {
+	t.Parallel()
+
+	inputJSON := `{
+  "linux": {
+    "include": [
+      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":true,"opt_in":false}
+    ]
+  },
+  "windows": {
+    "include": [
+      {"duckdb_arch":"windows_amd64","run_in_reduced_ci_mode":true,"opt_in":false}
+    ]
+  }
+}`
+
+	outputPath, stdout := runMatrixCommand(t, inputJSON, []string{
+		"--platform", "linux;windows",
+		"--arch", "amd64",
+		"--deploy",
+	})
+
+	out, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+
+	content := string(out)
+	assert.Contains(t, content, "deploy_matrix=")
+	assert.NotContains(t, content, "linux_matrix=")
+	assert.NotContains(t, content, "windows_matrix=")
+
+	assert.Equal(t, "linux_amd64\nwindows_amd64\n", stdout)
+}
+
 func mustParseMatrixFixture(t *testing.T, inputJSON string) distmatrix.MatrixFile {
 	t.Helper()
 
