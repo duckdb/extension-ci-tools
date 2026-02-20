@@ -89,14 +89,14 @@
         "duckdb_arch": "wasm_mvp",
         "vcpkg_target_triplet": "wasm32-emscripten",
         "vcpkg_host_triplet": "x64-linux",
-        "run_in_reduced_ci_mode": true,
+        "run_in_reduced_ci_mode": false,
         "opt_in": false
       },
       {
         "duckdb_arch": "wasm_eh",
         "vcpkg_target_triplet": "wasm32-emscripten",
         "vcpkg_host_triplet": "x64-linux",
-        "run_in_reduced_ci_mode": false,
+        "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
       {

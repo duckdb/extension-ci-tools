@@ -60,6 +60,7 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3;downgraded_aws_cli;'
+      reduced_ci_mode: disabled
       save_cache: ${{ github.event_name != 'pull_request' }}
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
       upload_all_extensions: true
