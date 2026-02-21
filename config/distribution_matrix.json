@@ -6,7 +6,7 @@
         "runner": "ubuntu-24.04",
         "vcpkg_target_triplet": "x64-linux-release",
         "vcpkg_host_triplet": "x64-linux-release",
-        "run_in_reduced_ci_mode": false,
+        "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
       {
@@ -14,7 +14,7 @@
         "runner": "ubuntu-24.04-arm",
         "vcpkg_target_triplet": "arm64-linux-release",
         "vcpkg_host_triplet": "arm64-linux-release",
-        "run_in_reduced_ci_mode": true,
+        "run_in_reduced_ci_mode": false,
         "opt_in": false
       },
       {
