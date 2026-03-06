@@ -12,7 +12,7 @@
 #	DEFAULT_TEST_EXTENSION_DEPS : `;`-separated list of extensions that are built in `default` and `full` mode
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
-.PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
+.PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
 
 all: release
 
@@ -153,6 +153,9 @@ endif
 ifneq ($(TIDY_CHECKS),)
         TIDY_PERFORM_CHECKS := '-checks=${TIDY_CHECKS}'
 endif
+
+clangd: ${EXTENSION_CONFIG_STEP}
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B .cache/clangd/debug
 
 debug: ${EXTENSION_CONFIG_STEP}
 	mkdir -p build/debug
