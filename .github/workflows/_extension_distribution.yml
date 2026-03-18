@@ -751,7 +751,6 @@ jobs:
       matrix: ${{fromJson(needs.generate_matrix.outputs.windows_matrix)}}
     env:
       # VCPKG config
-      VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
@@ -903,11 +902,20 @@ jobs:
         run: |
           make set_duckdb_tag
 
+      - name: Setup shorter path for vcpkg
+        run: |
+          $basePath = Split-Path -Path (Split-path -Path $env:GITHUB_WORKSPACE -Parent) -Parent
+          $vcpkgRoot = "$basePath/v"
+          echo "VCPKG_WINDOWS_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
+          vcpkgDirectory: ${{ env.VCPKG_WINDOWS_ROOT }}
 
       - name: Inject extra extension config
         if: ${{ inputs.extra_extension_config }}
