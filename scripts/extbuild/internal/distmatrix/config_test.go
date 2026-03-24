@@ -63,22 +63,22 @@ func TestRunnerOverrideAliasesCoverAllRunnerEntriesInDistributionMatrix(t *testi
 	matrix, err := ParseMatrixFile(data)
 	require.NoError(t, err)
 
-	expectedAliases := map[string][]string{
-		"linux_amd64":         {"linux_x64"},
-		"linux_arm64":         {"linux_arm64"},
-		"linux_amd64_musl":    {"linux_x64"},
-		"linux_arm64_musl":    {"linux_arm64"},
-		"osx_amd64":           {"macos_x64"},
-		"osx_arm64":           {"macos_arm64", "macos_14_arm64"},
-		"windows_amd64":       {"windows_x64"},
-		"windows_arm64":       {"windows_arm64"},
-		"windows_amd64_mingw": {"windows_x64"},
-		"wasm_mvp":            {"linux_x64"},
-		"wasm_eh":             {"linux_x64"},
-		"wasm_threads":        {"linux_x64"},
+	expectedAliases := map[string]string{
+		"linux_amd64":         "linux_x64",
+		"linux_arm64":         "linux_arm64",
+		"linux_amd64_musl":    "linux_x64",
+		"linux_arm64_musl":    "linux_arm64",
+		"osx_amd64":           "macos_x64",
+		"osx_arm64":           "macos_arm64",
+		"windows_amd64":       "windows_x64",
+		"windows_arm64":       "windows_arm64",
+		"windows_amd64_mingw": "windows_x64",
+		"wasm_mvp":            "linux_x64",
+		"wasm_eh":             "linux_x64",
+		"wasm_threads":        "linux_x64",
 	}
 
-	actualAliases := map[string][]string{}
+	actualAliases := map[string]string{}
 	for _, cfg := range matrix {
 		for _, entry := range cfg.Include {
 			require.NotNil(t, entry.Runner, "runner must be set for %s", entry.DuckDBArch)

@@ -309,32 +309,32 @@ func (o RunnerOverrides) lookup(duckdbArch string) (string, bool) {
 		return override, true
 	}
 
-	for _, key := range runnerOverrideAliases(duckdbArch) {
-		if override, ok := o[key]; ok {
-			return override, true
-		}
+	key := runnerOverrideAliases(duckdbArch)
+	if key == "" {
+		return "", false
 	}
 
-	return "", false
+	override, ok := o[key]
+	return override, ok
 }
 
-func runnerOverrideAliases(duckdbArch string) []string {
+func runnerOverrideAliases(duckdbArch string) string {
 	switch duckdbArch {
 	case "linux_amd64", "linux_amd64_musl":
-		return []string{"linux_x64"}
+		return "linux_x64"
 	case "linux_arm64", "linux_arm64_musl":
-		return []string{"linux_arm64"}
+		return "linux_arm64"
 	case "osx_amd64":
-		return []string{"macos_x64"}
+		return "macos_x64"
 	case "osx_arm64":
-		return []string{"macos_arm64", "macos_14_arm64"}
+		return "macos_arm64"
 	case "windows_amd64", "windows_amd64_mingw":
-		return []string{"windows_x64"}
+		return "windows_x64"
 	case "windows_arm64":
-		return []string{"windows_arm64"}
+		return "windows_arm64"
 	case "wasm_mvp", "wasm_eh", "wasm_threads":
-		return []string{"linux_x64"}
+		return "linux_x64"
 	}
 
-	return nil
+	return ""
 }
