@@ -254,7 +254,7 @@ jobs:
       - name: Free disk space 1
         uses: endersonmenezes/free-disk-space@v2.1.1
         continue-on-error: true
-        if: inputs.run_disk_clean_step
+        if: ${{ inputs.run_disk_clean_step && env.USE_DEFAULT_RUNNERS == 'true' }}
         with:
 #          remove_android: true # ~9.5GB in #52s
 #          remove_dotnet: true
@@ -267,7 +267,7 @@ jobs:
 
       - name: Free disk space 2
         continue-on-error: true
-        if: inputs.run_disk_clean_step
+        if: ${{ inputs.run_disk_clean_step && env.USE_DEFAULT_RUNNERS == 'true' }}
         run: |
           docker images -a -q > package.list
           if [ -s package.list ]; then
