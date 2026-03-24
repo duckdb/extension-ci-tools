@@ -24,7 +24,7 @@ type PlatformConfig struct {
 
 type Entry struct {
 	DuckDBArch   string  `json:"duckdb_arch"`
-	Runner       *string `json:"runner"`
+	Runner       string  `json:"runner"`
 	OSXBuildArch *string `json:"osx_build_arch"`
 
 	VCPKGTargetTriplet string `json:"vcpkg_target_triplet"`
@@ -39,7 +39,7 @@ type PlatformMatrix struct {
 
 type PlatformOutput struct {
 	DuckDBArch   string  `json:"duckdb_arch"`
-	Runner       *string `json:"runner,omitempty"`
+	Runner       string  `json:"runner,omitempty"`
 	OSXBuildArch *string `json:"osx_build_arch,omitempty"`
 
 	VCPKGTargetTriplet string `json:"vcpkg_target_triplet,omitempty"`
@@ -60,7 +60,10 @@ type ComputeOptions struct {
 	Exclude       string
 	OptIn         string
 	ReducedCIMode ReducedCIMode
+	RunnerJSON    string
 }
+
+type RunnerOverrides map[string]string
 
 func ParseMatrixFile(data []byte) (MatrixFile, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -73,10 +76,22 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 	if err := decoder.Decode(new(struct{})); err != io.EOF {
 		return nil, errors.New("invalid JSON: multiple top-level values")
 	}
+	for platform, cfg := range matrix {
+		for _, entry := range cfg.Include {
+			if strings.TrimSpace(entry.Runner) == "" {
+				return nil, fmt.Errorf("platform %s entry %s has empty runner", platform, entry.DuckDBArch)
+			}
+		}
+	}
 	return matrix, nil
 }
 
 func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string]PlatformMatrix, error) {
+	runnerOverrides, err := ParseRunnerOverrides(opts.RunnerJSON)
+	if err != nil {
+		return nil, err
+	}
+
 	platforms := splitList(opts.Platform)
 	if len(platforms) == 0 {
 		platforms = sortedMatrixPlatforms(matrix)
@@ -115,7 +130,11 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		filtered := make([]PlatformOutput, 0, len(cfg.Include))
 		for _, entry := range cfg.Include {
 			if includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet) {
-				filtered = append(filtered, toPlatformOutput(entry))
+				output := toPlatformOutput(entry)
+				if override, ok := runnerOverrides.lookup(entry.DuckDBArch); ok {
+					output.Runner = override
+				}
+				filtered = append(filtered, output)
 			}
 		}
 
@@ -241,6 +260,38 @@ func toSet(values []string) map[string]struct{} {
 	return set
 }
 
+func ParseRunnerOverrides(raw string) (RunnerOverrides, error) {
+	if strings.TrimSpace(raw) == "" {
+		return RunnerOverrides{}, nil
+	}
+
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+
+	var overrides map[string]string
+	if err := decoder.Decode(&overrides); err != nil {
+		return nil, fmt.Errorf("parse runner overrides: %w", err)
+	}
+	if err := decoder.Decode(new(struct{})); err != io.EOF {
+		return nil, errors.New("parse runner overrides: invalid JSON: multiple top-level values")
+	}
+
+	result := make(RunnerOverrides, len(overrides))
+	for key, value := range overrides {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" {
+			return nil, errors.New("parse runner overrides: override key cannot be empty")
+		}
+		if value == "" {
+			return nil, fmt.Errorf("parse runner overrides: override value for %q cannot be empty", key)
+		}
+		result[key] = value
+	}
+
+	return result, nil
+}
+
 func toPlatformOutput(entry Entry) PlatformOutput {
 	return PlatformOutput{
 		DuckDBArch:         entry.DuckDBArch,
@@ -249,4 +300,43 @@ func toPlatformOutput(entry Entry) PlatformOutput {
 		VCPKGTargetTriplet: entry.VCPKGTargetTriplet,
 		VCPKGHostTriplet:   entry.VCPKGHostTriplet,
 	}
+}
+
+func (o RunnerOverrides) lookup(duckdbArch string) (string, bool) {
+	if len(o) == 0 {
+		return "", false
+	}
+
+	if override, ok := o[duckdbArch]; ok {
+		return override, true
+	}
+
+	key := runnerOverrideAliases(duckdbArch)
+	if key == "" {
+		return "", false
+	}
+
+	override, ok := o[key]
+	return override, ok
+}
+
+func runnerOverrideAliases(duckdbArch string) string {
+	switch duckdbArch {
+	case "linux_amd64", "linux_amd64_musl":
+		return "linux_x64"
+	case "linux_arm64", "linux_arm64_musl":
+		return "linux_arm64"
+	case "osx_amd64":
+		return "macos_x64"
+	case "osx_arm64":
+		return "macos_arm64"
+	case "windows_amd64", "windows_amd64_mingw":
+		return "windows_x64"
+	case "windows_arm64":
+		return "windows_arm64"
+	case "wasm_mvp", "wasm_eh", "wasm_threads":
+		return "linux_x64"
+	}
+
+	return ""
 }

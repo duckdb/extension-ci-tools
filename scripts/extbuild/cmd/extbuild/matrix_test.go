@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/duckdb/extension-ci-tools/internal/distmatrix"
@@ -63,16 +65,19 @@ func TestComputePlatformMatrices(t *testing.T) {
     "include": [
       {
         "duckdb_arch": "wasm_mvp",
+        "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
       {
         "duckdb_arch": "wasm_eh",
+        "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": false,
         "opt_in": false
       },
       {
         "duckdb_arch": "wasm_threads",
+        "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": false,
         "opt_in": false
       }
@@ -173,6 +178,18 @@ func TestComputePlatformMatrices(t *testing.T) {
 				"windows": {},
 			},
 		},
+		{
+			name: "linux runner aliases override generated matrix runners",
+			opts: distmatrix.ComputeOptions{
+				Platform:   "linux",
+				Arch:       "amd64;arm64",
+				OptIn:      "linux_amd64_musl",
+				RunnerJSON: `{"linux_x64":"duckdb-linux-x64","linux_arm64":"duckdb-linux-arm64"}`,
+			},
+			expected: map[string][]string{
+				"linux": {"linux_amd64", "linux_amd64_musl", "linux_arm64"},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -198,13 +215,13 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	inputJSON := `{
   "linux": {
     "include": [
-      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
-      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   },
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
@@ -224,6 +241,78 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	}
 }
 
+func TestMatrixSubcommandAppliesRunnerOverrides(t *testing.T) {
+	t.Parallel()
+
+	inputJSON := `{
+  "linux": {
+    "include": [
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64_musl","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":true,"opt_in":true}
+    ]
+  }
+}`
+
+	outputPath, stdout := runMatrixCommand(t, inputJSON, []string{
+		"--platform", "linux",
+		"--arch", "amd64;arm64",
+		"--opt-in", "linux_arm64_musl",
+		"--runners", `{"linux_x64":"duckdb-linux-x64","linux_arm64":"duckdb-linux-arm64"}`,
+	})
+
+	out, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+
+	line := strings.TrimSpace(string(out))
+	require.True(t, strings.HasPrefix(line, "linux_matrix="))
+
+	var matrix distmatrix.PlatformMatrix
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(line, "linux_matrix=")), &matrix))
+	require.Len(t, matrix.Include, 3)
+
+	assert.Equal(t, "linux_amd64", matrix.Include[0].DuckDBArch)
+	assert.Equal(t, "duckdb-linux-x64", matrix.Include[0].Runner)
+
+	assert.Equal(t, "linux_arm64", matrix.Include[1].DuckDBArch)
+	assert.Equal(t, "duckdb-linux-arm64", matrix.Include[1].Runner)
+
+	assert.Equal(t, "linux_arm64_musl", matrix.Include[2].DuckDBArch)
+	assert.Equal(t, "duckdb-linux-arm64", matrix.Include[2].Runner)
+
+	assert.Contains(t, stdout, "duckdb-linux-x64")
+	assert.Contains(t, stdout, "duckdb-linux-arm64")
+}
+
+func TestMatrixSubcommandPreservesRunnerWhenNotOverridden(t *testing.T) {
+	t.Parallel()
+
+	inputJSON := `{
+  "windows": {
+    "include": [
+      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
+    ]
+  }
+}`
+
+	outputPath, _ := runMatrixCommand(t, inputJSON, []string{
+		"--platform", "windows",
+		"--runners", `{"linux_x64":"duckdb-linux-x64","linux_arm64":"duckdb-linux-arm64"}`,
+	})
+
+	out, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+
+	line := strings.TrimSpace(string(out))
+	require.True(t, strings.HasPrefix(line, "windows_matrix="))
+
+	var matrix distmatrix.PlatformMatrix
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(line, "windows_matrix=")), &matrix))
+	require.Len(t, matrix.Include, 1)
+	assert.Equal(t, "windows_amd64", matrix.Include[0].DuckDBArch)
+	assert.Equal(t, "windows-latest", matrix.Include[0].Runner)
+}
+
 func TestMatrixSubcommandWithoutArgs(t *testing.T) {
 	t.Chdir(filepath.Join("..", "..", "..", ".."))
 
@@ -240,13 +329,13 @@ func TestMatrixSubcommandDeployMode(t *testing.T) {
 	inputJSON := `{
   "linux": {
     "include": [
-      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
-      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   },
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
