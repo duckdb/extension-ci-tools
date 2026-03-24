@@ -106,8 +106,8 @@ func TestMatrixSubcommandPullRequestEnablesReducedCIWhenAuto(t *testing.T) {
 	inputJSON := `{
   "linux": {
     "include": [
-      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
-      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":false,"opt_in":false}
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":false,"opt_in":false}
     ]
   }
 }`

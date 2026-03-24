@@ -81,7 +81,7 @@ func TestRunnerOverrideAliasesCoverAllRunnerEntriesInDistributionMatrix(t *testi
 	actualAliases := map[string]string{}
 	for _, cfg := range matrix {
 		for _, entry := range cfg.Include {
-			require.NotNil(t, entry.Runner, "runner must be set for %s", entry.DuckDBArch)
+			require.NotEmpty(t, entry.Runner, "runner must be set for %s", entry.DuckDBArch)
 
 			actualAliases[entry.DuckDBArch] = runnerOverrideAliases(entry.DuckDBArch)
 		}

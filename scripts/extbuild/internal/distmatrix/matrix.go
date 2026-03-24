@@ -24,7 +24,7 @@ type PlatformConfig struct {
 
 type Entry struct {
 	DuckDBArch   string  `json:"duckdb_arch"`
-	Runner       *string `json:"runner"`
+	Runner       string  `json:"runner"`
 	OSXBuildArch *string `json:"osx_build_arch"`
 
 	VCPKGTargetTriplet string `json:"vcpkg_target_triplet"`
@@ -75,6 +75,13 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 	}
 	if err := decoder.Decode(new(struct{})); err != io.EOF {
 		return nil, errors.New("invalid JSON: multiple top-level values")
+	}
+	for platform, cfg := range matrix {
+		for _, entry := range cfg.Include {
+			if strings.TrimSpace(entry.Runner) == "" {
+				return nil, fmt.Errorf("platform %s entry %s has empty runner", platform, entry.DuckDBArch)
+			}
+		}
 	}
 	return matrix, nil
 }
@@ -286,14 +293,9 @@ func ParseRunnerOverrides(raw string) (RunnerOverrides, error) {
 }
 
 func toPlatformOutput(entry Entry) PlatformOutput {
-	runner := ""
-	if entry.Runner != nil {
-		runner = *entry.Runner
-	}
-
 	return PlatformOutput{
 		DuckDBArch:         entry.DuckDBArch,
-		Runner:             runner,
+		Runner:             entry.Runner,
 		OSXBuildArch:       entry.OSXBuildArch,
 		VCPKGTargetTriplet: entry.VCPKGTargetTriplet,
 		VCPKGHostTriplet:   entry.VCPKGHostTriplet,

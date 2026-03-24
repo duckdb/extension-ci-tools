@@ -65,16 +65,19 @@ func TestComputePlatformMatrices(t *testing.T) {
     "include": [
       {
         "duckdb_arch": "wasm_mvp",
+        "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
       {
         "duckdb_arch": "wasm_eh",
+        "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": false,
         "opt_in": false
       },
       {
         "duckdb_arch": "wasm_threads",
+        "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": false,
         "opt_in": false
       }
@@ -212,13 +215,13 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
 	inputJSON := `{
   "linux": {
     "include": [
-      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
-      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   },
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
@@ -326,13 +329,13 @@ func TestMatrixSubcommandDeployMode(t *testing.T) {
 	inputJSON := `{
   "linux": {
     "include": [
-      {"duckdb_arch":"linux_amd64","run_in_reduced_ci_mode":true,"opt_in":false},
-      {"duckdb_arch":"linux_arm64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false},
+      {"duckdb_arch":"linux_arm64","runner":"ubuntu-24.04-arm","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   },
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
