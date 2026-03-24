@@ -171,6 +171,10 @@ on:
         required: false
         type: string
         default: 'regular'
+      runners:
+        required: false
+        type: string
+        default: '{}'
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -212,6 +216,7 @@ jobs:
             --input extension-ci-tools/config/distribution_matrix.json \
             --exclude "${{ inputs.exclude_archs }}" \
             --opt-in "${{ inputs.opt_in_archs }}" \
+            --runners '${{ inputs.runners }}' \
             --reduced-ci-mode "${{ inputs.reduced_ci_mode }}" \
             --out "$GITHUB_OUTPUT"
           echo "extbuild matrix output:"
