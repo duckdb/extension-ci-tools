@@ -124,7 +124,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		for _, entry := range cfg.Include {
 			if includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet) {
 				output := toPlatformOutput(entry)
-				if override, ok := runnerOverrides.lookup(platform, entry.DuckDBArch); ok {
+				if override, ok := runnerOverrides.lookup(entry.DuckDBArch); ok {
 					output.Runner = override
 				}
 				filtered = append(filtered, output)
@@ -300,7 +300,7 @@ func toPlatformOutput(entry Entry) PlatformOutput {
 	}
 }
 
-func (o RunnerOverrides) lookup(platform string, duckdbArch string) (string, bool) {
+func (o RunnerOverrides) lookup(duckdbArch string) (string, bool) {
 	if len(o) == 0 {
 		return "", false
 	}
@@ -309,7 +309,7 @@ func (o RunnerOverrides) lookup(platform string, duckdbArch string) (string, boo
 		return override, true
 	}
 
-	for _, key := range runnerOverrideAliases(platform, duckdbArch) {
+	for _, key := range runnerOverrideAliases(duckdbArch) {
 		if override, ok := o[key]; ok {
 			return override, true
 		}
@@ -318,17 +318,23 @@ func (o RunnerOverrides) lookup(platform string, duckdbArch string) (string, boo
 	return "", false
 }
 
-func runnerOverrideAliases(platform string, duckdbArch string) []string {
-	if platform != "linux" {
-		return nil
-	}
-
+func runnerOverrideAliases(duckdbArch string) []string {
 	switch duckdbArch {
 	case "linux_amd64", "linux_amd64_musl":
 		return []string{"linux_x64"}
 	case "linux_arm64", "linux_arm64_musl":
 		return []string{"linux_arm64"}
-	default:
-		return nil
+	case "osx_amd64":
+		return []string{"macos_x64"}
+	case "osx_arm64":
+		return []string{"macos_arm64", "macos_14_arm64"}
+	case "windows_amd64", "windows_amd64_mingw":
+		return []string{"windows_x64"}
+	case "windows_arm64":
+		return []string{"windows_arm64"}
+	case "wasm_mvp", "wasm_eh", "wasm_threads":
+		return []string{"linux_x64"}
 	}
+
+	return nil
 }
