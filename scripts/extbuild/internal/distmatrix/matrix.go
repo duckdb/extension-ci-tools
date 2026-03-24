@@ -39,7 +39,7 @@ type PlatformMatrix struct {
 
 type PlatformOutput struct {
 	DuckDBArch   string  `json:"duckdb_arch"`
-	Runner       *string `json:"runner,omitempty"`
+	Runner       string  `json:"runner,omitempty"`
 	OSXBuildArch *string `json:"osx_build_arch,omitempty"`
 
 	VCPKGTargetTriplet string `json:"vcpkg_target_triplet,omitempty"`
@@ -60,7 +60,10 @@ type ComputeOptions struct {
 	Exclude       string
 	OptIn         string
 	ReducedCIMode ReducedCIMode
+	RunnerJSON    string
 }
+
+type RunnerOverrides map[string]string
 
 func ParseMatrixFile(data []byte) (MatrixFile, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -77,6 +80,11 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 }
 
 func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string]PlatformMatrix, error) {
+	runnerOverrides, err := ParseRunnerOverrides(opts.RunnerJSON)
+	if err != nil {
+		return nil, err
+	}
+
 	platforms := splitList(opts.Platform)
 	if len(platforms) == 0 {
 		platforms = sortedMatrixPlatforms(matrix)
@@ -115,7 +123,11 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		filtered := make([]PlatformOutput, 0, len(cfg.Include))
 		for _, entry := range cfg.Include {
 			if includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet) {
-				filtered = append(filtered, toPlatformOutput(entry))
+				output := toPlatformOutput(entry)
+				if override, ok := runnerOverrides.lookup(platform, entry.DuckDBArch); ok {
+					output.Runner = override
+				}
+				filtered = append(filtered, output)
 			}
 		}
 
@@ -241,12 +253,82 @@ func toSet(values []string) map[string]struct{} {
 	return set
 }
 
+func ParseRunnerOverrides(raw string) (RunnerOverrides, error) {
+	if strings.TrimSpace(raw) == "" {
+		return RunnerOverrides{}, nil
+	}
+
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+
+	var overrides map[string]string
+	if err := decoder.Decode(&overrides); err != nil {
+		return nil, fmt.Errorf("parse runner overrides: %w", err)
+	}
+	if err := decoder.Decode(new(struct{})); err != io.EOF {
+		return nil, errors.New("parse runner overrides: invalid JSON: multiple top-level values")
+	}
+
+	result := make(RunnerOverrides, len(overrides))
+	for key, value := range overrides {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" {
+			return nil, errors.New("parse runner overrides: override key cannot be empty")
+		}
+		if value == "" {
+			return nil, fmt.Errorf("parse runner overrides: override value for %q cannot be empty", key)
+		}
+		result[key] = value
+	}
+
+	return result, nil
+}
+
 func toPlatformOutput(entry Entry) PlatformOutput {
+	runner := ""
+	if entry.Runner != nil {
+		runner = *entry.Runner
+	}
+
 	return PlatformOutput{
 		DuckDBArch:         entry.DuckDBArch,
-		Runner:             entry.Runner,
+		Runner:             runner,
 		OSXBuildArch:       entry.OSXBuildArch,
 		VCPKGTargetTriplet: entry.VCPKGTargetTriplet,
 		VCPKGHostTriplet:   entry.VCPKGHostTriplet,
+	}
+}
+
+func (o RunnerOverrides) lookup(platform string, duckdbArch string) (string, bool) {
+	if len(o) == 0 {
+		return "", false
+	}
+
+	if override, ok := o[duckdbArch]; ok {
+		return override, true
+	}
+
+	for _, key := range runnerOverrideAliases(platform, duckdbArch) {
+		if override, ok := o[key]; ok {
+			return override, true
+		}
+	}
+
+	return "", false
+}
+
+func runnerOverrideAliases(platform string, duckdbArch string) []string {
+	if platform != "linux" {
+		return nil
+	}
+
+	switch duckdbArch {
+	case "linux_amd64", "linux_amd64_musl":
+		return []string{"linux_x64"}
+	case "linux_arm64", "linux_arm64_musl":
+		return []string{"linux_arm64"}
+	default:
+		return nil
 	}
 }
