@@ -54,7 +54,7 @@ jobs:
       artifact_postfix: custom-runners
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: v1.4.4
+      duckdb_version: v1.5.1
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       runners: '{"linux_x64":"ubuntu-latest"}'
@@ -95,7 +95,7 @@ jobs:
     uses: ./.github/workflows/_extension_deploy.yml
     with:
       extension_name: quack
-      duckdb_version: v1.4.4
+      duckdb_version: v1.5.1
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       deploy_script: /bin/true
