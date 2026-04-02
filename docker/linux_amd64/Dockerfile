@@ -1,5 +1,8 @@
 FROM quay.io/pypa/manylinux_2_28_x86_64
 
+# Disable EPEL repo (mirrors are down since EPEL 8 retirement)
+RUN yum-config-manager --disable epel || true
+
 # Setup the basic necessities
 RUN yum groupinstall -y "Development Tools"
 RUN yum install -y curl zip unzip tar autoconf libtool
