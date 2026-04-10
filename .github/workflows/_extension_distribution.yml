@@ -905,7 +905,7 @@ jobs:
       - name: Setup shorter path for vcpkg
         run: |
           $basePath = Split-Path -Path (Split-path -Path $env:GITHUB_WORKSPACE -Parent) -Parent
-          $vcpkgRoot = "$basePath/v"
+          $vcpkgRoot = "$basePath/vcpkg"
           echo "VCPKG_WINDOWS_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
           echo "VCPKG_TOOLCHAIN_PATH=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
         shell: pwsh
