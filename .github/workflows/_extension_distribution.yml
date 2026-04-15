@@ -229,7 +229,7 @@ jobs:
 
   linux:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
     strategy:
@@ -509,7 +509,7 @@ jobs:
 
   macos:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs:
       - generate_matrix
       - linux
@@ -757,7 +757,7 @@ jobs:
 
   windows:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs:
       - generate_matrix
       - linux
@@ -1029,7 +1029,7 @@ jobs:
 
   wasm:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs:
       - generate_matrix
       - linux
