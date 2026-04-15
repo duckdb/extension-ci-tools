@@ -397,11 +397,8 @@ jobs:
           echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
       - name: Generate timestamp for Ccache entry
-        shell: cmake -P {0}
         id: ccache_timestamp
-        run: |
-          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
-          message("::set-output name=timestamp::${current_date}")
+        run: echo "timestamp=$(date -u '+%Y-%m-%d-%H;%M;%S')" >> "$GITHUB_OUTPUT"
 
       - name: Create Ccache directory
         run: |
