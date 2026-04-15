@@ -179,6 +179,16 @@ on:
         required: false
         type: string
         default: ""
+      # CUDA GPU architectures to build for (e.g. "75;80;86;90a"). Empty disables CUDA arch specification.
+      cuda_archs:
+        required: false
+        type: string
+        default: ''
+      # CUDA version for vcpkg ports that need version-specific binaries
+      cuda_version:
+        required: false
+        type: string
+        default: '13'
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -363,6 +373,7 @@ jobs:
             --build-arg 'vcpkg_url=${{ inputs.vcpkg_url }}' \
             --build-arg 'vcpkg_commit=${{ inputs.vcpkg_commit }}' \
             --build-arg 'extra_toolchains=${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}' \
+            --build-arg 'cuda_version=${{ inputs.cuda_version }}' \
             -t duckdb/${{ matrix.duckdb_arch }} \
             ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
@@ -379,6 +390,8 @@ jobs:
           VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_target_triplet }}
           VCPKG_OVERLAY_TRIPLETS=/duckdb_build_dir/extensions-ci-tools/toolchains
           VCPKG_OVERLAY_PORTS=/duckdb_build_dir/extension-ci-tools/vcpkg_ports
+          CUDAARCHS=${{ inputs.cuda_archs }}
+          VCPKG_CUDA_VERSION=${{ inputs.cuda_version }}
           BUILD_SHELL=${{ inputs.build_duckdb_shell && '1' || '0' }}
           OPENSSL_ROOT_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
           OPENSSL_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
