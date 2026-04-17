@@ -189,6 +189,16 @@ on:
         required: false
         type: string
         default: 'extension-ci-tools/toolchains'
+      # CUDA GPU architectures to build for (e.g. "75;80;86;90a"). Empty disables CUDA arch specification.
+      cuda_archs:
+        required: false
+        type: string
+        default: ''
+      # CUDA version for vcpkg ports that need version-specific binaries
+      cuda_version:
+        required: false
+        type: string
+        default: '13'
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
@@ -239,7 +249,7 @@ jobs:
 
   linux:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
     strategy:
@@ -373,6 +383,7 @@ jobs:
             --build-arg 'vcpkg_url=${{ inputs.vcpkg_url }}' \
             --build-arg 'vcpkg_commit=${{ inputs.vcpkg_commit }}' \
             --build-arg 'extra_toolchains=${{ inputs.enable_rust  && format(';{0};rust;', inputs.extra_toolchains) || format(';{0};', inputs.extra_toolchains) }}' \
+            --build-arg 'cuda_version=${{ inputs.cuda_version }}' \
             -t duckdb/${{ matrix.duckdb_arch }} \
             ./extension-ci-tools/docker/${{ matrix.duckdb_arch }}
 
@@ -389,6 +400,8 @@ jobs:
           VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_target_triplet }}
           VCPKG_OVERLAY_TRIPLETS=/duckdb_build_dir/${{ inputs.vcpkg_overlay_triplets }}
           VCPKG_OVERLAY_PORTS=/duckdb_build_dir/${{ inputs.vcpkg_overlay_ports }}
+          CUDAARCHS=${{ inputs.cuda_archs }}
+          VCPKG_CUDA_VERSION=${{ inputs.cuda_version }}
           BUILD_SHELL=${{ inputs.build_duckdb_shell && '1' || '0' }}
           OPENSSL_ROOT_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
           OPENSSL_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
@@ -407,11 +420,8 @@ jobs:
           echo '${{ inputs.test_config }}'| jq -r '.test_env_variables // {} | to_entries | map("\(.key)=\(.value)")|.[]' >> docker_env.txt
 
       - name: Generate timestamp for Ccache entry
-        shell: cmake -P {0}
         id: ccache_timestamp
-        run: |
-          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
-          message("::set-output name=timestamp::${current_date}")
+        run: echo "timestamp=$(date -u '+%Y-%m-%d-%H;%M;%S')" >> "$GITHUB_OUTPUT"
 
       - name: Create Ccache directory
         run: |
@@ -519,7 +529,7 @@ jobs:
 
   macos:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs:
       - generate_matrix
       - linux
@@ -767,7 +777,7 @@ jobs:
 
   windows:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs:
       - generate_matrix
       - linux
@@ -782,7 +792,6 @@ jobs:
       matrix: ${{fromJson(needs.generate_matrix.outputs.windows_matrix)}}
     env:
       # VCPKG config
-      VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
@@ -934,11 +943,20 @@ jobs:
         run: |
           make set_duckdb_tag
 
+      - name: Setup shorter path for vcpkg
+        run: |
+          $basePath = Split-Path -Path (Split-path -Path $env:GITHUB_WORKSPACE -Parent) -Parent
+          $vcpkgRoot = "$basePath/vcpkg"
+          echo "VCPKG_WINDOWS_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11.1
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
+          vcpkgDirectory: ${{ env.VCPKG_WINDOWS_ROOT }}
 
       - name: Inject extra extension config
         if: ${{ inputs.extra_extension_config }}
@@ -1039,7 +1057,7 @@ jobs:
 
   wasm:
     name: ${{ matrix.duckdb_arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs:
       - generate_matrix
       - linux

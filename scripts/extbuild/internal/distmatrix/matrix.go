@@ -63,7 +63,7 @@ type ComputeOptions struct {
 	RunnerJSON    string
 }
 
-type RunnerOverrides map[string]string
+type RunnerOverrides map[string]json.RawMessage
 
 func ParseMatrixFile(data []byte) (MatrixFile, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -268,7 +268,7 @@ func ParseRunnerOverrides(raw string) (RunnerOverrides, error) {
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
 
-	var overrides map[string]string
+	var overrides map[string]json.RawMessage
 	if err := decoder.Decode(&overrides); err != nil {
 		return nil, fmt.Errorf("parse runner overrides: %w", err)
 	}
@@ -279,11 +279,10 @@ func ParseRunnerOverrides(raw string) (RunnerOverrides, error) {
 	result := make(RunnerOverrides, len(overrides))
 	for key, value := range overrides {
 		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
 		if key == "" {
 			return nil, errors.New("parse runner overrides: override key cannot be empty")
 		}
-		if value == "" {
+		if len(value) == 0 {
 			return nil, fmt.Errorf("parse runner overrides: override value for %q cannot be empty", key)
 		}
 		result[key] = value
@@ -302,22 +301,34 @@ func toPlatformOutput(entry Entry) PlatformOutput {
 	}
 }
 
+// lookup returns the runner override for a duckdb_arch. For string values
+// (e.g. "namespace-runner"), returns the unquoted string. For array values
+// (e.g. ["self-hosted", "ubuntu-22.04"]), returns the raw JSON string so
+// it can be decoded with fromJSON() in GitHub Actions runs-on.
 func (o RunnerOverrides) lookup(duckdbArch string) (string, bool) {
 	if len(o) == 0 {
 		return "", false
 	}
 
-	if override, ok := o[duckdbArch]; ok {
-		return override, true
+	raw, ok := o[duckdbArch]
+	if !ok {
+		key := runnerOverrideAliases(duckdbArch)
+		if key == "" {
+			return "", false
+		}
+		raw, ok = o[key]
+		if !ok {
+			return "", false
+		}
 	}
 
-	key := runnerOverrideAliases(duckdbArch)
-	if key == "" {
-		return "", false
+	// If the value is a JSON string, unwrap it. Otherwise (array), keep
+	// the raw JSON so runs-on: ${{ fromJSON(matrix.runner) }} works.
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s, true
 	}
-
-	override, ok := o[key]
-	return override, ok
+	return string(raw), true
 }
 
 func runnerOverrideAliases(duckdbArch string) string {
