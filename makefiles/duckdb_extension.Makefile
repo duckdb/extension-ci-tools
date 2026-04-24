@@ -258,16 +258,15 @@ build/extension_configuration/vcpkg.json: ${EXTENSION_CONFIG_TARGET}
 
 #### Misc
 format-check:
-	python3 duckdb/scripts/format.py --all --check --directories src test
+	$(MAKE) -C duckdb format-check T="--workdir $$PWD --directories src test"
 
-format:
-	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+format: format-check
 
 format-fix:
-	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+	$(MAKE) -C duckdb format-fix T="--workdir $$PWD --directories src test"
 
 format-main:
-	python3 duckdb/scripts/format.py main --fix --noconfirm --directories src test
+	$(MAKE) -C duckdb format-main T="--workdir $$PWD --directories src test"
 
 tidy-check:
 	mkdir -p ./build/tidy
