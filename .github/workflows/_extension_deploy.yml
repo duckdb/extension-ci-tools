@@ -133,7 +133,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY }}
           BUCKET_NAME: 'duckdb-extensions-nightly'
           DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
-          DUCKDB_DEPLOY_SCRIPT_MODE: for_real
+          DUCKDB_DEPLOY_SCRIPT_MODE: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY != '' && 'for_real' || '' }}
           PIP_BREAK_SYSTEM_PACKAGES: 1
         run: |
           pwd
