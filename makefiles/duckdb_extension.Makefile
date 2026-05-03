@@ -158,22 +158,22 @@ clangd: ${EXTENSION_CONFIG_STEP}
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B .cache/clangd/debug
 
 debug: ${EXTENSION_CONFIG_STEP}
-	mkdir -p build/debug
+	mkdir -p build/debug && true
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/debug
 	cmake --build build/debug --config Debug
 
 release: ${EXTENSION_CONFIG_STEP}
-	mkdir -p build/release
+	mkdir -p build/release && true
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(DUCKDB_SRCDIR) -B build/release
 	cmake --build build/release --config Release
 
 relassert: ${EXTENSION_CONFIG_STEP}
-	mkdir -p build/relassert
+	mkdir -p build/relassert && true
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(DUCKDB_SRCDIR) -DFORCE_ASSERT=1 -B build/relassert
 	cmake --build build/relassert --config RelWithDebInfo
 
 reldebug: ${EXTENSION_CONFIG_STEP}
-	mkdir -p build/reldebug
+	mkdir -p build/reldebug && true
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(DUCKDB_SRCDIR) -B build/reldebug
 	cmake --build build/reldebug
 
@@ -237,8 +237,8 @@ wasm_threads: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 
 ###### Extension config step
 extension_configuration_default:
-	mkdir -p build/extension_configuration
-	mkdir -p duckdb/build/extension_configuration
+	mkdir -p build/extension_configuration && true
+	mkdir -p duckdb/build/extension_configuration && true
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DEXTENSION_CONFIG_BUILD=TRUE -DVCPKG_BUILD=1 -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/extension_configuration
 	cmake --build build/extension_configuration
 	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
