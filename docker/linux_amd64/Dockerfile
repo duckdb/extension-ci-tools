@@ -1,32 +1,23 @@
 FROM quay.io/pypa/manylinux_2_28_x86_64
 
 # Setup the basic necessities
-RUN yum groupinstall -y "Development Tools"
-RUN yum install -y curl zip unzip tar autoconf libtool
-RUN yum install -y ninja-build
-RUN yum install -y perl-IPC-Cmd
-RUN yum install -y perl-core
-RUN yum install -y ccache
-RUN yum install -y java-11-openjdk-devel maven
-RUN yum install -y wget
-RUN yum install -y kernel-headers
-RUN yum install -y kernel-devel
-RUN yum install -y glibc-devel
-RUN yum install -y jq
+RUN yum install -y \
+    jq curl zip unzip tar autoconf libtool ninja-build perl-IPC-Cmd \
+    ccache kernel-headers kernel-devel glibc-devel
 
 # We need a recent CMake
 RUN mkdir /cmake_4_02 && \
     cd /cmake_4_02 && \
-    wget https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-x86_64.sh && \
-    chmod +x cmake-4.0.2-linux-x86_64.sh  && \
-    ./cmake-4.0.2-linux-x86_64.sh --skip-license --prefix=/usr/local && \
+    curl https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-x86_64.sh -o cmake.sh && \
+    chmod +x cmake.sh && \
+    ./cmake.sh --skip-license --prefix=/usr/local && \
     cmake --version
 
 # Install the AWS cli, since the packaged version is too old
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.35.zip" -o "awscliv2.zip"
-RUN unzip -q awscliv2.zip
-RUN ./aws/install
-RUN aws --version
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.35.zip" -o "awscliv2.zip" && \
+    unzip -q awscliv2.zip && \
+    ./aws/install && \
+    aws --version
 
 # Setup VCPKG n a mounted volume TODO: figure out how to cache this
 ARG vcpkg_url
@@ -34,7 +25,7 @@ ARG vcpkg_commit
 RUN mkdir /vcpkg && \
     cmake --version && \
     cd /vcpkg && \
-    git init && \
+    git init 2>/dev/null && \
     git remote add origin $vcpkg_url && \
     git fetch origin $vcpkg_commit && \
     git checkout $vcpkg_commit && \
@@ -76,6 +67,13 @@ RUN case "$extra_toolchains" in \
   ;; \
 esac
 
+# Java build
+RUN case "$extra_toolchains" in \
+  *\;java\;*) \
+   yum install -y java-11-openjdk-devel maven \
+  ;; \
+esac
+
 # Install Fortran
 RUN case "$extra_toolchains" in \
   *\;fortran\;*) \
@@ -95,8 +93,7 @@ esac
 ENV PATH="/usr/local/go/bin:${PATH}"
 RUN case "$extra_toolchains" in \
   *\;go\;*) \
-    wget https://go.dev/dl/go1.20.5.linux-amd64.tar.gz && \
-    tar -xzvf go1.20.5.linux-amd64.tar.gz && \
+    curl -fsSL https://go.dev/dl/go1.20.5.linux-amd64.tar.gz | tar xzf - && \
     mv go /usr/local &&\
     go version \
   ;; \
