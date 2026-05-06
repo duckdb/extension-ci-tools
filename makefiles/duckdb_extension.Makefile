@@ -16,12 +16,11 @@
 
 all: release
 
-TEST_PATH="/test/unittest"
-DUCKDB_PATH="/duckdb"
+TEST_PATH=test/unittest
 
-DUCKDB_SRCDIR ?= "./duckdb/"
+DUCKDB_SRCDIR ?= ./duckdb/
 
-TESTS_BASE_DIRECTORY = "test/"
+TESTS_BASE_DIRECTORY ?= test/
 
 ifeq (${SUBSET_EXTENSIONS_TESTS},complete)
 	TESTS_BASE_DIRECTORY=""
