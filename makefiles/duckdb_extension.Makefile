@@ -181,7 +181,7 @@ test: test_release
 
 # Detect test runner. If missing, use the unittest binary directly.
 TEST_RUNNER ?= ${DUCKDB_SRCDIR}/scripts/ci/run_tests.py
-ifeq ($(shell which "$(TEST_RUNNER)" >/dev/null && echo yes),)
+ifeq ($(shell which "$(TEST_RUNNER)" >/dev/null 2>&1 && echo yes),)
 	TEST_RUNNER :=
 endif
 
