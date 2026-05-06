@@ -179,34 +179,27 @@ reldebug: ${EXTENSION_CONFIG_STEP}
 # Main tests
 test: test_release
 
-TEST_RELEASE_TARGET=test_release_internal
-TEST_DEBUG_TARGET=test_debug_internal
-TEST_RELDEBUG_TARGET=test_reldebug_internal
-
 # Disable testing outside docker: the unittester is currently dynamically linked by default
 ifeq ($(LINUX_CI_IN_DOCKER),0)
 	SKIP_TESTS=1
 endif
 
-ifeq ($(SKIP_TESTS),1)
-	TEST_RELEASE_TARGET=tests_skipped
-	TEST_DEBUG_TARGET=tests_skipped
-	TEST_RELDEBUG_TARGET=tests_skipped
-endif
+define RUN_TEST
+	@if [ "$(SKIP_TESTS)" = "1" ]; then \
+		echo "Tests are skipped in this run..."; \
+	else \
+		./build/$1/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"; \
+	fi
+endef
 
-test_release: $(TEST_RELEASE_TARGET)
-test_debug: $(TEST_DEBUG_TARGET)
-test_reldebug: $(TEST_RELDEBUG_TARGET)
+test_release:
+	$(call RUN_TEST,release)
 
-test_release_internal:
-	./build/release/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
-test_debug_internal:
-	./build/debug/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
-test_reldebug_internal:
-	./build/reldebug/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
+test_debug:
+	$(call RUN_TEST,debug)
 
-tests_skipped:
-	@echo "Tests are skipped in this run..."
+test_reldebug:
+	$(call RUN_TEST,reldebug)
 
 # WASM config
 VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
@@ -304,4 +297,3 @@ output_distribution_matrix:
 
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
-
