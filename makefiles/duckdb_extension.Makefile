@@ -18,7 +18,7 @@ all: release
 
 TEST_PATH=test/unittest
 
-DUCKDB_SRCDIR ?= ./duckdb/
+DUCKDB_SRCDIR ?= ./duckdb
 
 TESTS_BASE_DIRECTORY ?= test/
 
