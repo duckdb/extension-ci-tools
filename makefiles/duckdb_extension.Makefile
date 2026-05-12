@@ -186,10 +186,13 @@ reldebug: ${EXTENSION_CONFIG_STEP}
 test: test_release
 
 # Detect test runner. If missing, use the unittest binary directly.
-TEST_RUNNER ?= ${DUCKDB_SRCDIR}/scripts/ci/run_tests.py
-ifeq ($(shell which "$(TEST_RUNNER)" >/dev/null 2>&1 && echo yes),)
+TEST_RUNNER_SCRIPT ?= ${DUCKDB_SRCDIR}/scripts/ci/run_tests.py
+TEST_RUNNER := python3 $(TEST_RUNNER_SCRIPT)
+ifeq ($(shell test -e "$(TEST_RUNNER_SCRIPT)" && echo yes),)
 	TEST_RUNNER :=
 endif
+
+T ?= "$(TESTS_BASE_DIRECTORY)*"
 
 # Disable testing outside docker: the unittester is currently dynamically linked by default
 ifeq ($(LINUX_CI_IN_DOCKER),0)
@@ -200,7 +203,8 @@ define RUN_TEST
 	@if [ "$(SKIP_TESTS)" = "1" ]; then \
 		echo "Tests are skipped in this run..."; \
 	else \
-		$(TEST_RUNNER) ./build/$1/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"; \
+		echo $(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
+		$(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
 	fi
 endef
 
