@@ -1000,6 +1000,7 @@ jobs:
           EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         shell: cmd
         run: |
+          setlocal EnableDelayedExpansion
           if "%DUCKDB_PLATFORM_RTOOLS%" == "0" (
             set "VCVARS_BAT="
             if "%DUCKDB_PLATFORM%" == "windows_amd64" (
@@ -1009,10 +1010,10 @@ jobs:
               set "VCVARS_BAT=vcvarsarm64.bat"
             )
             if defined VCVARS_BAT (
-              if exist "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\%VCVARS_BAT%" (
-                call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\%VCVARS_BAT%"
+              if exist "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\!VCVARS_BAT!" (
+                call "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\!VCVARS_BAT!"
               ) else (
-                call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\%VCVARS_BAT%"
+                call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\!VCVARS_BAT!"
               )
             )
             REM Rename link.exe to link-git.exe to avoid conflicts with git supplied linker.
