@@ -43,13 +43,13 @@ func TestComputePlatformMatrices(t *testing.T) {
     "include": [
       {
         "duckdb_arch": "windows_amd64",
-        "runner": "windows-latest",
+        "runner": "windows-2025-vs2026",
         "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
       {
         "duckdb_arch": "windows_amd64_mingw",
-        "runner": "windows-latest",
+        "runner": "windows-2025-vs2026",
         "run_in_reduced_ci_mode": true,
         "opt_in": false
       },
@@ -221,7 +221,7 @@ func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
   },
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-2025-vs2026","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
@@ -290,7 +290,7 @@ func TestMatrixSubcommandPreservesRunnerWhenNotOverridden(t *testing.T) {
 	inputJSON := `{
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-2025-vs2026","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
@@ -310,7 +310,7 @@ func TestMatrixSubcommandPreservesRunnerWhenNotOverridden(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(line, "windows_matrix=")), &matrix))
 	require.Len(t, matrix.Include, 1)
 	assert.Equal(t, "windows_amd64", matrix.Include[0].DuckDBArch)
-	assert.Equal(t, "windows-latest", matrix.Include[0].Runner)
+	assert.Equal(t, "windows-2025-vs2026", matrix.Include[0].Runner)
 }
 
 func TestMatrixSubcommandWithoutArgs(t *testing.T) {
@@ -335,7 +335,7 @@ func TestMatrixSubcommandDeployMode(t *testing.T) {
   },
   "windows": {
     "include": [
-      {"duckdb_arch":"windows_amd64","runner":"windows-latest","run_in_reduced_ci_mode":true,"opt_in":false}
+      {"duckdb_arch":"windows_amd64","runner":"windows-2025-vs2026","run_in_reduced_ci_mode":true,"opt_in":false}
     ]
   }
 }`
