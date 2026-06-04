@@ -253,6 +253,7 @@ jobs:
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
     strategy:
+      fail-fast: ${{ inputs.reduced_ci_mode != 'disabled' }}
       matrix: ${{fromJson(needs.generate_matrix.outputs.linux_matrix)}}
     env:
       # VCPKG config
@@ -413,6 +414,8 @@ jobs:
           EXTENSION_NAME=${{ inputs.extension_name }}
           EXTENSION_CANONICAL=${{ inputs.extension_canonical }}
           LINUX_CI_IN_DOCKER=1
+          GITHUB_ACTIONS=true
+          CI=true
           CCACHE_MAXSIZE=1G
           CCACHE_NOCOMPRESS=1
           SUBSET_EXTENSIONS_TESTS=${{ inputs.extensions_test_selection }}
@@ -543,8 +546,9 @@ jobs:
       needs.generate_matrix.outputs.osx_matrix != '{}' &&
       needs.generate_matrix.outputs.osx_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
-      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
+      (inputs.reduced_ci_mode == 'disabled' || needs.linux.result == 'success' || needs.linux.result == 'skipped')
     strategy:
+      fail-fast: ${{ inputs.reduced_ci_mode != 'disabled' }}
       matrix: ${{fromJson(needs.generate_matrix.outputs.osx_matrix)}}
     env:
       # VCPKG config
@@ -795,8 +799,9 @@ jobs:
       needs.generate_matrix.outputs.windows_matrix != '{}' &&
       needs.generate_matrix.outputs.windows_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
-      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
+      (inputs.reduced_ci_mode == 'disabled' || needs.linux.result == 'success' || needs.linux.result == 'skipped')
     strategy:
+      fail-fast: ${{ inputs.reduced_ci_mode != 'disabled' }}
       matrix: ${{fromJson(needs.generate_matrix.outputs.windows_matrix)}}
     env:
       # VCPKG config
@@ -1088,8 +1093,9 @@ jobs:
       needs.generate_matrix.outputs.wasm_matrix != '{}' &&
       needs.generate_matrix.outputs.wasm_matrix != '' &&
       needs.generate_matrix.result == 'success' &&
-      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
+      (inputs.reduced_ci_mode == 'disabled' || needs.linux.result == 'success' || needs.linux.result == 'skipped')
     strategy:
+      fail-fast: ${{ inputs.reduced_ci_mode != 'disabled' }}
       matrix: ${{fromJson(needs.generate_matrix.outputs.wasm_matrix)}}
     env:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
