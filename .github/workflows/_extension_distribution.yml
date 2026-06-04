@@ -413,6 +413,8 @@ jobs:
           EXTENSION_NAME=${{ inputs.extension_name }}
           EXTENSION_CANONICAL=${{ inputs.extension_canonical }}
           LINUX_CI_IN_DOCKER=1
+          GITHUB_ACTIONS=true
+          CI=true
           CCACHE_MAXSIZE=1G
           CCACHE_NOCOMPRESS=1
           SUBSET_EXTENSIONS_TESTS=${{ inputs.extensions_test_selection }}
