@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -23,6 +25,19 @@ func newLogger(w io.Writer) *slog.Logger {
 		writer: w,
 		level:  slog.LevelInfo,
 	})
+}
+
+type loggerContextKey struct{}
+
+func attachCommandLogger(cmd *cobra.Command) {
+	cmd.SetContext(context.WithValue(cmd.Context(), loggerContextKey{}, newLogger(cmd.ErrOrStderr())))
+}
+
+func commandLogger(cmd *cobra.Command) *slog.Logger {
+	if logger, ok := cmd.Context().Value(loggerContextKey{}).(*slog.Logger); ok {
+		return logger
+	}
+	return slog.Default()
 }
 
 func colorizeLevel(level slog.Level) string {
