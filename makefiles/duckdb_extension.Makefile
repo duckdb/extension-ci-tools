@@ -12,16 +12,15 @@
 #	DEFAULT_TEST_EXTENSION_DEPS : `;`-separated list of extensions that are built in `default` and `full` mode
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
-.PHONY: all clean clean-python format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
+.PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
 
 all: release
 
-TEST_PATH="/test/unittest"
-DUCKDB_PATH="/duckdb"
+TEST_PATH=test/unittest
 
-DUCKDB_SRCDIR ?= "./duckdb/"
+DUCKDB_SRCDIR ?= ./duckdb
 
-TESTS_BASE_DIRECTORY = "test/"
+TESTS_BASE_DIRECTORY ?= test/
 
 ifeq (${SUBSET_EXTENSIONS_TESTS},complete)
 	TESTS_BASE_DIRECTORY=""
@@ -115,8 +114,16 @@ EXTENSION_CONFIG_FLAG=-DDUCKDB_EXTENSION_CONFIGS='${EXTENSION_CONFIGS}'
 # This setting controls how DuckDB is linked into the loadable extensions.
 # Setting this to 0 will speed up linking and reduce binary size, but may render your extension binaries unloadable on some platforms.
 EXTENSION_STATIC_BUILD ?= 1
+ENABLE_EXTENSION_AUTOLOADING ?= 0
+ENABLE_EXTENSION_AUTOINSTALL ?= 0
 
-BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=$(EXTENSION_STATIC_BUILD) $(EXTENSION_FLAGS) $(EXTENSION_CONFIG_FLAG) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}" -DUNITTEST_ROOT_DIRECTORY="$(PROJ_DIR)" -DBENCHMARK_ROOT_DIRECTORY="$(PROJ_DIR)" -DENABLE_UNITTEST_CPP_TESTS=FALSE
+BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=$(EXTENSION_STATIC_BUILD) $(EXTENSION_FLAGS) $(EXTENSION_CONFIG_FLAG) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}" -DUNITTEST_ROOT_DIRECTORY="$(PROJ_DIR)" -DBENCHMARK_ROOT_DIRECTORY="$(PROJ_DIR)" -DENABLE_UNITTEST_CPP_TESTS=FALSE -DENABLE_EXTENSION_AUTOLOADING=$(ENABLE_EXTENSION_AUTOLOADING) -DENABLE_EXTENSION_AUTOINSTALL=$(ENABLE_EXTENSION_AUTOINSTALL)
+ifneq ("${DUCKDB_PREBUILT_LIBRARY}", "")
+	BUILD_FLAGS += -DPREBUILT_BINARY='${DUCKDB_PREBUILT_LIBRARY}'
+endif
+ifneq ("${BUILD_EXTENSIONS_ONLY}", "")
+	BUILD_FLAGS += -DBUILD_EXTENSIONS_ONLY=${BUILD_EXTENSIONS_ONLY}
+endif
 
 #### Extra Flags
 ifeq (${CRASH_ON_ASSERT}, 1)
@@ -152,6 +159,9 @@ ifneq ($(TIDY_CHECKS),)
         TIDY_PERFORM_CHECKS := '-checks=${TIDY_CHECKS}'
 endif
 
+clangd: ${EXTENSION_CONFIG_STEP}
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B .cache/clangd/debug
+
 debug: ${EXTENSION_CONFIG_STEP}
 	mkdir -p build/debug
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/debug
@@ -175,34 +185,37 @@ reldebug: ${EXTENSION_CONFIG_STEP}
 # Main tests
 test: test_release
 
-TEST_RELEASE_TARGET=test_release_internal
-TEST_DEBUG_TARGET=test_debug_internal
-TEST_RELDEBUG_TARGET=test_reldebug_internal
+# Detect test runner. If missing, use the unittest binary directly.
+TEST_RUNNER_SCRIPT ?= ${DUCKDB_SRCDIR}/scripts/ci/run_tests.py
+TEST_RUNNER := python3 $(TEST_RUNNER_SCRIPT)
+ifeq ($(shell test -e "$(TEST_RUNNER_SCRIPT)" && echo yes),)
+	TEST_RUNNER :=
+endif
+
+T ?= "$(TESTS_BASE_DIRECTORY)*"
 
 # Disable testing outside docker: the unittester is currently dynamically linked by default
 ifeq ($(LINUX_CI_IN_DOCKER),0)
 	SKIP_TESTS=1
 endif
 
-ifeq ($(SKIP_TESTS),1)
-	TEST_RELEASE_TARGET=tests_skipped
-	TEST_DEBUG_TARGET=tests_skipped
-	TEST_RELDEBUG_TARGET=tests_skipped
-endif
+define RUN_TEST
+	@if [ "$(SKIP_TESTS)" = "1" ]; then \
+		echo "Tests are skipped in this run..."; \
+	else \
+		echo $(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
+		$(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
+	fi
+endef
 
-test_release: $(TEST_RELEASE_TARGET)
-test_debug: $(TEST_DEBUG_TARGET)
-test_reldebug: $(TEST_RELDEBUG_TARGET)
+test_release:
+	$(call RUN_TEST,release)
 
-test_release_internal:
-	./build/release/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
-test_debug_internal:
-	./build/debug/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
-test_reldebug_internal:
-	./build/reldebug/$(TEST_PATH) "$(TESTS_BASE_DIRECTORY)*"
+test_debug:
+	$(call RUN_TEST,debug)
 
-tests_skipped:
-	@echo "Tests are skipped in this run..."
+test_reldebug:
+	$(call RUN_TEST,reldebug)
 
 # WASM config
 VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
@@ -253,16 +266,15 @@ build/extension_configuration/vcpkg.json: ${EXTENSION_CONFIG_TARGET}
 
 #### Misc
 format-check:
-	python3 duckdb/scripts/format.py --all --check --directories src test
+	$(MAKE) -C duckdb format-check T="--workdir $$PWD --directories src test"
 
-format:
-	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+format: format-check
 
 format-fix:
-	python3 duckdb/scripts/format.py --all --fix --noconfirm --directories src test
+	$(MAKE) -C duckdb format-fix T="--workdir $$PWD --directories src test"
 
 format-main:
-	python3 duckdb/scripts/format.py main --fix --noconfirm --directories src test
+	$(MAKE) -C duckdb format-main T="--workdir $$PWD --directories src test"
 
 tidy-check:
 	mkdir -p ./build/tidy
@@ -301,4 +313,3 @@ output_distribution_matrix:
 
 configure_ci:
 	@echo "configure_ci step is skipped for this extension build..."
-

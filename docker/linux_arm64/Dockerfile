@@ -1,8 +1,5 @@
 FROM quay.io/pypa/manylinux_2_28_aarch64
 
-RUN yum --verbose clean all
-RUN yum --verbose makecache
-
 # Setup the basic necessities
 RUN yum groupinstall -y "Development Tools"
 RUN yum install -y curl zip unzip tar autoconf libtool
@@ -113,3 +110,32 @@ RUN case "$extra_toolchains" in \
     yum install -y unixODBC-devel \
   ;; \
 esac
+
+# Install multimedia libraries (FFmpeg, SDL2) for audio/video extensions
+# Requires EPEL and RPM Fusion repositories
+RUN case "$extra_toolchains" in \
+  *\;multimedia\;*) \
+    yum install -y epel-release && \
+    yum install -y --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm && \
+    yum install -y nasm SDL2-devel ffmpeg-devel \
+  ;; \
+esac
+
+# Install CUDA toolkit (nvcc, dev headers, runtime)
+ARG cuda_version=13
+RUN case "$extra_toolchains" in \
+  *\;cuda\;*) \
+    yum install -y yum-utils && \
+    yum-config-manager --add-repo \
+      https://developer.download.nvidia.com/compute/cuda/repos/rhel8/sbsa/cuda-rhel8.repo && \
+    yum install -y \
+      cuda-nvcc-${cuda_version}-* \
+      cuda-cudart-devel-${cuda_version}-* \
+      cuda-driver-devel-${cuda_version}-* \
+      cuda-nvml-devel-${cuda_version}-* \
+      libcurand-devel-${cuda_version}-* \
+      libnvjitlink-devel-${cuda_version}-* \
+      cuda-nvrtc-devel-${cuda_version}-* \
+  ;; \
+esac
+ENV PATH="/usr/local/cuda/bin:${PATH}"
