@@ -214,7 +214,7 @@ jobs:
       osx_matrix: ${{ steps.compute-matrix.outputs.osx_matrix }}
       wasm_matrix: ${{ steps.compute-matrix.outputs.wasm_matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -273,7 +273,7 @@ jobs:
 
     steps:
       - name: Free disk space 1
-        uses: endersonmenezes/free-disk-space@v2.1.1
+        uses: endersonmenezes/free-disk-space@v3
         continue-on-error: true
         if: ${{ inputs.run_disk_clean_step && env.USE_DEFAULT_RUNNERS == 'true' }}
         with:
@@ -318,7 +318,7 @@ jobs:
         if: ${{ env.USE_DEFAULT_RUNNERS == 'true' }}
         run: docker info | grep "Docker Root Dir"
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -327,14 +327,14 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -348,7 +348,7 @@ jobs:
 
       - name: Set DuckDB to ref of calling workflow
         if: ${{inputs.set_caller_as_duckdb}}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: 'duckdb'
           fetch-tags: true
@@ -369,7 +369,7 @@ jobs:
         run: |
           DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -431,7 +431,7 @@ jobs:
           mkdir ccache_dir
 
       - name: Load Ccache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ./ccache_dir
           key: ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}-${{ steps.ccache_timestamp.outputs.timestamp }}
@@ -485,7 +485,7 @@ jobs:
 
       - name: Save Ccache
         if: ${{ inputs.save_cache }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ./ccache_dir
           key: ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}-${{ steps.ccache_timestamp.outputs.timestamp }}
@@ -505,7 +505,7 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -513,7 +513,7 @@ jobs:
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -571,7 +571,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -580,7 +580,7 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -603,7 +603,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -617,7 +617,7 @@ jobs:
 
       - name: Set DuckDB to ref of calling workflow
         if: ${{inputs.set_caller_as_duckdb}}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: 'duckdb'
           fetch-tags: true
@@ -758,7 +758,7 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -766,7 +766,7 @@ jobs:
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -844,7 +844,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -853,7 +853,7 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
@@ -915,7 +915,7 @@ jobs:
           cp C:/rtools42/x86_64-w64-mingw32.static.posix/bin/g++.exe C:/rtools42/x86_64-w64-mingw32.static.posix/bin/x86_64-w64-mingw32-g++.exe
           cp C:/rtools42/x86_64-w64-mingw32.static.posix/bin/gfortran.exe C:/rtools42/x86_64-w64-mingw32.static.posix/bin/x86_64-w64-mingw32-gfortran.exe
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -931,7 +931,7 @@ jobs:
 
       - name: Set DuckDB to ref of calling workflow
         if: ${{inputs.set_caller_as_duckdb}}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: 'duckdb'
           fetch-tags: true
@@ -965,7 +965,7 @@ jobs:
         shell: pwsh
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11.1
+        uses: lukka/run-vcpkg@v11.6
         with:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
@@ -1045,7 +1045,7 @@ jobs:
           eval "$(jq -r '.test_env_variables // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' <<< '${{inputs.test_config}}')"
           make test_${{ inputs.build_type }}
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -1053,7 +1053,7 @@ jobs:
           path: |
             build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -1115,7 +1115,7 @@ jobs:
       WASM_EXTENSIONS: 1
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout override repository
         if: ${{inputs.override_repository != ''}}
         with:
@@ -1124,14 +1124,14 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout current repository
         if: ${{inputs.override_repository == ''}}
         with:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -1145,7 +1145,7 @@ jobs:
 
       - name: Set DuckDB to ref of calling workflow
         if: ${{inputs.set_caller_as_duckdb}}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: 'duckdb'
           fetch-tags: true
@@ -1166,7 +1166,7 @@ jobs:
         run: |
           DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
 
-      - uses: emscripten-core/setup-emsdk@v13
+      - uses: emscripten-core/setup-emsdk@v16
         with:
           version: 3.1.71
 
@@ -1244,7 +1244,7 @@ jobs:
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ matrix.duckdb_arch }}
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ !inputs.upload_all_extensions }}
         with:
           if-no-files-found: error
@@ -1252,7 +1252,7 @@ jobs:
           path: |
             build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload_all_extensions}}
         with:
           if-no-files-found: error

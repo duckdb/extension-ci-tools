@@ -71,7 +71,7 @@ jobs:
     outputs:
       deploy_matrix: ${{ steps.parse-matrices.outputs.deploy_matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -106,7 +106,7 @@ jobs:
       matrix: ${{fromJson(needs.generate_matrix.outputs.deploy_matrix)}}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: 'recursive'
