@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log/slog"
-
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +9,7 @@ func newRootCommand() *cobra.Command {
 		Use:   "extbuild",
 		Short: "DuckDB extension CI helper CLI",
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			slog.SetDefault(newLogger(cmd.ErrOrStderr()))
+			attachCommandLogger(cmd)
 		},
 	}
 	cmd.AddCommand(newMatrixCommand())
