@@ -439,13 +439,22 @@ jobs:
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
 
+      - name: Configure retry command
+        shell: bash
+        run: |
+          if [ -f duckdb/scripts/ci/retry.py ]; then
+            echo "RETRY_COMMAND=python3 duckdb/scripts/ci/retry.py --" >> "$GITHUB_ENV"
+          else
+            echo "RETRY_COMMAND=" >> "$GITHUB_ENV"
+          fi
+
       - name: Run configure (outside Docker)
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
           LINUX_CI_IN_DOCKER: 0
         run: |
-          make configure_ci
+          ${RETRY_COMMAND} make configure_ci
 
       - name: Install extra vcpkg dependencies
         if: ${{ inputs.vcpkg_extra_dependencies != '' }}
@@ -470,11 +479,11 @@ jobs:
       - name: Run configure (inside Docker)
         shell: bash
         run: |
-          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make configure_ci
+          ${RETRY_COMMAND} docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make configure_ci
 
       - name: Build extension (inside Docker)
         run: |
-          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make ${{ inputs.build_type }}
+          ${RETRY_COMMAND} docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make ${{ inputs.build_type }}
 
       - name: Run post build command
         if: ${{ inputs.post_build_command != '' }}
@@ -1221,12 +1230,21 @@ jobs:
           echo -e "\n# Injected Extension Config\n$EXTENSION_CONFIG" >> ./extension_config.cmake
           cat ./extension_config.cmake
 
+      - name: Configure retry command
+        shell: bash
+        run: |
+          if [ -f duckdb/scripts/ci/retry.py ]; then
+            echo "RETRY_COMMAND=python3 duckdb/scripts/ci/retry.py --" >> "$GITHUB_ENV"
+          else
+            echo "RETRY_COMMAND=" >> "$GITHUB_ENV"
+          fi
+
       - name: Run configure
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
         run: |
-          make configure_ci
+          ${RETRY_COMMAND} make configure_ci
 
       - name: Install extra vcpkg dependencies
         if: ${{ inputs.vcpkg_extra_dependencies != '' }}
@@ -1241,8 +1259,13 @@ jobs:
           fi
 
       - name: Build Wasm module
+        env:
+          EXTENSION_NAME: ${{ inputs.extension_name }}
+          EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
+          ENABLE_EXTENSION_AUTOINSTALL: 1
+          ENABLE_EXTENSION_AUTOLOADING: 1
         run: |
-          EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ matrix.duckdb_arch }}
+          ${RETRY_COMMAND} make ${{ matrix.duckdb_arch }}
 
       - uses: actions/upload-artifact@v7
         if: ${{ !inputs.upload_all_extensions }}
