@@ -500,7 +500,7 @@ jobs:
 
   macos:
     name: MacOS
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
     needs:
       - generate_matrix
       - linux
