@@ -12,7 +12,7 @@
 #	DEFAULT_TEST_EXTENSION_DEPS : `;`-separated list of extensions that are built in `default` and `full` mode
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
-.PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix
+.PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix sync_oot_extensions
 
 all: release
 
@@ -81,7 +81,13 @@ ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 endif
 
 # Add the extension config step which ensures the vcpkg dependencies of all extensions get merged properly
-ifeq (${USE_MERGED_VCPKG_MANIFEST}, 1)
+ifdef DUCKDB_NEW_EXTENSION_BUILD
+	# New-style build: out-of-tree extensions are pre-cloned into duckdb/extension/external
+	# and their merged vcpkg manifest (including this extension's own vcpkg.json) is written
+	# to build/ before cmake configures, so vcpkg picks it up at project() time.
+	EXTENSION_CONFIG_STEP= sync_oot_extensions
+	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}build'
+else ifeq (${USE_MERGED_VCPKG_MANIFEST}, 1)
 	EXTENSION_CONFIG_STEP= build/extension_configuration/vcpkg.json
 	EXTENSION_CONFIG_STEP_WASM=extension_configuration_wasm
 	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}build/extension_configuration'
@@ -263,6 +269,12 @@ EXTENSION_CONFIG_TARGET?=extension_configuration_default
 extension_configuration: build/extension_configuration/vcpkg.json
 
 build/extension_configuration/vcpkg.json: ${EXTENSION_CONFIG_TARGET}
+
+# New-style out-of-tree extension sync: clone/patch out-of-tree extensions into
+# duckdb/extension/external and write the merged vcpkg manifest into build/.
+sync_oot_extensions:
+	mkdir -p '${PROJ_DIR}build'
+	python3 $(DUCKDB_SRCDIR)/scripts/sync_out_of_tree_extensions.py --extension-configs '$(EXTENSION_CONFIGS)' --output-dir '${PROJ_DIR}build'
 
 #### Misc
 format-check:
