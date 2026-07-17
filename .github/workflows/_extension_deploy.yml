@@ -71,7 +71,7 @@ jobs:
     outputs:
       deploy_matrix: ${{ steps.parse-matrices.outputs.deploy_matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         name: Checkout Extension CI tools
         with:
           path: 'extension-ci-tools'
@@ -79,7 +79,7 @@ jobs:
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: extension-ci-tools/scripts/extbuild/go.mod
           cache: true
@@ -106,7 +106,7 @@ jobs:
       matrix: ${{fromJson(needs.generate_matrix.outputs.deploy_matrix)}}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           submodules: 'recursive'
@@ -119,7 +119,7 @@ jobs:
           cd duckdb
           git checkout ${{ inputs.duckdb_version }}
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}${{startsWith(matrix.duckdb, 'wasm') && '.wasm' || ''}}
           path: |
