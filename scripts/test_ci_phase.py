@@ -133,6 +133,24 @@ class CIPhaseTest(unittest.TestCase):
             configure = runner.commands[-2][0]
             self.assertIn(f"{Path(directory).resolve() / '.ccache'}:/ccache_dir", configure)
 
+    def test_windows_build_uses_shell_string_for_quoted_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory, "windows", "windows_amd64")
+            runner = RecordingRunner(env)
+            runner.build_windows()
+
+            self.assertEqual(len(runner.commands), 1)
+            command, options = runner.commands[0]
+            self.assertIsInstance(command, str)
+            self.assertTrue(options["shell"])
+            self.assertIn(
+                'call "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise'
+                '\\VC\\Auxiliary\\Build\\vcvars64.bat"',
+                command,
+            )
+            self.assertNotIn('\\"', command)
+            self.assertTrue(command.endswith(" && make release"))
+
     def test_upload_writes_outputs_and_validates_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)

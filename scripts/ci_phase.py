@@ -435,7 +435,8 @@ class PhaseRunner:
                 )
             commands.append('if exist "C:\\Program Files\\Git\\usr\\bin\\link.exe" move "C:\\Program Files\\Git\\usr\\bin\\link.exe" "C:\\Program Files\\Git\\usr\\bin\\link-git.exe"')
         commands.append(f"make {self.required('CI_BUILD_TYPE')}")
-        self.run(["cmd.exe", "/d", "/s", "/c", " && ".join(commands)], extra_env=environment)
+        # cmd.exe does not understand the C-runtime quote escaping used for argument lists.
+        self.run(" && ".join(commands), shell=True, extra_env=environment)
 
     def build_wasm(self) -> None:
         self.run_with_retry(["make", self.architecture], extra_env=self.build_environment())
