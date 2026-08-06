@@ -333,11 +333,8 @@ jobs:
           remove_folders: "/usr/local/share/powershell /usr/share/swift"
           testing: false
 
-      - name: Setup / Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: '3.11'
-
+      # Use system Python: Linux host configuration creates configure/venv, which must
+      # remain usable inside the bind-mounted Docker workspace.
       - name: Checkout / Prepare sources
         run: python3 extension-ci-tools/scripts/ci_phase.py checkout
 
