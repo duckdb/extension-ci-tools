@@ -133,23 +133,32 @@ class CIPhaseTest(unittest.TestCase):
             configure = runner.commands[-2][0]
             self.assertIn(f"{Path(directory).resolve() / '.ccache'}:/ccache_dir", configure)
 
-    def test_windows_build_uses_shell_string_for_quoted_paths(self):
+    def test_windows_build_separates_optional_linker_rename(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory, "windows", "windows_amd64")
             runner = RecordingRunner(env)
             runner.build_windows()
 
-            self.assertEqual(len(runner.commands), 1)
-            command, options = runner.commands[0]
-            self.assertIsInstance(command, str)
-            self.assertTrue(options["shell"])
+            self.assertEqual(len(runner.commands), 2)
+            rename_command, rename_options = runner.commands[0]
+            self.assertIsInstance(rename_command, str)
+            self.assertTrue(rename_options["shell"])
+            self.assertIn(
+                'if exist "C:\\Program Files\\Git\\usr\\bin\\link.exe" move',
+                rename_command,
+            )
+
+            build_command, build_options = runner.commands[1]
+            self.assertIsInstance(build_command, str)
+            self.assertTrue(build_options["shell"])
             self.assertIn(
                 'call "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise'
                 '\\VC\\Auxiliary\\Build\\vcvars64.bat"',
-                command,
+                build_command,
             )
-            self.assertNotIn('\\"', command)
-            self.assertTrue(command.endswith(" && make release"))
+            self.assertNotIn('\\"', build_command)
+            self.assertNotIn("link.exe", build_command)
+            self.assertTrue(build_command.endswith(" && make release"))
 
     def test_upload_writes_outputs_and_validates_artifact(self):
         with tempfile.TemporaryDirectory() as directory:

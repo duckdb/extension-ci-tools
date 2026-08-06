@@ -433,7 +433,16 @@ class PhaseRunner:
                     f'(call "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Auxiliary\\Build\\{target}") '
                     f'else (call "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\{target}")'
                 )
-            commands.append('if exist "C:\\Program Files\\Git\\usr\\bin\\link.exe" move "C:\\Program Files\\Git\\usr\\bin\\link.exe" "C:\\Program Files\\Git\\usr\\bin\\link-git.exe"')
+            # Keep this optional rename separate from the &&-chained build command.
+            # Otherwise cmd.exe treats the build as part of the IF body and skips it
+            # when Git's link.exe is not present.
+            self.run(
+                'if exist "C:\\Program Files\\Git\\usr\\bin\\link.exe" '
+                'move "C:\\Program Files\\Git\\usr\\bin\\link.exe" '
+                '"C:\\Program Files\\Git\\usr\\bin\\link-git.exe"',
+                shell=True,
+                extra_env=environment,
+            )
         commands.append(f"make {self.required('CI_BUILD_TYPE')}")
         # cmd.exe does not understand the C-runtime quote escaping used for argument lists.
         self.run(" && ".join(commands), shell=True, extra_env=environment)
