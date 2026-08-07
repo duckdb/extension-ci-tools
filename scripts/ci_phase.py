@@ -432,11 +432,18 @@ class PhaseRunner:
         if not rtools:
             target = {"windows_amd64": "vcvars64.bat", "windows_arm64": "vcvarsarm64.bat"}.get(self.architecture)
             if target:
-                commands.append(
-                    f'if exist "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Auxiliary\\Build\\{target}" '
-                    f'(call "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise\\VC\\Auxiliary\\Build\\{target}") '
-                    f'else (call "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\{target}")'
+                vs18_vcvars = (
+                    "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise"
+                    f"\\VC\\Auxiliary\\Build\\{target}"
                 )
+                vs2022_vcvars = (
+                    "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise"
+                    f"\\VC\\Auxiliary\\Build\\{target}"
+                )
+                vcvars = vs18_vcvars if os.path.isfile(vs18_vcvars) else vs2022_vcvars
+                # vcvars changes this cmd.exe process's environment, so the build
+                # must remain in the same shell invocation.
+                commands.append(f'call "{vcvars}"')
             # Keep this optional rename separate from the &&-chained build command.
             # Otherwise cmd.exe treats the build as part of the IF body and skips it
             # when Git's link.exe is not present.
