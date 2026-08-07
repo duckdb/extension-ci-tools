@@ -12,6 +12,7 @@ import glob
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,10 @@ from typing import Mapping, Sequence
 
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
+
+
+def format_command(command: Sequence[str] | str) -> str:
+    return command if isinstance(command, str) else shlex.join(command)
 
 
 def is_true(value: str | None) -> bool:
@@ -84,8 +89,7 @@ class PhaseRunner:
         environment = self.env.copy()
         if extra_env:
             environment.update(extra_env)
-        printable = command if isinstance(command, str) else " ".join(command)
-        print(f"+ {printable}", flush=True)
+        print(f"+ {format_command(command)}", flush=True)
         options = {
             "check": True,
             "cwd": cwd or self.workspace,
@@ -528,7 +532,15 @@ def main() -> None:
     parser.add_argument("phase", choices=("checkout", "setup", "build", "test", "upload"))
     args = parser.parse_args()
     runner = PhaseRunner()
-    getattr(runner, args.phase)()
+    try:
+        getattr(runner, args.phase)()
+    except subprocess.CalledProcessError as error:
+        print(
+            f"error: command failed with exit code {error.returncode}: "
+            f"{format_command(error.cmd)}",
+            file=sys.stderr,
+        )
+        raise SystemExit(error.returncode) from None
 
 
 if __name__ == "__main__":

@@ -1,8 +1,12 @@
+from contextlib import redirect_stderr
+import io
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -10,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ci_phase import (  # noqa: E402
     PhaseRunner,
     extra_dependencies,
+    main,
     is_true,
     test_environment,
     tool_enabled,
@@ -113,6 +118,33 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(len(runner.commands), 2)
             self.assertEqual(runner.commands[0][0][-2:], ["make", "test_release"])
             self.assertEqual(runner.commands[1][0], ["make", "test_release"])
+
+    def test_failed_phase_command_exits_concisely_for_list_and_shell_commands(self):
+        commands = (
+            (["make", "test release"], "make 'test release'"),
+            ("make test_release", "make test_release"),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            environment = self.environment(directory)
+            for command, printable in commands:
+                with self.subTest(command=command):
+                    error = subprocess.CalledProcessError(2, command)
+                    stderr = io.StringIO()
+                    with (
+                        mock.patch.dict(os.environ, environment, clear=True),
+                        mock.patch.object(sys, "argv", ["ci_phase.py", "test"]),
+                        mock.patch.object(PhaseRunner, "test", side_effect=error),
+                        redirect_stderr(stderr),
+                    ):
+                        with self.assertRaises(SystemExit) as raised:
+                            main()
+
+                    self.assertEqual(raised.exception.code, 2)
+                    self.assertEqual(
+                        stderr.getvalue(),
+                        f"error: command failed with exit code 2: {printable}\n",
+                    )
+                    self.assertNotIn("Traceback", stderr.getvalue())
 
     def test_linux_build_uses_action_cache_directory_and_five_gigabyte_limit(self):
         with tempfile.TemporaryDirectory() as directory:
