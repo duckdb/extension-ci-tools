@@ -567,6 +567,18 @@ jobs:
         with:
           go-version: '1.23'
 
+      - name: Setup / Ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        with:
+          max-size: 5GB
+          evict-old-files: job
+          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          restore-keys: |
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+            extension-distribution-${{ matrix.duckdb_arch }}-
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-
+          save: ${{ inputs.save_cache }}
+
       - name: Setup / Rtools
         if: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw' }}
         uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
@@ -589,19 +601,6 @@ jobs:
           vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
           vcpkgGitURL: ${{ inputs.vcpkg_url }}
           vcpkgDirectory: ${{ env.VCPKG_WINDOWS_ROOT }}
-
-      - name: Setup / Ccache
-        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
-        continue-on-error: true
-        with:
-          max-size: 5GB
-          evict-old-files: job
-          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
-          restore-keys: |
-            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
-            extension-distribution-${{ matrix.duckdb_arch }}-
-            ccache-extension-distribution-${{ matrix.duckdb_arch }}-
-          save: ${{ inputs.save_cache }}
 
       - name: Setup
         run: python extension-ci-tools/scripts/ci_phase.py setup
