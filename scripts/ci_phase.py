@@ -387,7 +387,8 @@ class PhaseRunner:
         values.update(test_environment(self.value("CI_TEST_CONFIG", "{}")))
         with (self.workspace / "docker_env.txt").open("w", encoding="utf-8") as handle:
             for key, value in values.items():
-                if "\n" in value:
+                value = value.rstrip("\r\n")
+                if "\n" in value or "\r" in value:
                     raise ValueError(f"Docker environment value {key} contains a newline")
                 handle.write(f"{key}={value}\n")
 
