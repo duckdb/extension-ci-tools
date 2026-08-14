@@ -136,7 +136,7 @@ jobs:
           groups: ${{ inputs.groups }}
 
   build_linux:
-    name: Build Linux (${{ matrix.artifact_prefix }}, ${{ matrix.duckdb_arch }})
+    name: Build Linux (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
     needs: matrix
     if: ${{ needs.matrix.outputs.build_linux != '' && needs.matrix.outputs.build_linux != '{"include":[]}' }}
     runs-on: ${{ matrix.runner }}
@@ -202,7 +202,7 @@ jobs:
           if-no-files-found: error
 
   build_macos:
-    name: Build macOS (${{ matrix.artifact_prefix }}, ${{ matrix.duckdb_arch }})
+    name: Build macOS (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
     needs: matrix
     if: ${{ needs.matrix.outputs.build_macos != '' }}
     runs-on: ${{ matrix.runner }}
@@ -271,7 +271,7 @@ jobs:
           if-no-files-found: error
 
   build_windows:
-    name: Build Windows (${{ matrix.artifact_prefix }}, ${{ matrix.duckdb_arch }})
+    name: Build Windows (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
     needs: matrix
     if: ${{ needs.matrix.outputs.build_windows != '' }}
     runs-on: ${{ matrix.runner }}
@@ -369,7 +369,7 @@ jobs:
           if-no-files-found: error
 
   build_wasm:
-    name: Build Wasm (${{ matrix.artifact_prefix }}, ${{ matrix.duckdb_arch }})
+    name: Build Wasm (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
     needs: matrix
     if: ${{ needs.matrix.outputs.build_wasm != '' }}
     runs-on: ${{ matrix.runner }}
