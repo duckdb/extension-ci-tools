@@ -83,15 +83,7 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 commands,
                 [
-                    [
-                        "git",
-                        "-C",
-                        "duckdb",
-                        "remote",
-                        "set-url",
-                        "origin",
-                        "duckdb/duckdb-fork",
-                    ],
+                    ["git", "clone", "duckdb/duckdb-fork", "duckdb"],
                     ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
                     ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                     ["git", "tag", "v2.0.0"],
@@ -99,7 +91,7 @@ class CIPhaseTest(unittest.TestCase):
                 ],
             )
 
-    def test_checkout_fetches_version_without_repository_override(self):
+    def test_checkout_clones_default_repository(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory)
             runner = RecordingRunner(env)
@@ -108,6 +100,38 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 commands,
                 [
+                    [
+                        "git",
+                        "clone",
+                        "https://github.com/duckdb/duckdb.git",
+                        "duckdb",
+                    ],
+                    ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
+                    ["git", "-C", "duckdb", "checkout", "v1.2.3"],
+                ],
+            )
+
+    def test_checkout_reuses_existing_duckdb_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "duckdb").mkdir()
+            env = self.environment(workspace)
+            env["CI_DUCKDB_GIT_REPOSITORY"] = "https://github.com/duckdb/duckdb.git"
+            runner = RecordingRunner(env)
+            runner.checkout()
+            commands = [command for command, _ in runner.commands]
+            self.assertEqual(
+                commands,
+                [
+                    [
+                        "git",
+                        "-C",
+                        "duckdb",
+                        "remote",
+                        "set-url",
+                        "origin",
+                        "https://github.com/duckdb/duckdb.git",
+                    ],
                     ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
                     ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                 ],

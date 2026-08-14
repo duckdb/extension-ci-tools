@@ -132,7 +132,17 @@ class PhaseRunner:
     def checkout(self) -> None:
         duckdb_repository = self.value("CI_DUCKDB_GIT_REPOSITORY")
         duckdb_version = self.value("CI_DUCKDB_VERSION")
-        if duckdb_repository:
+        duckdb_directory = self.workspace / "duckdb"
+        if not duckdb_directory.is_dir():
+            self.run(
+                [
+                    "git",
+                    "clone",
+                    duckdb_repository or "https://github.com/duckdb/duckdb.git",
+                    "duckdb",
+                ]
+            )
+        elif duckdb_repository:
             self.run(
                 ["git", "-C", "duckdb", "remote", "set-url", "origin", duckdb_repository]
             )
