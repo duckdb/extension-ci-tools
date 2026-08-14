@@ -208,18 +208,6 @@ jobs:
           name: ${{ steps.artifact.outputs.artifact_name }}
           path: ${{ steps.artifact.outputs.artifact_path }}
           if-no-files-found: error
-      - name: Prepare test support
-        if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
-        id: test-support
-        run: python3 extension-ci-tools/scripts/ci_phase.py bundle_test_support
-      - name: Upload test support
-        if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.artifact_name }}-test-support
-          path: ${{ steps.test-support.outputs.test_support_path }}
-          retention-days: 1
-          if-no-files-found: error
 
   build_macos:
     name: Build macOS (${{ matrix.artifact_prefix }}, ${{ matrix.duckdb_arch }})
@@ -287,18 +275,6 @@ jobs:
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
           path: ${{ steps.artifact.outputs.artifact_path }}
-          if-no-files-found: error
-      - name: Prepare test support
-        if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
-        id: test-support
-        run: python3 extension-ci-tools/scripts/ci_phase.py bundle_test_support
-      - name: Upload test support
-        if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.artifact_name }}-test-support
-          path: ${{ steps.test-support.outputs.test_support_path }}
-          retention-days: 1
           if-no-files-found: error
 
   build_windows:
@@ -397,18 +373,6 @@ jobs:
           name: ${{ steps.artifact.outputs.artifact_name }}
           path: ${{ steps.artifact.outputs.artifact_path }}
           if-no-files-found: error
-      - name: Prepare test support
-        if: ${{ !inputs.skip_tests }}
-        id: test-support
-        run: python extension-ci-tools/scripts/ci_phase.py bundle_test_support
-      - name: Upload test support
-        if: ${{ !inputs.skip_tests }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.artifact_name }}-test-support
-          path: ${{ steps.test-support.outputs.test_support_path }}
-          retention-days: 1
-          if-no-files-found: error
 
   build_wasm:
     name: Build Wasm (${{ matrix.artifact_prefix }}, ${{ matrix.duckdb_arch }})
@@ -503,7 +467,6 @@ jobs:
       CI_EXTENSION_NAME: all-extensions
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
-      CI_TEST_SUPPORT_DIR: ${{ github.workspace }}/.ci/test-support
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
       - name: Checkout extension
@@ -527,15 +490,9 @@ jobs:
           pattern: ${{ matrix.artifact_pattern }}
           path: ${{ github.workspace }}/.ci/repository
           merge-multiple: true
-      - name: Download test support
-        if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: ${{ matrix.artifact_pattern }}-test-support
-          path: ${{ github.workspace }}/.ci/test-support
       - name: Test each group
         if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
-        run: python3 extension-ci-tools/scripts/ci_phase.py test_supports
+        run: python3 extension-ci-tools/scripts/ci_phase.py test
       - name: Deploy extensions
         if: ${{ inputs.deploy }}
         shell: bash
@@ -579,7 +536,6 @@ jobs:
       CI_EXTENSION_NAME: all-extensions
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
-      CI_TEST_SUPPORT_DIR: ${{ github.workspace }}/.ci/test-support
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
       - name: Checkout extension
@@ -607,15 +563,9 @@ jobs:
           pattern: ${{ matrix.artifact_pattern }}
           path: ${{ github.workspace }}/.ci/repository
           merge-multiple: true
-      - name: Download test support
-        if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: ${{ matrix.artifact_pattern }}-test-support
-          path: ${{ github.workspace }}/.ci/test-support
       - name: Test each group
         if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
-        run: python3 extension-ci-tools/scripts/ci_phase.py test_supports
+        run: python3 extension-ci-tools/scripts/ci_phase.py test
       - name: Deploy extensions
         if: ${{ inputs.deploy }}
         shell: bash
@@ -650,7 +600,6 @@ jobs:
       CI_EXTENSION_NAME: all-extensions
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
-      CI_TEST_SUPPORT_DIR: ${{ github.workspace }}/.ci/test-support
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
       - name: Configure line endings
@@ -683,15 +632,9 @@ jobs:
           pattern: ${{ matrix.artifact_pattern }}
           path: ${{ github.workspace }}/.ci/repository
           merge-multiple: true
-      - name: Download test support
-        if: ${{ !inputs.skip_tests }}
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: ${{ matrix.artifact_pattern }}-test-support
-          path: ${{ github.workspace }}/.ci/test-support
       - name: Test each group
         if: ${{ !inputs.skip_tests }}
-        run: python extension-ci-tools/scripts/ci_phase.py test_supports
+        run: python extension-ci-tools/scripts/ci_phase.py test
       - name: Deploy extensions
         if: ${{ inputs.deploy }}
         shell: bash

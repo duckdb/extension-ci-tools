@@ -243,11 +243,20 @@ class CIPhaseTest(unittest.TestCase):
             artifact.touch()
             output = workspace / "github-output"
             env = self.environment(workspace)
+            env["CI_SKIP_TESTS"] = "true"
             env["GITHUB_OUTPUT"] = str(output)
             runner = RecordingRunner(env)
             runner.upload()
             values = output.read_text(encoding="utf-8")
-            self.assertIn("artifact_path=build/release/extension/quack/quack.duckdb_extension", values)
+            artifact_path = Path(
+                next(
+                    line.removeprefix("artifact_path=")
+                    for line in values.splitlines()
+                    if line.startswith("artifact_path=")
+                )
+            )
+            self.assertTrue((artifact_path / artifact.name).is_file())
+            self.assertFalse((artifact_path / "test-support").exists())
             self.assertIn("artifact_name=quack-v1.2.3-extension-linux_amd64", values)
 
     def test_upload_fails_when_artifact_is_missing(self):
@@ -256,40 +265,90 @@ class CIPhaseTest(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 runner.upload()
 
-    def test_bundle_and_restore_test_support_uses_external_repository(self):
+    def test_upload_fails_when_required_test_support_is_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact = workspace / "build/release/extension/quack/quack.duckdb_extension"
+            artifact.parent.mkdir(parents=True)
+            artifact.touch()
+            runner = RecordingRunner(self.environment(workspace))
+            with self.assertRaises(FileNotFoundError):
+                runner.upload()
+
+    def test_upload_and_test_restore_embedded_group_support(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
             build = workspace / "build" / "release"
             unittest_binary = build / "test" / ("unittest.exe" if os.name == "nt" else "unittest")
             unittest_binary.parent.mkdir(parents=True)
             unittest_binary.write_text("runner", encoding="utf-8")
-            repository = workspace / "downloaded-repository" / "v1" / "linux_amd64"
+            unittest_binary.chmod(0o755)
+            repository = build / "repository" / "v1" / "linux_amd64"
             repository.mkdir(parents=True)
             (repository / "quack.duckdb_extension").write_text("extension", encoding="utf-8")
 
-            output = workspace / "github-output"
             env = self.environment(workspace)
-            env["GITHUB_OUTPUT"] = str(output)
-            runner = RecordingRunner(env)
-            runner.bundle_test_support()
-            archive = workspace / ".ci" / "test-support.tar.gz"
-            self.assertTrue(archive.is_file())
+            env["CI_UPLOAD_ALL_EXTENSIONS"] = "true"
+            downloaded = workspace / "downloaded-repository"
+            for group in ("group-one", "group-two"):
+                output = workspace / f"github-output-{group}"
+                env["CI_ARTIFACT_NAME"] = group
+                env["GITHUB_OUTPUT"] = str(output)
+                PhaseRunner(env).upload()
+                values = output.read_text(encoding="utf-8")
+                artifact_path = Path(
+                    next(
+                        line.removeprefix("artifact_path=")
+                        for line in values.splitlines()
+                        if line.startswith("artifact_path=")
+                    )
+                )
+                shutil.copytree(artifact_path, downloaded, dirs_exist_ok=True)
+
+            archives = sorted(downloaded.glob("test-support/**/test-support.tar.gz"))
+            self.assertEqual(len(archives), 2)
+            archive = archives[0]
             with tarfile.open(archive, "r:gz") as bundle:
                 names = bundle.getnames()
+                unittest_member = bundle.getmember(f"release/test/{unittest_binary.name}")
             self.assertIn(f"release/test/{unittest_binary.name}", names)
             self.assertFalse(any("repository" in name for name in names))
+            if os.name != "nt":
+                self.assertNotEqual(unittest_member.mode & 0o111, 0)
 
-            support_dir = workspace / "support" / "main"
-            support_dir.mkdir(parents=True)
-            shutil.copy2(archive, support_dir / archive.name)
-            env["CI_TEST_SUPPORT_DIR"] = str(workspace / "support")
-            env["CI_EXTENSION_ARTIFACT_DIR"] = str(workspace / "downloaded-repository")
+            env["CI_EXTENSION_ARTIFACT_DIR"] = str(downloaded)
             restored = RecordingRunner(env)
-            restored.test_supports()
+            restored.test()
             self.assertTrue(
                 (build / "repository" / "v1" / "linux_amd64" / "quack.duckdb_extension").is_file()
             )
+            self.assertFalse((build / "repository" / "test-support").exists())
             self.assertEqual(restored.commands[0][0][-2:], ["make", "test_release"])
+            self.assertEqual(len(restored.commands), 4)
+
+    def test_support_is_enabled_only_for_testable_platforms(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = (
+                (self.environment(directory), True),
+                (self.environment(directory, "linux", "linux_arm64"), False),
+                (self.environment(directory, "wasm", "wasm_eh"), False),
+                (self.environment(directory, "windows", "windows_amd64"), True),
+            )
+            macos_env = self.environment(directory, "macos", "osx_amd64")
+            macos_env["CI_OSX_BUILD_ARCH"] = "x86_64"
+            cases += ((macos_env, False),)
+            native_macos_env = self.environment(directory, "macos", "osx_arm64")
+            native_macos_env["CI_OSX_BUILD_ARCH"] = "arm64"
+            cases += ((native_macos_env, True),)
+
+            for env, expected in cases:
+                with self.subTest(
+                    platform=env["CI_PLATFORM"],
+                    architecture=env["DUCKDB_PLATFORM"],
+                ):
+                    self.assertEqual(
+                        RecordingRunner(env)._test_support_enabled(), expected
+                    )
 
 
 if __name__ == "__main__":

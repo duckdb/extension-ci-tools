@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -493,19 +494,13 @@ class PhaseRunner:
     def build(self) -> None:
         getattr(self, f"build_{self.platform}")()
 
-    def test(self) -> None:
-        if self.enabled("CI_SKIP_TESTS"):
-            print("Tests skipped by workflow input.")
-            return
+    def _run_tests(self) -> None:
         environment = self.build_environment()
         environment["SUBSET_EXTENSIONS_TESTS"] = self.value("CI_EXTENSIONS_TEST_SELECTION")
         environment.update(test_environment(self.value("CI_TEST_CONFIG", "{}")))
         target = f"test_{self.required('CI_BUILD_TYPE')}"
 
         if self.platform == "linux":
-            if self.architecture == "linux_arm64":
-                print("Tests are not supported for linux_arm64.")
-                return
             if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
                 self.run(["make", target], extra_env=environment)
             else:
@@ -513,14 +508,29 @@ class PhaseRunner:
                 environment["LINUX_CI_IN_DOCKER"] = "0"
                 self.run(["make", target], extra_env=environment)
         elif self.platform == "macos":
-            if self.value("CI_OSX_BUILD_ARCH") != "arm64":
-                print("Tests run only on the native macOS arm64 build.")
-                return
             self.run(["make", target], extra_env=environment)
         elif self.platform == "windows":
             self.run(["make", target], extra_env=environment)
-        else:
+
+    def test(self) -> None:
+        if self.enabled("CI_SKIP_TESTS"):
+            print("Tests skipped by workflow input.")
+            return
+        if self.platform == "linux" and self.architecture == "linux_arm64":
+            print("Tests are not supported for linux_arm64.")
+            return
+        if self.platform == "macos" and self.value("CI_OSX_BUILD_ARCH") != "arm64":
+            print("Tests run only on the native macOS arm64 build.")
+            return
+        if self.platform == "wasm":
             print("The Wasm distribution job has no test target.")
+            return
+
+        repository = self.value("CI_EXTENSION_ARTIFACT_DIR")
+        if repository:
+            self._test_artifacts(Path(repository))
+            return
+        self._run_tests()
 
     def artifact_path(self) -> str:
         all_extensions = self.enabled("CI_UPLOAD_ALL_EXTENSIONS")
@@ -554,28 +564,61 @@ class PhaseRunner:
 
     def upload(self) -> None:
         path = self.artifact_path()
-        matches = glob.glob(str(self.workspace / path), recursive=True)
+        matches = sorted(
+            Path(match)
+            for match in glob.glob(str(self.workspace / path), recursive=True)
+        )
         if not matches:
             raise FileNotFoundError(f"no artifact matched {path}")
         name = self.value("CI_ARTIFACT_NAME") or (
             f"{self.required('CI_EXTENSION_NAME')}-{self.value('CI_DUCKDB_VERSION')}-extension-"
             f"{self.architecture}{self.value('CI_ARTIFACT_POSTFIX')}"
         )
-        self.append_github_file("GITHUB_OUTPUT", "artifact_path", path)
+        artifact_id = hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
+        staging = self.workspace / "build" / "ci-artifacts" / artifact_id
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True)
+
+        build_base = self.workspace / "build" / (
+            self.architecture if self.platform == "wasm" else self.required("CI_BUILD_TYPE")
+        )
+        source_root = (
+            build_base / "repository"
+            if self.enabled("CI_UPLOAD_ALL_EXTENSIONS")
+            else build_base / "extension" / self.required("CI_EXTENSION_NAME")
+        )
+        for source in matches:
+            destination = staging / source.relative_to(source_root)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+
+        if self._test_support_enabled():
+            archive = staging / "test-support" / artifact_id / "test-support.tar.gz"
+            self._bundle_test_support(archive)
+
+        self.append_github_file("GITHUB_OUTPUT", "artifact_path", str(staging))
         self.append_github_file("GITHUB_OUTPUT", "artifact_name", name)
         self.print_rust_logs()
 
-    def bundle_test_support(self) -> None:
+    def _test_support_enabled(self) -> bool:
         if self.enabled("CI_SKIP_TESTS") or self.platform == "wasm":
-            return
+            return False
+        if self.platform == "linux":
+            return self.architecture != "linux_arm64"
+        if self.platform == "macos":
+            return self.value("CI_OSX_BUILD_ARCH") == "arm64"
+        return self.platform == "windows"
+
+    def _bundle_test_support(self, archive: Path) -> None:
         build_type = self.required("CI_BUILD_TYPE")
         build_dir = self.workspace / "build" / build_type
         if not build_dir.is_dir():
             raise FileNotFoundError(f"build directory does not exist: {build_dir}")
 
         artifact_root = self.workspace / ".ci" / "test-support" / build_type
-        if artifact_root.parent.exists():
-            shutil.rmtree(artifact_root.parent)
+        if artifact_root.exists():
+            shutil.rmtree(artifact_root)
         artifact_root.mkdir(parents=True)
 
         required = [build_dir / "test" / "unittest"]
@@ -609,20 +652,14 @@ class PhaseRunner:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, destination)
 
-        archive = self.workspace / ".ci" / "test-support.tar.gz"
+        archive.parent.mkdir(parents=True, exist_ok=True)
         with tarfile.open(archive, "w:gz", compresslevel=4) as bundle:
             bundle.add(artifact_root, arcname=build_type)
-        self.append_github_file("GITHUB_OUTPUT", "test_support_path", str(archive))
 
-    def test_supports(self) -> None:
-        if self.enabled("CI_SKIP_TESTS"):
-            print("Tests skipped by workflow input.")
-            return
-        support_root = Path(self.required("CI_TEST_SUPPORT_DIR"))
-        repository_root = Path(self.required("CI_EXTENSION_ARTIFACT_DIR"))
-        archives = sorted(support_root.glob("**/test-support.tar.gz"))
+    def _test_artifacts(self, repository_root: Path) -> None:
+        archives = sorted((repository_root / "test-support").glob("**/test-support.tar.gz"))
         if not archives:
-            raise FileNotFoundError(f"no test-support archives found below {support_root}")
+            raise FileNotFoundError(f"no test-support archives found below {repository_root}")
 
         build_type = self.required("CI_BUILD_TYPE")
         build_root = self.workspace / "build"
@@ -639,9 +676,14 @@ class PhaseRunner:
                 bundle.extractall(build_root)
             destination_repository = build_dir / "repository"
             destination_repository.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(repository_root, destination_repository, dirs_exist_ok=True)
+            shutil.copytree(
+                repository_root,
+                destination_repository,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("test-support"),
+            )
             print(f"Testing support bundle from {archive}")
-            self.test()
+            self._run_tests()
 
 
 def main() -> None:
@@ -654,8 +696,6 @@ def main() -> None:
             "build",
             "test",
             "upload",
-            "bundle_test_support",
-            "test_supports",
         ),
     )
     args = parser.parse_args()
