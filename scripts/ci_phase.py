@@ -621,13 +621,6 @@ class PhaseRunner:
             shutil.rmtree(artifact_root)
         artifact_root.mkdir(parents=True)
 
-        required = [build_dir / "test" / "unittest"]
-        if os.name == "nt":
-            required = [build_dir / "test" / "unittest.exe"]
-        for source in required:
-            if not source.is_file():
-                raise FileNotFoundError(f"test support file does not exist: {source}")
-
         candidates = [
             build_dir / "duckdb",
             build_dir / "duckdb.exe",

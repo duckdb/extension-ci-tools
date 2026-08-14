@@ -266,15 +266,31 @@ class CIPhaseTest(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 runner.upload()
 
-    def test_upload_fails_when_required_test_support_is_missing(self):
+    def test_upload_allows_missing_unittest_binary(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
             artifact = workspace / "build/release/extension/quack/quack.duckdb_extension"
             artifact.parent.mkdir(parents=True)
             artifact.touch()
-            runner = RecordingRunner(self.environment(workspace))
-            with self.assertRaises(FileNotFoundError):
-                runner.upload()
+            output = workspace / "github-output"
+            env = self.environment(workspace)
+            env["GITHUB_OUTPUT"] = str(output)
+            RecordingRunner(env).upload()
+
+            values = output.read_text(encoding="utf-8")
+            artifact_path = Path(
+                next(
+                    line.removeprefix("artifact_path=")
+                    for line in values.splitlines()
+                    if line.startswith("artifact_path=")
+                )
+            )
+            archives = list(artifact_path.glob("test-support/**/test-support.tar.gz"))
+            self.assertEqual(len(archives), 1)
+            with tarfile.open(archives[0], "r:gz") as bundle:
+                self.assertFalse(
+                    any(Path(name).name.startswith("unittest") for name in bundle.getnames())
+                )
 
     def test_upload_and_test_restore_embedded_group_support(self):
         with tempfile.TemporaryDirectory() as directory:
