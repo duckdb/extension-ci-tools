@@ -131,18 +131,14 @@ class PhaseRunner:
 
     def checkout(self) -> None:
         duckdb_repository = self.value("CI_DUCKDB_GIT_REPOSITORY")
+        duckdb_version = self.value("CI_DUCKDB_VERSION")
         if duckdb_repository:
             self.run(
-                ["make", "set_duckdb_repository"],
-                extra_env={"DUCKDB_GIT_REPOSITORY": duckdb_repository},
+                ["git", "-C", "duckdb", "remote", "set-url", "origin", duckdb_repository]
             )
-
-        duckdb_version = self.value("CI_DUCKDB_VERSION")
         if duckdb_version:
-            self.run(
-                ["make", "set_duckdb_version"],
-                extra_env={"DUCKDB_GIT_VERSION": duckdb_version},
-            )
+            self.run(["git", "-C", "duckdb", "fetch", "origin", duckdb_version])
+            self.run(["git", "-C", "duckdb", "checkout", duckdb_version])
 
         extension_tag = self.value("CI_EXTENSION_TAG")
         if extension_tag:

@@ -83,10 +83,33 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 commands,
                 [
-                    ["make", "set_duckdb_repository"],
-                    ["make", "set_duckdb_version"],
+                    [
+                        "git",
+                        "-C",
+                        "duckdb",
+                        "remote",
+                        "set-url",
+                        "origin",
+                        "duckdb/duckdb-fork",
+                    ],
+                    ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
+                    ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                     ["git", "tag", "v2.0.0"],
                     ["make", "set_duckdb_tag"],
+                ],
+            )
+
+    def test_checkout_fetches_version_without_repository_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            runner = RecordingRunner(env)
+            runner.checkout()
+            commands = [command for command, _ in runner.commands]
+            self.assertEqual(
+                commands,
+                [
+                    ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
+                    ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                 ],
             )
 
