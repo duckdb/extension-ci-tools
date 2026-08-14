@@ -61,15 +61,15 @@ on:
         type: string
         default: 20260814-e87a46ea
       skip_tests:
-        description: Skip tests while retaining artifact consumption and deployment
+        description: Skip tests
         required: false
         type: boolean
         default: false
-      deploy:
-        description: Deploy all unique extension binaries from each architecture
+      save_cache:
+        description: Save ccache after the build
         required: false
         type: boolean
-        default: false
+        default: true
       vcpkg_url:
         description: vcpkg repository
         required: false
@@ -88,14 +88,6 @@ on:
       VCPKG_CACHING_AWS_ENDPOINT_URL:
         required: false
       VCPKG_CACHING_AWS_DEFAULT_REGION:
-        required: false
-      DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT:
-        required: false
-      DUCKDB_EXTENSIONS_NIGHTLY_S3_ID:
-        required: false
-      DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY:
-        required: false
-      S3_DUCKDB_ORG_EXTENSION_SIGNING_PK:
         required: false
 
 permissions:
@@ -131,7 +123,6 @@ jobs:
       build_windows: ${{ steps.matrix.outputs.build_windows }}
       test_windows: ${{ steps.matrix.outputs.test_windows }}
       build_wasm: ${{ steps.matrix.outputs.build_wasm }}
-      test_wasm: ${{ steps.matrix.outputs.test_wasm }}
     steps:
       - name: Compute matrix
         id: matrix
@@ -195,6 +186,7 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
@@ -263,6 +255,7 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
@@ -347,6 +340,7 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
       - name: Configure short vcpkg path
         shell: pwsh
         run: |
@@ -433,6 +427,7 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
@@ -448,7 +443,7 @@ jobs:
           if-no-files-found: error
 
   test_linux:
-    name: Test/deploy Linux (${{ matrix.duckdb_arch }})
+    name: Test Linux (${{ matrix.duckdb_arch }})
     needs: [matrix, build_linux]
     if: ${{ !cancelled() && needs.matrix.outputs.test_linux != '' && needs.matrix.outputs.test_linux != '{"include":[]}' && needs.build_linux.result == 'success' }}
     runs-on: ${{ matrix.runner }}
@@ -493,35 +488,9 @@ jobs:
       - name: Test each group
         if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
         run: python3 extension-ci-tools/scripts/ci_phase.py test
-      - name: Deploy extensions
-        if: ${{ inputs.deploy }}
-        shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY }}
-          DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
-          DUCKDB_DEPLOY_SCRIPT_MODE: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY != '' && 'for_real' || '' }}
-          PIP_BREAK_SYSTEM_PACKAGES: 1
-        run: |
-          python3 -m pip install awscli
-          git config --global --add safe.directory '*'
-          git fetch --tags
-          git -C duckdb fetch --tags
-          extension_version="$(git tag --points-at HEAD | head -n 1)"
-          extension_version="${extension_version:-$(git rev-parse --short HEAD)}"
-          duckdb_version="$(git -C duckdb tag --points-at HEAD | head -n 1)"
-          duckdb_version="${duckdb_version:-$(git -C duckdb rev-parse --short HEAD)}"
-          python3 extension-ci-tools/scripts/deploy_artifacts.py \
-            --root "$CI_EXTENSION_ARTIFACT_DIR" \
-            --script ./duckdb/scripts/extension-upload-single.sh \
-            --extension-version "$extension_version" \
-            --duckdb-version "$duckdb_version" \
-            --architecture "${{ matrix.duckdb_arch }}" \
-            --bucket duckdb-extensions-nightly
 
   test_macos:
-    name: Test/deploy macOS (${{ matrix.duckdb_arch }})
+    name: Test macOS (${{ matrix.duckdb_arch }})
     needs: [matrix, build_macos]
     if: ${{ !cancelled() && needs.matrix.outputs.test_macos != '' && needs.matrix.outputs.test_macos != '{"include":[]}' && needs.build_macos.result == 'success' }}
     runs-on: ${{ matrix.runner }}
@@ -566,28 +535,9 @@ jobs:
       - name: Test each group
         if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
         run: python3 extension-ci-tools/scripts/ci_phase.py test
-      - name: Deploy extensions
-        if: ${{ inputs.deploy }}
-        shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY }}
-          DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
-          DUCKDB_DEPLOY_SCRIPT_MODE: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY != '' && 'for_real' || '' }}
-          PIP_BREAK_SYSTEM_PACKAGES: 1
-        run: |
-          python3 -m pip install awscli
-          git fetch --tags
-          git -C duckdb fetch --tags
-          extension_version="$(git tag --points-at HEAD | head -n 1)"
-          extension_version="${extension_version:-$(git rev-parse --short HEAD)}"
-          duckdb_version="$(git -C duckdb tag --points-at HEAD | head -n 1)"
-          duckdb_version="${duckdb_version:-$(git -C duckdb rev-parse --short HEAD)}"
-          python3 extension-ci-tools/scripts/deploy_artifacts.py --root "$CI_EXTENSION_ARTIFACT_DIR" --script ./duckdb/scripts/extension-upload-single.sh --extension-version "$extension_version" --duckdb-version "$duckdb_version" --architecture "${{ matrix.duckdb_arch }}" --bucket duckdb-extensions-nightly
 
   test_windows:
-    name: Test/deploy Windows (${{ matrix.duckdb_arch }})
+    name: Test Windows (${{ matrix.duckdb_arch }})
     needs: [matrix, build_windows]
     if: ${{ !cancelled() && needs.matrix.outputs.test_windows != '' && needs.matrix.outputs.test_windows != '{"include":[]}' && needs.build_windows.result == 'success' }}
     runs-on: ${{ matrix.runner }}
@@ -635,84 +585,3 @@ jobs:
       - name: Test each group
         if: ${{ !inputs.skip_tests }}
         run: python extension-ci-tools/scripts/ci_phase.py test
-      - name: Deploy extensions
-        if: ${{ inputs.deploy }}
-        shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY }}
-          DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
-          DUCKDB_DEPLOY_SCRIPT_MODE: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY != '' && 'for_real' || '' }}
-          PIP_BREAK_SYSTEM_PACKAGES: 1
-        run: |
-          python -m pip install awscli
-          git fetch --tags
-          git -C duckdb fetch --tags
-          extension_version="$(git tag --points-at HEAD | head -n 1)"
-          extension_version="${extension_version:-$(git rev-parse --short HEAD)}"
-          duckdb_version="$(git -C duckdb tag --points-at HEAD | head -n 1)"
-          duckdb_version="${duckdb_version:-$(git -C duckdb rev-parse --short HEAD)}"
-          python extension-ci-tools/scripts/deploy_artifacts.py --root "$CI_EXTENSION_ARTIFACT_DIR" --script ./duckdb/scripts/extension-upload-single.sh --extension-version "$extension_version" --duckdb-version "$duckdb_version" --architecture "${{ matrix.duckdb_arch }}" --bucket duckdb-extensions-nightly
-
-  test_wasm:
-    name: Deploy Wasm (${{ matrix.duckdb_arch }})
-    needs: [matrix, build_wasm]
-    if: ${{ !cancelled() && needs.matrix.outputs.test_wasm != '' && needs.matrix.outputs.test_wasm != '{"include":[]}' && needs.build_wasm.result == 'success' }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.matrix.outputs.test_wasm) }}
-    env:
-      CI_PLATFORM: wasm
-      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      CI_EXTENSION_NAME: all-extensions
-      CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
-    steps:
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
-      - name: Checkout extension-ci-tools
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: extension-ci-tools
-          repository: ${{ inputs.ci_tools_repository }}
-          ref: ${{ inputs.ci_tools_version }}
-      - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.11"
-      - name: Prepare sources
-        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
-      - name: Download extension artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: ${{ matrix.artifact_pattern }}
-          path: ${{ github.workspace }}/.ci/repository
-          merge-multiple: true
-      - name: Skip Wasm tests
-        if: ${{ !inputs.skip_tests }}
-        run: python3 extension-ci-tools/scripts/ci_phase.py test
-      - name: Deploy extensions
-        if: ${{ inputs.deploy }}
-        shell: bash
-        env:
-          AWS_ENDPOINT_URL: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY }}
-          DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
-          DUCKDB_DEPLOY_SCRIPT_MODE: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY != '' && 'for_real' || '' }}
-          PIP_BREAK_SYSTEM_PACKAGES: 1
-        run: |
-          python3 -m pip install awscli
-          git fetch --tags
-          git -C duckdb fetch --tags
-          extension_version="$(git tag --points-at HEAD | head -n 1)"
-          extension_version="${extension_version:-$(git rev-parse --short HEAD)}"
-          duckdb_version="$(git -C duckdb tag --points-at HEAD | head -n 1)"
-          duckdb_version="${duckdb_version:-$(git -C duckdb rev-parse --short HEAD)}"
-          python3 extension-ci-tools/scripts/deploy_artifacts.py --root "$CI_EXTENSION_ARTIFACT_DIR" --script ./duckdb/scripts/extension-upload-single.sh --extension-version "$extension_version" --duckdb-version "$duckdb_version" --architecture "${{ matrix.duckdb_arch }}" --bucket duckdb-extensions-nightly
