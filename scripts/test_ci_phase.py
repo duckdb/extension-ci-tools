@@ -255,6 +255,7 @@ class CIPhaseTest(unittest.TestCase):
                     if line.startswith("artifact_path=")
                 )
             )
+            self.assertEqual(artifact_path.parent, workspace.resolve() / "ci-artifacts")
             self.assertTrue((artifact_path / artifact.name).is_file())
             self.assertFalse((artifact_path / "test-support").exists())
             self.assertIn("artifact_name=quack-v1.2.3-extension-linux_amd64", values)

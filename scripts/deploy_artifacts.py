@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+from pathlib import Path, PurePath
 import shutil
 import subprocess
 import tempfile
@@ -45,7 +45,7 @@ def discover_extensions(root: Path) -> list[tuple[str, Path]]:
 
 def deploy_extensions(
     root: Path,
-    script: Path,
+    script: PurePath,
     extension_version: str,
     duckdb_version: str,
     architecture: str,
@@ -64,7 +64,7 @@ def deploy_extensions(
             subprocess.run(
                 [
                     "bash",
-                    str(script),
+                    script.as_posix(),
                     name,
                     extension_version,
                     duckdb_version,
@@ -72,7 +72,7 @@ def deploy_extensions(
                     bucket,
                     str(deploy_latest).lower(),
                     str(deploy_versioned).lower(),
-                    str(staging),
+                    staging.as_posix(),
                 ],
                 check=True,
             )

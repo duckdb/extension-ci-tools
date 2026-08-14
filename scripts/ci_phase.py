@@ -575,7 +575,7 @@ class PhaseRunner:
             f"{self.architecture}{self.value('CI_ARTIFACT_POSTFIX')}"
         )
         artifact_id = hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
-        staging = self.workspace / "build" / "ci-artifacts" / artifact_id
+        staging = self.workspace / "ci-artifacts" / artifact_id
         if staging.exists():
             shutil.rmtree(staging)
         staging.mkdir(parents=True)

@@ -1,6 +1,6 @@
 from contextlib import redirect_stdout
 import io
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import tempfile
 import unittest
 
@@ -34,7 +34,7 @@ class DeployArtifactsTest(unittest.TestCase):
             extension.write_text("binary", encoding="utf-8")
             deploy_extensions(
                 root,
-                Path("duckdb/scripts/extension-upload-single.sh"),
+                PureWindowsPath(r"duckdb\scripts\extension-upload-single.sh"),
                 "abc123",
                 "v1.2.3",
                 "linux_amd64",
@@ -55,6 +55,7 @@ class DeployArtifactsTest(unittest.TestCase):
             ])
             self.assertEqual(command[8], "false")
             self.assertTrue(command[9])
+            self.assertNotIn("\\", command[9])
             run.assert_called_once_with(command, check=True)
 
 
