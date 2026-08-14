@@ -2,8 +2,10 @@ from contextlib import redirect_stderr
 import io
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest import mock
@@ -119,6 +121,42 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(runner.commands[0][0][-2:], ["make", "test_release"])
             self.assertEqual(runner.commands[1][0], ["make", "test_release"])
 
+    def test_linux_native_container_build_and_test_do_not_use_docker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["CI_LINUX_NATIVE_CONTAINER"] = "true"
+            runner = RecordingRunner(env)
+            runner.setup_linux()
+            runner.build_linux()
+            runner.test()
+            self.assertEqual(runner.commands[0][0], ["make", "configure_ci"])
+            self.assertEqual(runner.commands[1][0][-2:], ["make", "release"])
+            self.assertEqual(runner.commands[2][0], ["make", "test_release"])
+            self.assertNotIn("docker", str(runner.commands))
+
+    def test_extension_config_paths_are_resolved_from_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "extension_config.cmake").write_text("set(BASE 1)\n", encoding="utf-8")
+            config = workspace / "config" / "group.cmake"
+            config.parent.mkdir()
+            config.write_text("set(GROUP 1)\n", encoding="utf-8")
+            env = self.environment(workspace)
+            env["CI_EXTENSION_CONFIG_PATHS"] = '["config/group.cmake"]'
+            runner = RecordingRunner(env)
+            runner.inject_extension_config()
+            contents = (workspace / "extension_config.cmake").read_text(encoding="utf-8")
+            self.assertIn("set(BASE 1)", contents)
+            self.assertIn("set(GROUP 1)", contents)
+
+    def test_missing_extension_config_path_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["CI_EXTENSION_CONFIG_PATHS"] = '["missing.cmake"]'
+            runner = RecordingRunner(env)
+            with self.assertRaises(FileNotFoundError):
+                runner.inject_extension_config()
+
     def test_failed_phase_command_exits_concisely_for_list_and_shell_commands(self):
         commands = (
             (["make", "test release"], "make 'test release'"),
@@ -217,6 +255,41 @@ class CIPhaseTest(unittest.TestCase):
             runner = RecordingRunner(self.environment(directory))
             with self.assertRaises(FileNotFoundError):
                 runner.upload()
+
+    def test_bundle_and_restore_test_support_uses_external_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            build = workspace / "build" / "release"
+            unittest_binary = build / "test" / ("unittest.exe" if os.name == "nt" else "unittest")
+            unittest_binary.parent.mkdir(parents=True)
+            unittest_binary.write_text("runner", encoding="utf-8")
+            repository = workspace / "downloaded-repository" / "v1" / "linux_amd64"
+            repository.mkdir(parents=True)
+            (repository / "quack.duckdb_extension").write_text("extension", encoding="utf-8")
+
+            output = workspace / "github-output"
+            env = self.environment(workspace)
+            env["GITHUB_OUTPUT"] = str(output)
+            runner = RecordingRunner(env)
+            runner.bundle_test_support()
+            archive = workspace / ".ci" / "test-support.tar.gz"
+            self.assertTrue(archive.is_file())
+            with tarfile.open(archive, "r:gz") as bundle:
+                names = bundle.getnames()
+            self.assertIn(f"release/test/{unittest_binary.name}", names)
+            self.assertFalse(any("repository" in name for name in names))
+
+            support_dir = workspace / "support" / "main"
+            support_dir.mkdir(parents=True)
+            shutil.copy2(archive, support_dir / archive.name)
+            env["CI_TEST_SUPPORT_DIR"] = str(workspace / "support")
+            env["CI_EXTENSION_ARTIFACT_DIR"] = str(workspace / "downloaded-repository")
+            restored = RecordingRunner(env)
+            restored.test_supports()
+            self.assertTrue(
+                (build / "repository" / "v1" / "linux_amd64" / "quack.duckdb_extension").is_file()
+            )
+            self.assertEqual(restored.commands[0][0][-2:], ["make", "test_release"])
 
 
 if __name__ == "__main__":
