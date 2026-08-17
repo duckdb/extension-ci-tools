@@ -96,7 +96,6 @@ permissions:
 
 env:
   CI_DUCKDB_VERSION: ${{ inputs.duckdb_version }}
-  CI_DUCKDB_GIT_REPOSITORY: ${{ inputs.duckdb_repository }}
   CI_BUILD_TYPE: release
   CI_BUILD_DUCKDB_SHELL: true
   CI_UPLOAD_ALL_EXTENSIONS: true
@@ -164,21 +163,20 @@ jobs:
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
     steps:
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: extension-ci-tools
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
-      - name: Prepare sources
-        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         continue-on-error: true
@@ -190,7 +188,12 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        run: python3 extension-ci-tools/scripts/ci_phase.py build
+        uses: duckdb/duckdb-ci/build-duckdb@main
+        with:
+          build: python3 extension-ci-tools/scripts/ci_phase.py build
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
       - name: Prepare extension artifact
         id: artifact
         run: python3 extension-ci-tools/scripts/ci_phase.py upload
@@ -226,13 +229,14 @@ jobs:
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
     steps:
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -246,8 +250,6 @@ jobs:
       - name: Setup Rust
         if: ${{ matrix.toolchain == 'rust' }}
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
-      - name: Prepare sources
-        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         continue-on-error: true
@@ -259,7 +261,12 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        run: python3 extension-ci-tools/scripts/ci_phase.py build
+        uses: duckdb/duckdb-ci/build-duckdb@main
+        with:
+          build: python3 extension-ci-tools/scripts/ci_phase.py build
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
       - name: Prepare extension artifact
         id: artifact
         run: python3 extension-ci-tools/scripts/ci_phase.py upload
@@ -300,13 +307,14 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -332,8 +340,6 @@ jobs:
           r-version: devel
           update-rtools: true
           rtools-version: "42"
-      - name: Prepare sources
-        run: python extension-ci-tools/scripts/ci_phase.py checkout
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         with:
@@ -347,6 +353,7 @@ jobs:
           $basePath = Split-Path -Path (Split-Path -Path $env:GITHUB_WORKSPACE -Parent) -Parent
           $vcpkgRoot = "$basePath/vcpkg"
           "VCPKG_WINDOWS_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
           "VCPKG_TOOLCHAIN_PATH=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
@@ -357,7 +364,12 @@ jobs:
       - name: Configure
         run: python extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        run: python extension-ci-tools/scripts/ci_phase.py build
+        uses: duckdb/duckdb-ci/build-duckdb@main
+        with:
+          build: python extension-ci-tools/scripts/ci_phase.py build
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
       - name: Prepare extension artifact
         id: artifact
         run: python extension-ci-tools/scripts/ci_phase.py upload
@@ -392,13 +404,14 @@ jobs:
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
     steps:
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -418,8 +431,6 @@ jobs:
         uses: dtolnay/rust-toolchain@4d407b29186a635f0cc27475ef0bc0ae605a8866 # 1.86.0
         with:
           targets: wasm32-unknown-emscripten
-      - name: Prepare sources
-        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         continue-on-error: true
@@ -431,7 +442,12 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        run: python3 extension-ci-tools/scripts/ci_phase.py build
+        uses: duckdb/duckdb-ci/build-duckdb@main
+        with:
+          build: python3 extension-ci-tools/scripts/ci_phase.py build
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
       - name: Prepare extension artifact
         id: artifact
         run: python3 extension-ci-tools/scripts/ci_phase.py upload
@@ -464,21 +480,20 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: extension-ci-tools
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
-      - name: Prepare sources
-        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -507,13 +522,14 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -524,8 +540,6 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
-      - name: Prepare sources
-        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -557,13 +571,14 @@ jobs:
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
-      - name: Checkout extension
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@main
         with:
-          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
-          ref: ${{ inputs.extension_ref }}
-          fetch-depth: 0
-          submodules: recursive
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -574,8 +589,6 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
-      - name: Prepare sources
-        run: python extension-ci-tools/scripts/ci_phase.py checkout
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
