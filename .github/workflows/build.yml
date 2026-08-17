@@ -168,7 +168,7 @@ jobs:
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
-          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-repository: ${{ inputs.duckdb_repository }}
           duckdb-ref: ${{ inputs.duckdb_version }}
           duckdb-sha: ${{ inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
