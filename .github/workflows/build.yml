@@ -389,6 +389,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.build_wasm) }}
     env:
+      GEN: make
       CI_PLATFORM: wasm
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       WASM_EXTENSIONS: 1
