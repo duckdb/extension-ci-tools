@@ -48,6 +48,11 @@ on:
         required: false
         type: string
         default: ""
+      # ';' separated list of architectures that should not fail the workflow
+      allow_failure_archs:
+        required: false
+        type: string
+        default: ""
       # Postfix added to artifact names. Can be used to guarantee unique names when this workflow is called multiple times
       artifact_postfix:
         required: false
@@ -277,6 +282,7 @@ jobs:
 
   linux:
     name: ${{ matrix.duckdb_arch }}
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     runs-on: ${{ startsWith(matrix.runner, '[') && fromJSON(matrix.runner) || matrix.runner }}
     needs: generate_matrix
     if: ${{ needs.generate_matrix.outputs.linux_matrix != '{}' && needs.generate_matrix.outputs.linux_matrix != '' }}
