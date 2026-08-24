@@ -322,7 +322,10 @@ class PhaseRunner:
             self.run(["aws", "--version"])
         self.run_with_retry(
             ["make", "configure_ci"],
-            extra_env={"DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION")},
+            extra_env={
+                **self.vcpkg_cache_environment(),
+                "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
+            },
         )
         self.install_extra_vcpkg_dependencies()
 
@@ -330,9 +333,22 @@ class PhaseRunner:
         self.inject_extension_config()
         getattr(self, f"setup_{self.platform}")()
 
+    def vcpkg_cache_environment(self) -> dict[str, str]:
+        # Off Linux the build runs on the runner rather than in a container, so
+        # the cache vcpkg reads and writes is the workspace directory itself.
+        cache = self.workspace / ".vcpkg_cache"
+        cache.mkdir(parents=True, exist_ok=True)
+        sources = self.value("VCPKG_BINARY_SOURCES")
+        sources = f"{sources};files,{cache},readwrite" if sources else f"files,{cache},readwrite"
+        return {
+            "VCPKG_BINARY_SOURCES": sources,
+            "VCPKG_DEFAULT_BINARY_CACHE": str(cache),
+        }
+
     def build_environment(self) -> dict[str, str]:
         is_rtools = self.architecture in {"windows_amd64_rtools", "windows_amd64_mingw"}
         return {
+            **self.vcpkg_cache_environment(),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_PLATFORM_RTOOLS": "1" if is_rtools else "0",
             "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
@@ -351,12 +367,21 @@ class PhaseRunner:
             f"{self.workspace}:/duckdb_build_dir",
             "-v",
             f"{self.workspace / '.ccache'}:/ccache_dir",
+            "-v",
+            f"{self.workspace / '.vcpkg_cache'}:/vcpkg_cache",
             f"duckdb/{self.architecture}",
         ]
 
     def create_docker_environment(self) -> None:
+        # The archives vcpkg builds are reusable between runs, so the cache the
+        # workspace carries is offered as a read-write source beside whatever
+        # read-only ones are configured.
+        binary_sources = self.value("VCPKG_BINARY_SOURCES")
+        binary_sources = f"{binary_sources};files,/vcpkg_cache,readwrite" if binary_sources \
+            else "files,/vcpkg_cache,readwrite"
         values = {
-            "VCPKG_BINARY_SOURCES": self.value("VCPKG_BINARY_SOURCES"),
+            "VCPKG_BINARY_SOURCES": binary_sources,
+            "VCPKG_DEFAULT_BINARY_CACHE": "/vcpkg_cache",
             "USE_MERGED_VCPKG_MANIFEST": self.value("USE_MERGED_VCPKG_MANIFEST"),
             "AWS_ACCESS_KEY_ID": self.value("AWS_ACCESS_KEY_ID"),
             "AWS_SECRET_ACCESS_KEY": self.value("AWS_SECRET_ACCESS_KEY"),

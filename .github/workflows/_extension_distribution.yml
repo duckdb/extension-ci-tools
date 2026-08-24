@@ -357,12 +357,35 @@ jobs:
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
 
+
+      # A manifest names the same dependency set from one run to the next, so
+      # the archives vcpkg produces for it are reusable: the key is the vcpkg
+      # commit, the target triplet and the manifest itself, and a run whose
+      # dependencies are unchanged restores them instead of compiling them.
+      - name: Setup / vcpkg binary cache
+        run: mkdir -p .vcpkg_cache
+
+      - name: Setup / Load vcpkg binary cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-
       - name: Setup
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
 
       - name: Build
         run: python3 extension-ci-tools/scripts/ci_phase.py build
 
+
+      - name: Upload / Save vcpkg binary cache
+        if: ${{ inputs.save_cache }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
       - name: Test
         run: python3 extension-ci-tools/scripts/ci_phase.py test
 
@@ -464,12 +487,35 @@ jobs:
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
 
+
+      # A manifest names the same dependency set from one run to the next, so
+      # the archives vcpkg produces for it are reusable: the key is the vcpkg
+      # commit, the target triplet and the manifest itself, and a run whose
+      # dependencies are unchanged restores them instead of compiling them.
+      - name: Setup / vcpkg binary cache
+        run: mkdir -p .vcpkg_cache
+
+      - name: Setup / Load vcpkg binary cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-
       - name: Setup
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
 
       - name: Build
         run: python3 extension-ci-tools/scripts/ci_phase.py build
 
+
+      - name: Upload / Save vcpkg binary cache
+        if: ${{ inputs.save_cache }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
       - name: Test
         run: python3 extension-ci-tools/scripts/ci_phase.py test
 
@@ -585,6 +631,22 @@ jobs:
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
 
+
+      # A manifest names the same dependency set from one run to the next, so
+      # the archives vcpkg produces for it are reusable: the key is the vcpkg
+      # commit, the target triplet and the manifest itself, and a run whose
+      # dependencies are unchanged restores them instead of compiling them.
+      - name: Setup / vcpkg binary cache
+        run: mkdir -p .vcpkg_cache
+
+      - name: Setup / Load vcpkg binary cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-
       - name: Setup / Rtools
         if: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw' }}
         uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
@@ -614,6 +676,13 @@ jobs:
       - name: Build
         run: python extension-ci-tools/scripts/ci_phase.py build
 
+
+      - name: Upload / Save vcpkg binary cache
+        if: ${{ inputs.save_cache }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
       - name: Test
         run: python extension-ci-tools/scripts/ci_phase.py test
 
@@ -723,12 +792,35 @@ jobs:
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
 
+
+      # A manifest names the same dependency set from one run to the next, so
+      # the archives vcpkg produces for it are reusable: the key is the vcpkg
+      # commit, the target triplet and the manifest itself, and a run whose
+      # dependencies are unchanged restores them instead of compiling them.
+      - name: Setup / vcpkg binary cache
+        run: mkdir -p .vcpkg_cache
+
+      - name: Setup / Load vcpkg binary cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}
+            vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-
       - name: Setup
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
 
       - name: Build
         run: python3 extension-ci-tools/scripts/ci_phase.py build
 
+
+      - name: Upload / Save vcpkg binary cache
+        if: ${{ inputs.save_cache }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./.vcpkg_cache
+          key: vcpkg-extension-distribution-${{ matrix.duckdb_arch }}-${{ matrix.vcpkg_target_triplet }}-${{ inputs.vcpkg_commit }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg_ports/**') }}-${{ github.run_id }}
       - name: Test
         run: python3 extension-ci-tools/scripts/ci_phase.py test
 
