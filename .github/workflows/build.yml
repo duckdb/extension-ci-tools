@@ -333,13 +333,6 @@ jobs:
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         with:
           targets: x86_64-pc-windows-gnu
-      - name: Setup Rtools
-        if: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw' }}
-        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
-        with:
-          r-version: devel
-          update-rtools: true
-          rtools-version: "42"
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         with:
@@ -347,6 +340,13 @@ jobs:
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
           save: ${{ inputs.save_cache }}
+      - name: Setup Rtools
+        if: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw' }}
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
+        with:
+          r-version: devel
+          update-rtools: true
+          rtools-version: "42"
       - name: Configure short vcpkg path
         shell: pwsh
         run: |
@@ -541,6 +541,8 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
+      - name: Install build prerequisites
+        run: brew install ninja
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -566,6 +568,8 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
+      CC: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'gcc' || 'cl' }}
+      CXX: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'g++' || 'cl' }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -590,6 +594,15 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
+      - name: Setup Rtools
+        if: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' }}
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
+        with:
+          r-version: devel
+          update-rtools: true
+          rtools-version: "42"
+      - name: Install build prerequisites
+        run: choco install ninja -y
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
