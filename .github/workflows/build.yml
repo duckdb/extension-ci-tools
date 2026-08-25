@@ -191,6 +191,7 @@ jobs:
         uses: duckdb/duckdb-ci/build-duckdb@main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
+          test: python3 extension-ci-tools/scripts/ci_phase.py test
           vcpkg-commit: ${{ inputs.vcpkg_commit }}
           save-cache: ${{ inputs.save_cache }}
           cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
@@ -264,6 +265,7 @@ jobs:
         uses: duckdb/duckdb-ci/build-duckdb@main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
+          test: python3 extension-ci-tools/scripts/ci_phase.py test
           vcpkg-commit: ${{ inputs.vcpkg_commit }}
           save-cache: ${{ inputs.save_cache }}
           cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
@@ -367,6 +369,7 @@ jobs:
         uses: duckdb/duckdb-ci/build-duckdb@main
         with:
           build: python extension-ci-tools/scripts/ci_phase.py build
+          test: python extension-ci-tools/scripts/ci_phase.py test
           vcpkg-commit: ${{ inputs.vcpkg_commit }}
           save-cache: ${{ inputs.save_cache }}
           cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
@@ -446,6 +449,7 @@ jobs:
         uses: duckdb/duckdb-ci/build-duckdb@main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
+          test: python3 extension-ci-tools/scripts/ci_phase.py test
           vcpkg-commit: ${{ inputs.vcpkg_commit }}
           save-cache: ${{ inputs.save_cache }}
           cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
