@@ -154,7 +154,7 @@ jobs:
       CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
       CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
-      CI_EXTRA_TOOLCHAINS: ${{ matrix.toolchain }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
       CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
@@ -221,7 +221,7 @@ jobs:
       CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
       CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
-      CI_EXTRA_TOOLCHAINS: ${{ matrix.toolchain }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
       CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
@@ -293,7 +293,7 @@ jobs:
       CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
       CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
-      CI_EXTRA_TOOLCHAINS: ${{ matrix.toolchain }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
       CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
@@ -399,7 +399,7 @@ jobs:
       CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
       CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
-      CI_EXTRA_TOOLCHAINS: ${{ matrix.toolchain }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
       CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
