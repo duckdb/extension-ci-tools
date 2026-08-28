@@ -85,7 +85,7 @@ esac
 
 # Configure Rust
 ENV PATH="/root/.cargo/bin:${PATH}"
-RUN case "$extra_toolchains" in \
+RUN set -o pipefail && case "$extra_toolchains" in \
   *\;rust\;*) \
     curl https://sh.rustup.rs -sSf | bash -s -- -y; \
   ;; \
