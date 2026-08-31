@@ -164,6 +164,10 @@ endif
 ifneq ($(TIDY_CHECKS),)
         TIDY_PERFORM_CHECKS := '-checks=${TIDY_CHECKS}'
 endif
+# Regex selecting which files clang-tidy lints (and reports headers for). The
+# default covers everything under src/. Overridable so extensions with a lint
+# backlog can narrow it while they clean up.
+TIDY_SRC_REGEX ?= $(PROJ_DIR)src/
 
 clangd: ${EXTENSION_CONFIG_STEP}
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B .cache/clangd/debug
@@ -292,7 +296,7 @@ tidy-check:
 	mkdir -p ./build/tidy
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DDISABLE_UNITY=1 -DCLANG_TIDY=1 -S $(DUCKDB_SRCDIR) -B build/tidy
 	cp duckdb/.clang-tidy build/tidy/.clang-tidy
-	cd build/tidy && python3 ../../duckdb/scripts/run-clang-tidy.py '$(PROJ_DIR)src/.*/' -header-filter '$(PROJ_DIR)src/.*/' -quiet ${TIDY_THREAD_PARAMETER} ${TIDY_BINARY_PARAMETER} ${TIDY_PERFORM_CHECKS}
+	cd build/tidy && python3 ../../duckdb/scripts/run-clang-tidy.py '$(TIDY_SRC_REGEX)' -header-filter '$(TIDY_SRC_REGEX)' -quiet ${TIDY_THREAD_PARAMETER} ${TIDY_BINARY_PARAMETER} ${TIDY_PERFORM_CHECKS}
 
 update:
 	git submodule update --remote --merge
