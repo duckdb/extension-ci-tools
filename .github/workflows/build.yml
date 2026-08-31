@@ -45,6 +45,11 @@ on:
         required: false
         type: string
         default: ""
+      allow_failure_archs:
+        description: Semicolon-separated architectures that should not fail the workflow
+        required: false
+        type: string
+        default: ""
       runners:
         description: JSON runner overrides accepted by duckdb-ci/matrix
         required: false
@@ -136,6 +141,7 @@ jobs:
 
   build_linux:
     name: Build Linux (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: matrix
     if: ${{ needs.matrix.outputs.build_linux != '' && needs.matrix.outputs.build_linux != '{"include":[]}' }}
     runs-on: ${{ matrix.runner }}
@@ -207,6 +213,7 @@ jobs:
 
   build_macos:
     name: Build macOS (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: matrix
     if: ${{ needs.matrix.outputs.build_macos != '' }}
     runs-on: ${{ matrix.runner }}
@@ -281,6 +288,7 @@ jobs:
 
   build_windows:
     name: Build Windows (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: matrix
     if: ${{ needs.matrix.outputs.build_windows != '' }}
     runs-on: ${{ matrix.runner }}
@@ -385,6 +393,7 @@ jobs:
 
   build_wasm:
     name: Build Wasm (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: matrix
     if: ${{ needs.matrix.outputs.build_wasm != '' }}
     runs-on: ${{ matrix.runner }}
@@ -465,6 +474,7 @@ jobs:
 
   test_linux:
     name: Test Linux (${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: [matrix, build_linux]
     if: ${{ !cancelled() && needs.matrix.outputs.test_linux != '' && needs.matrix.outputs.test_linux != '{"include":[]}' && needs.build_linux.result == 'success' }}
     runs-on: ${{ matrix.runner }}
@@ -511,6 +521,7 @@ jobs:
 
   test_macos:
     name: Test macOS (${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: [matrix, build_macos]
     if: ${{ !cancelled() && needs.matrix.outputs.test_macos != '' && needs.matrix.outputs.test_macos != '{"include":[]}' && needs.build_macos.result == 'success' }}
     runs-on: ${{ matrix.runner }}
@@ -559,6 +570,7 @@ jobs:
 
   test_windows:
     name: Test Windows (${{ matrix.duckdb_arch }})
+    continue-on-error: ${{ contains(format(';{0};', inputs.allow_failure_archs), format(';{0};', matrix.duckdb_arch)) }}
     needs: [matrix, build_windows]
     if: ${{ !cancelled() && needs.matrix.outputs.test_windows != '' && needs.matrix.outputs.test_windows != '{"include":[]}' && needs.build_windows.result == 'success' }}
     runs-on: ${{ matrix.runner }}
