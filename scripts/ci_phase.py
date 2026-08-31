@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tarfile
 from typing import Mapping, Sequence
 
 
@@ -129,18 +131,24 @@ class PhaseRunner:
 
     def checkout(self) -> None:
         duckdb_repository = self.value("CI_DUCKDB_GIT_REPOSITORY")
-        if duckdb_repository:
-            self.run(
-                ["make", "set_duckdb_repository"],
-                extra_env={"DUCKDB_GIT_REPOSITORY": duckdb_repository},
-            )
-
         duckdb_version = self.value("CI_DUCKDB_VERSION")
-        if duckdb_version:
+        duckdb_directory = self.workspace / "duckdb"
+        if not duckdb_directory.is_dir():
             self.run(
-                ["make", "set_duckdb_version"],
-                extra_env={"DUCKDB_GIT_VERSION": duckdb_version},
+                [
+                    "git",
+                    "clone",
+                    duckdb_repository or "https://github.com/duckdb/duckdb.git",
+                    "duckdb",
+                ]
             )
+        elif duckdb_repository:
+            self.run(
+                ["git", "-C", "duckdb", "remote", "set-url", "origin", duckdb_repository]
+            )
+        if duckdb_version:
+            self.run(["git", "-C", "duckdb", "fetch", "origin", duckdb_version])
+            self.run(["git", "-C", "duckdb", "checkout", duckdb_version])
 
         extension_tag = self.value("CI_EXTENSION_TAG")
         if extension_tag:
@@ -151,7 +159,22 @@ class PhaseRunner:
             self.run(["make", "set_duckdb_tag"], extra_env={"DUCKDB_TAG": duckdb_tag})
 
     def inject_extension_config(self) -> None:
-        config = self.value("CI_EXTRA_EXTENSION_CONFIG")
+        config_parts: list[str] = []
+        raw_paths = self.value("CI_EXTENSION_CONFIG_PATHS", "[]")
+        paths = json.loads(raw_paths)
+        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+            raise ValueError("CI_EXTENSION_CONFIG_PATHS must be a JSON string array")
+        for configured_path in paths:
+            path = Path(configured_path)
+            if not path.is_absolute():
+                path = self.workspace / path
+            if not path.is_file():
+                raise FileNotFoundError(f"extension config does not exist: {path}")
+            config_parts.append(path.read_text(encoding="utf-8").rstrip("\n"))
+        inline_config = self.value("CI_EXTRA_EXTENSION_CONFIG")
+        if inline_config:
+            config_parts.append(inline_config.rstrip("\n"))
+        config = "\n\n".join(part for part in config_parts if part)
         if not config:
             return
         path = self.workspace / "extension_config.cmake"
@@ -202,6 +225,12 @@ class PhaseRunner:
                 self.run(["vcpkg", "install", dependency, "--recurse"])
 
     def setup_linux(self) -> None:
+        if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
+            self.run_with_retry(
+                ["make", "configure_ci"],
+                extra_env=self.build_environment(),
+            )
+            return
         if self.enabled("CI_USE_DEFAULT_RUNNERS"):
             if self.enabled("CI_RUN_DISK_CLEAN_STEP"):
                 images = subprocess.run(
@@ -393,6 +422,12 @@ class PhaseRunner:
                 handle.write(f"{key}={value}\n")
 
     def build_linux(self) -> None:
+        if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
+            self.run_with_retry(
+                ["make", self.required("CI_BUILD_TYPE")],
+                extra_env=self.build_environment(),
+            )
+            return
         self.run(
             [
                 "docker",
@@ -465,31 +500,43 @@ class PhaseRunner:
     def build(self) -> None:
         getattr(self, f"build_{self.platform}")()
 
-    def test(self) -> None:
-        if self.enabled("CI_SKIP_TESTS"):
-            print("Tests skipped by workflow input.")
-            return
+    def _run_tests(self) -> None:
         environment = self.build_environment()
         environment["SUBSET_EXTENSIONS_TESTS"] = self.value("CI_EXTENSIONS_TEST_SELECTION")
         environment.update(test_environment(self.value("CI_TEST_CONFIG", "{}")))
         target = f"test_{self.required('CI_BUILD_TYPE')}"
 
         if self.platform == "linux":
-            if self.architecture == "linux_arm64":
-                print("Tests are not supported for linux_arm64.")
-                return
-            self.run([*self.docker_arguments(), "make", target])
-            environment["LINUX_CI_IN_DOCKER"] = "0"
-            self.run(["make", target], extra_env=environment)
+            if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
+                self.run(["make", target], extra_env=environment)
+            else:
+                self.run([*self.docker_arguments(), "make", target])
+                environment["LINUX_CI_IN_DOCKER"] = "0"
+                self.run(["make", target], extra_env=environment)
         elif self.platform == "macos":
-            if self.value("CI_OSX_BUILD_ARCH") != "arm64":
-                print("Tests run only on the native macOS arm64 build.")
-                return
             self.run(["make", target], extra_env=environment)
         elif self.platform == "windows":
             self.run(["make", target], extra_env=environment)
-        else:
+
+    def test(self) -> None:
+        if self.enabled("CI_SKIP_TESTS"):
+            print("Tests skipped by workflow input.")
+            return
+        if self.platform == "linux" and self.architecture == "linux_arm64":
+            print("Tests are not supported for linux_arm64.")
+            return
+        if self.platform == "macos" and self.value("CI_OSX_BUILD_ARCH") != "arm64":
+            print("Tests run only on the native macOS arm64 build.")
+            return
+        if self.platform == "wasm":
             print("The Wasm distribution job has no test target.")
+            return
+
+        repository = self.value("CI_EXTENSION_ARTIFACT_DIR")
+        if repository:
+            self._test_artifacts(Path(repository))
+            return
+        self._run_tests()
 
     def artifact_path(self) -> str:
         all_extensions = self.enabled("CI_UPLOAD_ALL_EXTENSIONS")
@@ -523,21 +570,133 @@ class PhaseRunner:
 
     def upload(self) -> None:
         path = self.artifact_path()
-        matches = glob.glob(str(self.workspace / path), recursive=True)
+        matches = sorted(
+            Path(match)
+            for match in glob.glob(str(self.workspace / path), recursive=True)
+        )
         if not matches:
             raise FileNotFoundError(f"no artifact matched {path}")
-        name = (
+        name = self.value("CI_ARTIFACT_NAME") or (
             f"{self.required('CI_EXTENSION_NAME')}-{self.value('CI_DUCKDB_VERSION')}-extension-"
             f"{self.architecture}{self.value('CI_ARTIFACT_POSTFIX')}"
         )
-        self.append_github_file("GITHUB_OUTPUT", "artifact_path", path)
+        artifact_id = hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
+        staging = self.workspace / "ci-artifacts" / artifact_id
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True)
+
+        build_base = self.workspace / "build" / (
+            self.architecture if self.platform == "wasm" else self.required("CI_BUILD_TYPE")
+        )
+        source_root = (
+            build_base / "repository"
+            if self.enabled("CI_UPLOAD_ALL_EXTENSIONS")
+            else build_base / "extension" / self.required("CI_EXTENSION_NAME")
+        )
+        for source in matches:
+            destination = staging / source.relative_to(source_root)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+
+        if self._test_support_enabled():
+            archive = staging / "test-support" / artifact_id / "test-support.tar.gz"
+            self._bundle_test_support(archive)
+
+        self.append_github_file("GITHUB_OUTPUT", "artifact_path", str(staging))
         self.append_github_file("GITHUB_OUTPUT", "artifact_name", name)
         self.print_rust_logs()
+
+    def _test_support_enabled(self) -> bool:
+        if self.enabled("CI_SKIP_TESTS") or self.platform == "wasm":
+            return False
+        if self.platform == "linux":
+            return self.architecture != "linux_arm64"
+        if self.platform == "macos":
+            return self.value("CI_OSX_BUILD_ARCH") == "arm64"
+        return self.platform == "windows"
+
+    def _bundle_test_support(self, archive: Path) -> None:
+        build_type = self.required("CI_BUILD_TYPE")
+        build_dir = self.workspace / "build" / build_type
+        if not build_dir.is_dir():
+            raise FileNotFoundError(f"build directory does not exist: {build_dir}")
+
+        artifact_root = self.workspace / ".ci" / "test-support" / build_type
+        if artifact_root.exists():
+            shutil.rmtree(artifact_root)
+        artifact_root.mkdir(parents=True)
+
+        candidates = [
+            build_dir / "duckdb",
+            build_dir / "duckdb.exe",
+            build_dir / "test" / "run",
+            build_dir / "test" / "run.exe",
+            build_dir / "test" / "unittest",
+            build_dir / "test" / "unittest.exe",
+        ]
+        for source in candidates:
+            if source.is_file():
+                destination = artifact_root / source.relative_to(build_dir)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, destination)
+
+        for pattern in (
+            "src/libduckdb.*",
+            "test/extension/*.duckdb_extension",
+            "test/extension/*.duckdb_extension.wasm",
+        ):
+            for source in build_dir.glob(pattern):
+                destination = artifact_root / source.relative_to(build_dir)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, destination)
+
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive, "w:gz", compresslevel=4) as bundle:
+            bundle.add(artifact_root, arcname=build_type)
+
+    def _test_artifacts(self, repository_root: Path) -> None:
+        archives = sorted((repository_root / "test-support").glob("**/test-support.tar.gz"))
+        if not archives:
+            raise FileNotFoundError(f"no test-support archives found below {repository_root}")
+
+        build_type = self.required("CI_BUILD_TYPE")
+        build_root = self.workspace / "build"
+        build_dir = build_root / build_type
+        for archive in archives:
+            if build_dir.exists():
+                shutil.rmtree(build_dir)
+            with tarfile.open(archive, "r:gz") as bundle:
+                members = bundle.getmembers()
+                for member in members:
+                    destination = (build_root / member.name).resolve()
+                    if build_root.resolve() not in destination.parents and destination != build_root.resolve():
+                        raise ValueError(f"unsafe path in test-support archive: {member.name}")
+                bundle.extractall(build_root)
+            destination_repository = build_dir / "repository"
+            destination_repository.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(
+                repository_root,
+                destination_repository,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("test-support"),
+            )
+            print(f"Testing support bundle from {archive}")
+            self._run_tests()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("checkout", "setup", "build", "test", "upload"))
+    parser.add_argument(
+        "phase",
+        choices=(
+            "checkout",
+            "setup",
+            "build",
+            "test",
+            "upload",
+        ),
+    )
     args = parser.parse_args()
     runner = PhaseRunner()
     try:

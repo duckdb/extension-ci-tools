@@ -1,0 +1,618 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      duckdb_version:
+        description: DuckDB ref to build against
+        required: true
+        type: string
+      ci_tools_version:
+        description: extension-ci-tools ref used by build and test jobs
+        required: true
+        type: string
+      groups:
+        description: YAML extension groups passed to duckdb-ci/matrix
+        required: true
+        type: string
+      extension_repository:
+        description: Extension repository override
+        required: false
+        type: string
+        default: ""
+      extension_ref:
+        description: Extension repository ref override
+        required: false
+        type: string
+        default: ""
+      duckdb_repository:
+        description: DuckDB repository override used by the extension Makefile
+        required: false
+        type: string
+        default: ""
+      ci_tools_repository:
+        description: Repository containing extension-ci-tools
+        required: false
+        type: string
+        default: duckdb/extension-ci-tools
+      exclude_archs:
+        description: Semicolon-separated architectures to exclude
+        required: false
+        type: string
+        default: ""
+      opt_in_archs:
+        description: Semicolon-separated opt-in architectures
+        required: false
+        type: string
+        default: ""
+      runners:
+        description: JSON runner overrides accepted by duckdb-ci/matrix
+        required: false
+        type: string
+        default: "{}"
+      reduced_ci_mode:
+        description: Reduced CI mode (auto, enabled, or disabled)
+        required: false
+        type: string
+        default: auto
+      image_version:
+        description: duckdb-ci container image version
+        required: false
+        type: string
+        default: 20260814-e87a46ea
+      skip_tests:
+        description: Skip tests
+        required: false
+        type: boolean
+        default: false
+      save_cache:
+        description: Save ccache after the build
+        required: false
+        type: boolean
+        default: true
+      vcpkg_url:
+        description: vcpkg repository
+        required: false
+        type: string
+        default: https://github.com/microsoft/vcpkg.git
+      vcpkg_commit:
+        description: vcpkg commit
+        required: false
+        type: string
+        default: 84bab45d415d22042bd0b9081aea57f362da3f35
+    secrets:
+      VCPKG_CACHING_AWS_ACCESS_KEY_ID:
+        required: false
+      VCPKG_CACHING_AWS_SECRET_ACCESS_KEY:
+        required: false
+      VCPKG_CACHING_AWS_ENDPOINT_URL:
+        required: false
+      VCPKG_CACHING_AWS_DEFAULT_REGION:
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  CI_DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+  CI_BUILD_TYPE: release
+  CI_BUILD_DUCKDB_SHELL: true
+  CI_UPLOAD_ALL_EXTENSIONS: true
+  CI_SKIP_TESTS: ${{ inputs.skip_tests }}
+  CI_EXTENSIONS_TEST_SELECTION: complete
+  CI_VCPKG_URL: ${{ inputs.vcpkg_url }}
+  CI_VCPKG_COMMIT: ${{ inputs.vcpkg_commit }}
+  CI_VCPKG_OVERLAY_PORTS: extension-ci-tools/vcpkg_ports
+  CI_VCPKG_OVERLAY_TRIPLETS: extension-ci-tools/toolchains
+  CI_CUDA_VERSION: 13
+  VCPKG_BINARY_SOURCES: clear;http,https://vcpkg-cache.duckdb.org,read
+  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+  GEN: ninja
+
+jobs:
+  matrix:
+    name: Compute matrix
+    runs-on: ubuntu-slim
+    outputs:
+      build_linux: ${{ steps.matrix.outputs.build_linux }}
+      test_linux: ${{ steps.matrix.outputs.test_linux }}
+      build_macos: ${{ steps.matrix.outputs.build_macos }}
+      test_macos: ${{ steps.matrix.outputs.test_macos }}
+      build_windows: ${{ steps.matrix.outputs.build_windows }}
+      test_windows: ${{ steps.matrix.outputs.test_windows }}
+      build_wasm: ${{ steps.matrix.outputs.build_wasm }}
+    steps:
+      - name: Compute matrix
+        id: matrix
+        uses: duckdb/duckdb-ci/matrix@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          exclude_archs: ${{ inputs.exclude_archs }}
+          opt_in_archs: ${{ inputs.opt_in_archs }}
+          runners: ${{ inputs.runners }}
+          reduced_ci_mode: ${{ inputs.reduced_ci_mode }}
+          image_version: ${{ inputs.image_version }}
+          groups: ${{ inputs.groups }}
+
+  build_linux:
+    name: Build Linux (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    needs: matrix
+    if: ${{ needs.matrix.outputs.build_linux != '' && needs.matrix.outputs.build_linux != '{"include":[]}' }}
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.container }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.build_linux) }}
+    env:
+      CI_PLATFORM: linux
+      CI_LINUX_NATIVE_CONTAINER: true
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
+      CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
+      CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
+      CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
+    steps:
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        continue-on-error: true
+        with:
+          max-size: 5GB
+          evict-old-files: job
+          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
+      - name: Configure
+        run: python3 extension-ci-tools/scripts/ci_phase.py setup
+      - name: Build
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          build: python3 extension-ci-tools/scripts/ci_phase.py build
+          test: python3 extension-ci-tools/scripts/ci_phase.py test
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
+      - name: Prepare extension artifact
+        id: artifact
+        run: python3 extension-ci-tools/scripts/ci_phase.py upload
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{ steps.artifact.outputs.artifact_path }}
+          if-no-files-found: error
+
+  build_macos:
+    name: Build macOS (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    needs: matrix
+    if: ${{ needs.matrix.outputs.build_macos != '' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.build_macos) }}
+    env:
+      CI_PLATFORM: macos
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      CI_OSX_BUILD_ARCH: ${{ matrix.osx_build_arch }}
+      OSX_BUILD_ARCH: ${{ matrix.osx_build_arch }}
+      CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
+      CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
+      CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
+      CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
+    steps:
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Setup Rust
+        if: ${{ matrix.toolchain == 'rust' }}
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        continue-on-error: true
+        with:
+          max-size: 5GB
+          evict-old-files: job
+          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
+      - name: Configure
+        run: python3 extension-ci-tools/scripts/ci_phase.py setup
+      - name: Build
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          build: python3 extension-ci-tools/scripts/ci_phase.py build
+          test: python3 extension-ci-tools/scripts/ci_phase.py test
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
+      - name: Prepare extension artifact
+        id: artifact
+        run: python3 extension-ci-tools/scripts/ci_phase.py upload
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{ steps.artifact.outputs.artifact_path }}
+          if-no-files-found: error
+
+  build_windows:
+    name: Build Windows (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    needs: matrix
+    if: ${{ needs.matrix.outputs.build_windows != '' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.build_windows) }}
+    env:
+      CI_PLATFORM: windows
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
+      CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
+      CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
+      CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'cl' }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'cl' }}
+    steps:
+      - name: Configure line endings
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Setup Rust
+        if: ${{ matrix.toolchain == 'rust' }}
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - name: Setup Rust for MinGW
+        if: ${{ matrix.toolchain == 'rust' && (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') }}
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        with:
+          max-size: 5GB
+          evict-old-files: job
+          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
+      - name: Setup Rtools
+        if: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw' }}
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
+        with:
+          r-version: devel
+          update-rtools: true
+          rtools-version: "42"
+      - name: Configure short vcpkg path
+        shell: pwsh
+        run: |
+          $basePath = Split-Path -Path (Split-Path -Path $env:GITHUB_WORKSPACE -Parent) -Parent
+          $vcpkgRoot = "$basePath/vcpkg"
+          "VCPKG_WINDOWS_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          "VCPKG_TOOLCHAIN_PATH=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        with:
+          vcpkgGitCommitId: ${{ inputs.vcpkg_commit }}
+          vcpkgGitURL: ${{ inputs.vcpkg_url }}
+          vcpkgDirectory: ${{ env.VCPKG_WINDOWS_ROOT }}
+      - name: Configure
+        run: python extension-ci-tools/scripts/ci_phase.py setup
+      - name: Build
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          build: python extension-ci-tools/scripts/ci_phase.py build
+          test: python extension-ci-tools/scripts/ci_phase.py test
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
+      - name: Prepare extension artifact
+        id: artifact
+        run: python extension-ci-tools/scripts/ci_phase.py upload
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{ steps.artifact.outputs.artifact_path }}
+          if-no-files-found: error
+
+  build_wasm:
+    name: Build Wasm (${{ matrix.group_name }}, ${{ matrix.duckdb_arch }})
+    needs: matrix
+    if: ${{ needs.matrix.outputs.build_wasm != '' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.build_wasm) }}
+    env:
+      GEN: make
+      CI_PLATFORM: wasm
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      WASM_EXTENSIONS: 1
+      CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
+      CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
+      CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
+      CI_EXTRA_TOOLCHAINS: ${{ format('{0};{1}', matrix.toolchain, matrix.extra_toolchains) }}
+      CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
+      AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
+    steps:
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Setup Emscripten
+        uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+        with:
+          version: 3.1.71
+      - name: Setup Rust
+        if: ${{ matrix.toolchain == 'rust' }}
+        uses: dtolnay/rust-toolchain@4d407b29186a635f0cc27475ef0bc0ae605a8866 # 1.86.0
+        with:
+          targets: wasm32-unknown-emscripten
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        continue-on-error: true
+        with:
+          max-size: 5GB
+          evict-old-files: job
+          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          save: ${{ inputs.save_cache }}
+      - name: Configure
+        run: python3 extension-ci-tools/scripts/ci_phase.py setup
+      - name: Build
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          build: python3 extension-ci-tools/scripts/ci_phase.py build
+          test: python3 extension-ci-tools/scripts/ci_phase.py test
+          vcpkg-commit: ${{ inputs.vcpkg_commit }}
+          save-cache: ${{ inputs.save_cache }}
+          cache-suffix: ${{ matrix.group_name }}-${{ matrix.container_name || matrix.duckdb_arch }}
+      - name: Prepare extension artifact
+        id: artifact
+        run: python3 extension-ci-tools/scripts/ci_phase.py upload
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{ steps.artifact.outputs.artifact_path }}
+          if-no-files-found: error
+
+  test_linux:
+    name: Test Linux (${{ matrix.duckdb_arch }})
+    needs: [matrix, build_linux]
+    if: ${{ !cancelled() && needs.matrix.outputs.test_linux != '' && needs.matrix.outputs.test_linux != '{"include":[]}' && needs.build_linux.result == 'success' }}
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.container }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.test_linux) }}
+    env:
+      CI_PLATFORM: linux
+      CI_LINUX_NATIVE_CONTAINER: true
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      CI_EXTENSION_NAME: all-extensions
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
+    steps:
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Download extension artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: ${{ github.workspace }}/.ci/repository
+          merge-multiple: true
+      - name: Test each group
+        if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py test
+
+  test_macos:
+    name: Test macOS (${{ matrix.duckdb_arch }})
+    needs: [matrix, build_macos]
+    if: ${{ !cancelled() && needs.matrix.outputs.test_macos != '' && needs.matrix.outputs.test_macos != '{"include":[]}' && needs.build_macos.result == 'success' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.test_macos) }}
+    env:
+      CI_PLATFORM: macos
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      CI_OSX_BUILD_ARCH: ${{ matrix.osx_build_arch }}
+      OSX_BUILD_ARCH: ${{ matrix.osx_build_arch }}
+      CI_EXTENSION_NAME: all-extensions
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
+    steps:
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install build prerequisites
+        run: brew install ninja
+      - name: Download extension artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: ${{ github.workspace }}/.ci/repository
+          merge-multiple: true
+      - name: Test each group
+        if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py test
+
+  test_windows:
+    name: Test Windows (${{ matrix.duckdb_arch }})
+    needs: [matrix, build_windows]
+    if: ${{ !cancelled() && needs.matrix.outputs.test_windows != '' && needs.matrix.outputs.test_windows != '{"include":[]}' && needs.build_windows.result == 'success' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.test_windows) }}
+    env:
+      CI_PLATFORM: windows
+      DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      CI_EXTENSION_NAME: all-extensions
+      VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
+      VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
+      CC: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'gcc' || 'cl' }}
+      CXX: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'g++' || 'cl' }}
+    steps:
+      - name: Configure line endings
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
+          duckdb-ref: ${{ inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Setup Rtools
+        if: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' }}
+        uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
+        with:
+          r-version: devel
+          update-rtools: true
+          rtools-version: "42"
+      - name: Install build prerequisites
+        run: choco install ninja -y
+      - name: Download extension artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: ${{ github.workspace }}/.ci/repository
+          merge-multiple: true
+      - name: Test each group
+        if: ${{ !inputs.skip_tests }}
+        run: python extension-ci-tools/scripts/ci_phase.py test

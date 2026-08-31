@@ -2,8 +2,10 @@ from contextlib import redirect_stderr
 import io
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest import mock
@@ -81,10 +83,57 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 commands,
                 [
-                    ["make", "set_duckdb_repository"],
-                    ["make", "set_duckdb_version"],
+                    ["git", "clone", "duckdb/duckdb-fork", "duckdb"],
+                    ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
+                    ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                     ["git", "tag", "v2.0.0"],
                     ["make", "set_duckdb_tag"],
+                ],
+            )
+
+    def test_checkout_clones_default_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            runner = RecordingRunner(env)
+            runner.checkout()
+            commands = [command for command, _ in runner.commands]
+            self.assertEqual(
+                commands,
+                [
+                    [
+                        "git",
+                        "clone",
+                        "https://github.com/duckdb/duckdb.git",
+                        "duckdb",
+                    ],
+                    ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
+                    ["git", "-C", "duckdb", "checkout", "v1.2.3"],
+                ],
+            )
+
+    def test_checkout_reuses_existing_duckdb_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "duckdb").mkdir()
+            env = self.environment(workspace)
+            env["CI_DUCKDB_GIT_REPOSITORY"] = "https://github.com/duckdb/duckdb.git"
+            runner = RecordingRunner(env)
+            runner.checkout()
+            commands = [command for command, _ in runner.commands]
+            self.assertEqual(
+                commands,
+                [
+                    [
+                        "git",
+                        "-C",
+                        "duckdb",
+                        "remote",
+                        "set-url",
+                        "origin",
+                        "https://github.com/duckdb/duckdb.git",
+                    ],
+                    ["git", "-C", "duckdb", "fetch", "origin", "v1.2.3"],
+                    ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                 ],
             )
 
@@ -118,6 +167,42 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(len(runner.commands), 2)
             self.assertEqual(runner.commands[0][0][-2:], ["make", "test_release"])
             self.assertEqual(runner.commands[1][0], ["make", "test_release"])
+
+    def test_linux_native_container_build_and_test_do_not_use_docker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["CI_LINUX_NATIVE_CONTAINER"] = "true"
+            runner = RecordingRunner(env)
+            runner.setup_linux()
+            runner.build_linux()
+            runner.test()
+            self.assertEqual(runner.commands[0][0], ["make", "configure_ci"])
+            self.assertEqual(runner.commands[1][0][-2:], ["make", "release"])
+            self.assertEqual(runner.commands[2][0], ["make", "test_release"])
+            self.assertNotIn("docker", str(runner.commands))
+
+    def test_extension_config_paths_are_resolved_from_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "extension_config.cmake").write_text("set(BASE 1)\n", encoding="utf-8")
+            config = workspace / "config" / "group.cmake"
+            config.parent.mkdir()
+            config.write_text("set(GROUP 1)\n", encoding="utf-8")
+            env = self.environment(workspace)
+            env["CI_EXTENSION_CONFIG_PATHS"] = '["config/group.cmake"]'
+            runner = RecordingRunner(env)
+            runner.inject_extension_config()
+            contents = (workspace / "extension_config.cmake").read_text(encoding="utf-8")
+            self.assertIn("set(BASE 1)", contents)
+            self.assertIn("set(GROUP 1)", contents)
+
+    def test_missing_extension_config_path_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["CI_EXTENSION_CONFIG_PATHS"] = '["missing.cmake"]'
+            runner = RecordingRunner(env)
+            with self.assertRaises(FileNotFoundError):
+                runner.inject_extension_config()
 
     def test_failed_phase_command_exits_concisely_for_list_and_shell_commands(self):
         commands = (
@@ -205,11 +290,21 @@ class CIPhaseTest(unittest.TestCase):
             artifact.touch()
             output = workspace / "github-output"
             env = self.environment(workspace)
+            env["CI_SKIP_TESTS"] = "true"
             env["GITHUB_OUTPUT"] = str(output)
             runner = RecordingRunner(env)
             runner.upload()
             values = output.read_text(encoding="utf-8")
-            self.assertIn("artifact_path=build/release/extension/quack/quack.duckdb_extension", values)
+            artifact_path = Path(
+                next(
+                    line.removeprefix("artifact_path=")
+                    for line in values.splitlines()
+                    if line.startswith("artifact_path=")
+                )
+            )
+            self.assertEqual(artifact_path.parent, workspace.resolve() / "ci-artifacts")
+            self.assertTrue((artifact_path / artifact.name).is_file())
+            self.assertFalse((artifact_path / "test-support").exists())
             self.assertIn("artifact_name=quack-v1.2.3-extension-linux_amd64", values)
 
     def test_upload_fails_when_artifact_is_missing(self):
@@ -217,6 +312,107 @@ class CIPhaseTest(unittest.TestCase):
             runner = RecordingRunner(self.environment(directory))
             with self.assertRaises(FileNotFoundError):
                 runner.upload()
+
+    def test_upload_allows_missing_unittest_binary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact = workspace / "build/release/extension/quack/quack.duckdb_extension"
+            artifact.parent.mkdir(parents=True)
+            artifact.touch()
+            output = workspace / "github-output"
+            env = self.environment(workspace)
+            env["GITHUB_OUTPUT"] = str(output)
+            RecordingRunner(env).upload()
+
+            values = output.read_text(encoding="utf-8")
+            artifact_path = Path(
+                next(
+                    line.removeprefix("artifact_path=")
+                    for line in values.splitlines()
+                    if line.startswith("artifact_path=")
+                )
+            )
+            archives = list(artifact_path.glob("test-support/**/test-support.tar.gz"))
+            self.assertEqual(len(archives), 1)
+            with tarfile.open(archives[0], "r:gz") as bundle:
+                self.assertFalse(
+                    any(Path(name).name.startswith("unittest") for name in bundle.getnames())
+                )
+
+    def test_upload_and_test_restore_embedded_group_support(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            build = workspace / "build" / "release"
+            unittest_binary = build / "test" / ("unittest.exe" if os.name == "nt" else "unittest")
+            unittest_binary.parent.mkdir(parents=True)
+            unittest_binary.write_text("runner", encoding="utf-8")
+            unittest_binary.chmod(0o755)
+            repository = build / "repository" / "v1" / "linux_amd64"
+            repository.mkdir(parents=True)
+            (repository / "quack.duckdb_extension").write_text("extension", encoding="utf-8")
+
+            env = self.environment(workspace)
+            env["CI_UPLOAD_ALL_EXTENSIONS"] = "true"
+            downloaded = workspace / "downloaded-repository"
+            for group in ("group-one", "group-two"):
+                output = workspace / f"github-output-{group}"
+                env["CI_ARTIFACT_NAME"] = group
+                env["GITHUB_OUTPUT"] = str(output)
+                PhaseRunner(env).upload()
+                values = output.read_text(encoding="utf-8")
+                artifact_path = Path(
+                    next(
+                        line.removeprefix("artifact_path=")
+                        for line in values.splitlines()
+                        if line.startswith("artifact_path=")
+                    )
+                )
+                shutil.copytree(artifact_path, downloaded, dirs_exist_ok=True)
+
+            archives = sorted(downloaded.glob("test-support/**/test-support.tar.gz"))
+            self.assertEqual(len(archives), 2)
+            archive = archives[0]
+            with tarfile.open(archive, "r:gz") as bundle:
+                names = bundle.getnames()
+                unittest_member = bundle.getmember(f"release/test/{unittest_binary.name}")
+            self.assertIn(f"release/test/{unittest_binary.name}", names)
+            self.assertFalse(any("repository" in name for name in names))
+            if os.name != "nt":
+                self.assertNotEqual(unittest_member.mode & 0o111, 0)
+
+            env["CI_EXTENSION_ARTIFACT_DIR"] = str(downloaded)
+            restored = RecordingRunner(env)
+            restored.test()
+            self.assertTrue(
+                (build / "repository" / "v1" / "linux_amd64" / "quack.duckdb_extension").is_file()
+            )
+            self.assertFalse((build / "repository" / "test-support").exists())
+            self.assertEqual(restored.commands[0][0][-2:], ["make", "test_release"])
+            self.assertEqual(len(restored.commands), 4)
+
+    def test_support_is_enabled_only_for_testable_platforms(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = (
+                (self.environment(directory), True),
+                (self.environment(directory, "linux", "linux_arm64"), False),
+                (self.environment(directory, "wasm", "wasm_eh"), False),
+                (self.environment(directory, "windows", "windows_amd64"), True),
+            )
+            macos_env = self.environment(directory, "macos", "osx_amd64")
+            macos_env["CI_OSX_BUILD_ARCH"] = "x86_64"
+            cases += ((macos_env, False),)
+            native_macos_env = self.environment(directory, "macos", "osx_arm64")
+            native_macos_env["CI_OSX_BUILD_ARCH"] = "arm64"
+            cases += ((native_macos_env, True),)
+
+            for env, expected in cases:
+                with self.subTest(
+                    platform=env["CI_PLATFORM"],
+                    architecture=env["DUCKDB_PLATFORM"],
+                ):
+                    self.assertEqual(
+                        RecordingRunner(env)._test_support_enabled(), expected
+                    )
 
 
 if __name__ == "__main__":
