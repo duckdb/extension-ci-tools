@@ -125,7 +125,7 @@ jobs:
     steps:
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@main
+        uses: duckdb/duckdb-ci/matrix@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
@@ -164,7 +164,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
     steps:
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -188,7 +188,7 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: duckdb/duckdb-ci/build-duckdb@main
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -231,7 +231,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
     steps:
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -262,7 +262,7 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: duckdb/duckdb-ci/build-duckdb@main
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -310,7 +310,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -366,7 +366,7 @@ jobs:
       - name: Configure
         run: python extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: duckdb/duckdb-ci/build-duckdb@main
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           build: python extension-ci-tools/scripts/ci_phase.py build
           test: python extension-ci-tools/scripts/ci_phase.py test
@@ -409,7 +409,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
     steps:
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -446,7 +446,7 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: duckdb/duckdb-ci/build-duckdb@main
+        uses: duckdb/duckdb-ci/build-duckdb@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -486,7 +486,7 @@ jobs:
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -528,7 +528,7 @@ jobs:
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -581,7 +581,7 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@main
+        uses: duckdb/duckdb-ci/prepare-extension@b04577afa9c044f98d6b14b0300ec7ed55c65a23 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
