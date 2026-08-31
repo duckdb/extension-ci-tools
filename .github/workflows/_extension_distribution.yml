@@ -559,11 +559,11 @@ jobs:
 
       - name: Setup / Rust
         if: ${{ inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;') }}
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        uses: &rust-toolchain-action dtolnay/rust-toolchain@46511b1c83438f0dd37c02d843619ece5a4abb5b # 1.97.1
 
       - name: Setup / Rust for MinGW
         if: ${{ (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) && (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') }}
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        uses: *rust-toolchain-action
         with:
           targets: x86_64-pc-windows-gnu
 
@@ -700,7 +700,7 @@ jobs:
 
       - name: Setup / Rust
         if: ${{ inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;') }}
-        uses: dtolnay/rust-toolchain@4d407b29186a635f0cc27475ef0bc0ae605a8866 # 1.86.0
+        uses: *rust-toolchain-action
         with:
           targets: wasm32-unknown-emscripten
 
