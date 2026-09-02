@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -64,6 +65,12 @@ def extra_dependencies(config: str, architecture: str) -> list[str]:
 class PhaseRunner:
     def __init__(self, environ: Mapping[str, str] | None = None) -> None:
         self.env = dict(os.environ if environ is None else environ)
+        duckdb_tag = self.env.get("CI_DUCKDB_TAG", "")
+        if duckdb_tag:
+            self.env.setdefault("DUCKDB_VERSION", duckdb_tag)
+        duckdb_ref = self.env.get("CI_DUCKDB_VERSION", "")
+        if re.fullmatch(r"[0-9a-fA-F]{10,64}", duckdb_ref):
+            self.env.setdefault("DUCKDB_COMMIT", duckdb_ref)
         self.platform = self.required("CI_PLATFORM")
         self.architecture = self.required("DUCKDB_PLATFORM")
         self.workspace = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
@@ -362,6 +369,8 @@ class PhaseRunner:
     def build_environment(self) -> dict[str, str]:
         is_rtools = self.architecture in {"windows_amd64_rtools", "windows_amd64_mingw"}
         return {
+            "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
+            "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_PLATFORM_RTOOLS": "1" if is_rtools else "0",
             "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
@@ -401,6 +410,8 @@ class PhaseRunner:
             "OPENSSL_ROOT_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
             "OPENSSL_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
             "OPENSSL_USE_STATIC_LIBS": "true",
+            "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
+            "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
             "ENABLE_EXTENSION_AUTOINSTALL": "1",
