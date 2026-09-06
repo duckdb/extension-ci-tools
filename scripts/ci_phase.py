@@ -12,6 +12,7 @@ import glob
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import shlex
@@ -533,8 +534,18 @@ class PhaseRunner:
         if self.enabled("CI_SKIP_TESTS"):
             print("Tests skipped by workflow input.")
             return
-        if self.platform == "linux" and self.architecture == "linux_arm64":
-            print("Tests are not supported for linux_arm64.")
+        if (
+            self.platform == "linux"
+            and self.architecture == "linux_arm64"
+            and platform.machine() not in ("aarch64", "arm64")
+        ):
+            # Only a cross-compiled arm64 build cannot run its own tests. The
+            # linux_arm64 matrix entry has built on a native ubuntu-24.04-arm
+            # runner since the runner switch, and linux_arm64_musl already runs
+            # tests there under this same code path, so the skip is keyed on
+            # the host's capability -- the same rule the macOS check below uses
+            # -- rather than on the architecture name.
+            print("Tests skipped: linux_arm64 build on a non-arm64 host cannot execute it.")
             return
         if self.platform == "macos" and self.value("CI_OSX_BUILD_ARCH") != "arm64":
             print("Tests run only on the native macOS arm64 build.")
