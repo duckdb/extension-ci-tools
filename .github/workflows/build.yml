@@ -84,7 +84,7 @@ on:
         description: vcpkg commit
         required: false
         type: string
-        default: 84bab45d415d22042bd0b9081aea57f362da3f35
+        default: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # Release 2026.06.24
     secrets:
       VCPKG_CACHING_AWS_ACCESS_KEY_ID:
         required: false
