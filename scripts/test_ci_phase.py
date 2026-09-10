@@ -43,7 +43,7 @@ class CIPhaseTest(unittest.TestCase):
             "GITHUB_WORKSPACE": str(workspace),
             "CI_EXTENSION_NAME": "quack",
             "CI_EXTENSION_CANONICAL": "",
-            "CI_DUCKDB_VERSION": "v1.2.3",
+            "DUCKDB_VERSION": "v1.2.3",
             "CI_BUILD_TYPE": "release",
             "CI_TEST_CONFIG": "{}",
             "CI_EXTENSIONS_TEST_SELECTION": "regular",
@@ -67,18 +67,19 @@ class CIPhaseTest(unittest.TestCase):
         )
         self.assertEqual(extra_dependencies("{}", "linux_amd64"), [])
 
-    def test_duckdb_build_identity_is_derived_from_workflow_inputs(self):
+    def test_duckdb_build_identity_is_forwarded(self):
         with tempfile.TemporaryDirectory() as directory:
             commit = "0123456789abcdef0123456789abcdef01234567"
             env = self.environment(directory)
             env.update(
                 {
-                    "CI_DUCKDB_TAG": "v2.0.0-alpha39940",
-                    "CI_DUCKDB_VERSION": commit,
+                    "DUCKDB_VERSION": "v2.0.0-alpha39940",
+                    "DUCKDB_COMMIT": commit,
                 }
             )
             runner = RecordingRunner(env)
 
+            self.assertEqual(runner.duckdb_ref(), commit)
             self.assertEqual(runner.env["DUCKDB_VERSION"], "v2.0.0-alpha39940")
             self.assertEqual(runner.env["DUCKDB_COMMIT"], commit)
             native_environment = runner.build_environment()
@@ -92,31 +93,10 @@ class CIPhaseTest(unittest.TestCase):
             self.assertIn("DUCKDB_VERSION=v2.0.0-alpha39940\n", docker_environment)
             self.assertIn(f"DUCKDB_COMMIT={commit}\n", docker_environment)
 
-    def test_duckdb_checkout_ref_becomes_commit_only_when_hexadecimal(self):
+    def test_duckdb_ref_falls_back_to_version(self):
         with tempfile.TemporaryDirectory() as directory:
-            for checkout_ref in ("main", "feature/identity", "v2.0.0"):
-                with self.subTest(checkout_ref=checkout_ref):
-                    env = self.environment(directory)
-                    env["CI_DUCKDB_VERSION"] = checkout_ref
-                    runner = RecordingRunner(env)
-                    self.assertNotIn("DUCKDB_COMMIT", runner.env)
-                    self.assertEqual(runner.build_environment()["DUCKDB_COMMIT"], "")
-
-    def test_explicit_duckdb_build_identity_takes_precedence(self):
-        with tempfile.TemporaryDirectory() as directory:
-            env = self.environment(directory)
-            env.update(
-                {
-                    "CI_DUCKDB_TAG": "v2.0.0-alpha39940",
-                    "CI_DUCKDB_VERSION": "0123456789abcdef0123456789abcdef01234567",
-                    "DUCKDB_VERSION": "v9.9.9-explicit",
-                    "DUCKDB_COMMIT": "fedcba9876543210",
-                }
-            )
-            runner = RecordingRunner(env)
-
-            self.assertEqual(runner.env["DUCKDB_VERSION"], "v9.9.9-explicit")
-            self.assertEqual(runner.env["DUCKDB_COMMIT"], "fedcba9876543210")
+            runner = RecordingRunner(self.environment(directory))
+            self.assertEqual(runner.duckdb_ref(), "v1.2.3")
 
     def test_checkout_runs_only_requested_operations(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -125,7 +105,7 @@ class CIPhaseTest(unittest.TestCase):
                 {
                     "CI_DUCKDB_GIT_REPOSITORY": "duckdb/duckdb-fork",
                     "CI_EXTENSION_TAG": "v2.0.0",
-                    "CI_DUCKDB_TAG": "v1.2.3-test",
+                    "DUCKDB_TAG": "v1.2.3-test",
                 }
             )
             runner = RecordingRunner(env)
