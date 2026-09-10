@@ -211,10 +211,10 @@ env:
   USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
   CI_EXTENSION_NAME: ${{ inputs.extension_name }}
   CI_EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
-  CI_DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+  DUCKDB_VERSION: ${{ inputs.duckdb_version }}
   CI_DUCKDB_GIT_REPOSITORY: ${{ inputs.override_duckdb_repository }}
   CI_EXTENSION_TAG: ${{ inputs.extension_tag }}
-  CI_DUCKDB_TAG: ${{ inputs.duckdb_tag }}
+  DUCKDB_TAG: ${{ inputs.duckdb_tag }}
   CI_EXTRA_TOOLCHAINS: ${{ inputs.enable_rust && format('{0};rust;', inputs.extra_toolchains) || inputs.extra_toolchains }}
   CI_HAS_RUST: ${{ inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;') }}
   CI_EXTRA_EXTENSION_CONFIG: ${{ inputs.extra_extension_config }}

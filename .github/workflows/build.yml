@@ -4,9 +4,14 @@ on:
   workflow_call:
     inputs:
       duckdb_version:
-        description: DuckDB ref to build against
+        description: DuckDB version to build
         required: true
         type: string
+      duckdb_commit:
+        description: Exact DuckDB commit to build
+        required: false
+        type: string
+        default: ""
       ci_tools_version:
         description: extension-ci-tools ref used by build and test jobs
         required: true
@@ -100,7 +105,8 @@ permissions:
   packages: read
 
 env:
-  CI_DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+  DUCKDB_COMMIT: ${{ inputs.duckdb_commit }}
+  DUCKDB_VERSION: ${{ inputs.duckdb_version }}
   CI_BUILD_TYPE: release
   CI_BUILD_DUCKDB_SHELL: true
   CI_UPLOAD_ALL_EXTENSIONS: true
@@ -175,8 +181,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -243,8 +249,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -323,8 +329,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -423,8 +429,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -501,8 +507,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -544,8 +550,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -598,8 +604,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_version }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

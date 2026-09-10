@@ -13,7 +13,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import shlex
 import shutil
 import subprocess
@@ -65,18 +64,15 @@ def extra_dependencies(config: str, architecture: str) -> list[str]:
 class PhaseRunner:
     def __init__(self, environ: Mapping[str, str] | None = None) -> None:
         self.env = dict(os.environ if environ is None else environ)
-        duckdb_tag = self.env.get("CI_DUCKDB_TAG", "")
-        if duckdb_tag:
-            self.env.setdefault("DUCKDB_VERSION", duckdb_tag)
-        duckdb_ref = self.env.get("CI_DUCKDB_VERSION", "")
-        if re.fullmatch(r"[0-9a-fA-F]{10,64}", duckdb_ref):
-            self.env.setdefault("DUCKDB_COMMIT", duckdb_ref)
         self.platform = self.required("CI_PLATFORM")
         self.architecture = self.required("DUCKDB_PLATFORM")
         self.workspace = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
 
     def value(self, name: str, default: str = "") -> str:
         return self.env.get(name, default)
+
+    def duckdb_ref(self) -> str:
+        return self.value("DUCKDB_COMMIT") or self.value("DUCKDB_VERSION")
 
     def required(self, name: str) -> str:
         value = self.value(name)
@@ -138,7 +134,7 @@ class PhaseRunner:
 
     def checkout(self) -> None:
         duckdb_repository = self.value("CI_DUCKDB_GIT_REPOSITORY")
-        duckdb_version = self.value("CI_DUCKDB_VERSION")
+        duckdb_ref = self.duckdb_ref()
         duckdb_directory = self.workspace / "duckdb"
         if not duckdb_directory.is_dir():
             self.run(
@@ -153,15 +149,15 @@ class PhaseRunner:
             self.run(
                 ["git", "-C", "duckdb", "remote", "set-url", "origin", duckdb_repository]
             )
-        if duckdb_version:
-            self.run(["git", "-C", "duckdb", "fetch", "origin", duckdb_version])
-            self.run(["git", "-C", "duckdb", "checkout", duckdb_version])
+        if duckdb_ref:
+            self.run(["git", "-C", "duckdb", "fetch", "origin", duckdb_ref])
+            self.run(["git", "-C", "duckdb", "checkout", duckdb_ref])
 
         extension_tag = self.value("CI_EXTENSION_TAG")
         if extension_tag:
             self.run(["git", "tag", extension_tag])
 
-        duckdb_tag = self.value("CI_DUCKDB_TAG")
+        duckdb_tag = self.value("DUCKDB_TAG")
         if duckdb_tag:
             self.run(["make", "set_duckdb_tag"], extra_env={"DUCKDB_TAG": duckdb_tag})
 
@@ -263,7 +259,7 @@ class PhaseRunner:
         self.run_with_retry(
             ["make", "configure_ci"],
             extra_env={
-                "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
+                "DUCKDB_GIT_VERSION": self.duckdb_ref(),
                 "LINUX_CI_IN_DOCKER": "0",
             },
         )
@@ -287,7 +283,7 @@ class PhaseRunner:
             self.run(["curl", "https://awscli.amazonaws.com/AWSCLIV2-2.22.35.pkg", "-o", "AWSCLIV2.pkg"])
             self.run(["sudo", "installer", "-pkg", "AWSCLIV2.pkg", "-target", "/"])
             self.run(["aws", "--version"])
-        self.run(["make", "configure_ci"], extra_env={"DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION")})
+        self.run(["make", "configure_ci"], extra_env={"DUCKDB_GIT_VERSION": self.duckdb_ref()})
         self.install_extra_vcpkg_dependencies()
 
     def setup_macos_omp(self) -> None:
@@ -358,7 +354,7 @@ class PhaseRunner:
             self.run(["aws", "--version"])
         self.run_with_retry(
             ["make", "configure_ci"],
-            extra_env={"DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION")},
+            extra_env={"DUCKDB_GIT_VERSION": self.duckdb_ref()},
         )
         self.install_extra_vcpkg_dependencies()
 
@@ -373,7 +369,7 @@ class PhaseRunner:
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_PLATFORM_RTOOLS": "1" if is_rtools else "0",
-            "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
+            "DUCKDB_GIT_VERSION": self.duckdb_ref(),
             "EXTENSION_NAME": self.required("CI_EXTENSION_NAME"),
             "EXTENSION_CANONICAL": self.value("CI_EXTENSION_CANONICAL"),
             "ENABLE_EXTENSION_AUTOINSTALL": "1",
@@ -413,7 +409,7 @@ class PhaseRunner:
             "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
-            "DUCKDB_GIT_VERSION": self.value("CI_DUCKDB_VERSION"),
+            "DUCKDB_GIT_VERSION": self.duckdb_ref(),
             "ENABLE_EXTENSION_AUTOINSTALL": "1",
             "ENABLE_EXTENSION_AUTOLOADING": "1",
             "EXTENSION_NAME": self.required("CI_EXTENSION_NAME"),
@@ -588,7 +584,7 @@ class PhaseRunner:
         if not matches:
             raise FileNotFoundError(f"no artifact matched {path}")
         name = self.value("CI_ARTIFACT_NAME") or (
-            f"{self.required('CI_EXTENSION_NAME')}-{self.value('CI_DUCKDB_VERSION')}-extension-"
+            f"{self.required('CI_EXTENSION_NAME')}-{self.value('DUCKDB_VERSION')}-extension-"
             f"{self.architecture}{self.value('CI_ARTIFACT_POSTFIX')}"
         )
         artifact_id = hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
