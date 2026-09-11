@@ -56,6 +56,46 @@ class CIPhaseTest(unittest.TestCase):
         self.assertTrue(tool_enabled("rust;go", "go"))
         self.assertFalse(tool_enabled("fortran", "go"))
 
+    def test_intel_macos_dependencies_use_pinned_homebrew_installer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            environment = self.environment(directory, "macos", "osx_amd64")
+            installer = (
+                "https://raw.githubusercontent.com/Homebrew/install/"
+                "0f5b7666a65fc2d1a2615549f02771353c250f9a/install.sh"
+            )
+
+            omp = RecordingRunner(environment)
+            omp.setup_macos_omp()
+            self.assertEqual(
+                omp.commands[0],
+                (
+                    f'arch -x86_64 /bin/bash -c "$(curl -fsSL {installer})"',
+                    {"shell": True},
+                ),
+            )
+            self.assertEqual(
+                omp.commands[1][0],
+                ["arch", "-x86_64", "/usr/local/bin/brew", "install", "libomp"],
+            )
+
+            unixodbc = RecordingRunner(environment)
+            unixodbc.setup_macos_unixodbc()
+            self.assertEqual(
+                unixodbc.commands[0],
+                (
+                    f'arch -x86_64 /bin/bash -c "$(curl -fsSL {installer})"',
+                    {"shell": True},
+                ),
+            )
+            self.assertEqual(
+                [command for command, _ in unixodbc.commands[1:]],
+                [
+                    ["/usr/local/bin/brew", "config"],
+                    ["/usr/local/bin/brew", "install", "unixodbc"],
+                    ["/usr/local/bin/brew", "ls", "-v", "unixodbc"],
+                ],
+            )
+
     def test_json_inputs(self):
         self.assertEqual(
             test_environment('{"test_env_variables":{"TOKEN":12,"ENABLED":true}}'),
