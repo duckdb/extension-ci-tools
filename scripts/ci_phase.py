@@ -23,6 +23,13 @@ from typing import Mapping, Sequence
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
 
+# Intel Homebrew is deprecated; keep this installer pin only while osx_amd64 is
+# supported. See https://github.com/Homebrew/brew/blob/main/docs/Support-Tiers.md#future-macos-support
+INTEL_HOMEBREW_INSTALLER = (
+    "https://raw.githubusercontent.com/Homebrew/install/"
+    "0f5b7666a65fc2d1a2615549f02771353c250f9a/install.sh"
+)
+
 
 def format_command(command: Sequence[str] | str) -> str:
     return command if isinstance(command, str) else shlex.join(command)
@@ -289,7 +296,7 @@ class PhaseRunner:
     def setup_macos_omp(self) -> None:
         if self.architecture == "osx_amd64":
             self.run(
-                'arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"',
+                f'arch -x86_64 /bin/bash -c "$(curl -fsSL {INTEL_HOMEBREW_INSTALLER})"',
                 shell=True,
             )
             self.run(["arch", "-x86_64", "/usr/local/bin/brew", "install", "libomp"])
@@ -305,7 +312,7 @@ class PhaseRunner:
     def setup_macos_unixodbc(self) -> None:
         if self.architecture == "osx_amd64":
             self.run(
-                'arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+                f'arch -x86_64 /bin/bash -c "$(curl -fsSL {INTEL_HOMEBREW_INSTALLER})"',
                 shell=True,
             )
             brew = "/usr/local/bin/brew"
