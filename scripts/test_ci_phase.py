@@ -27,12 +27,17 @@ class RecordingRunner(PhaseRunner):
     def __init__(self, environ):
         super().__init__(environ)
         self.commands = []
+        self.captured_output = ""
 
     def run(self, command, **kwargs):
         self.commands.append((command, kwargs))
 
     def run_with_retry(self, command, **kwargs):
         self.commands.append((command, {**kwargs, "retry": True}))
+
+    def capture(self, command, **kwargs):
+        self.commands.append((command, {**kwargs, "capture": True}))
+        return self.captured_output
 
 
 class CIPhaseTest(unittest.TestCase):
@@ -212,6 +217,40 @@ class CIPhaseTest(unittest.TestCase):
                 ],
             )
 
+    def test_checkout_resolves_existing_duckdb_when_version_is_omitted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "duckdb").mkdir()
+            github_environment = workspace / "github-environment"
+            github_output = workspace / "github-output"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "DUCKDB_VERSION": "",
+                    "GITHUB_ENV": str(github_environment),
+                    "GITHUB_OUTPUT": str(github_output),
+                }
+            )
+            sha = "0123456789abcdef0123456789abcdef01234567"
+            runner = RecordingRunner(env)
+            runner.captured_output = sha
+
+            runner.checkout()
+
+            self.assertEqual(
+                [command for command, _ in runner.commands],
+                [["git", "-C", "duckdb", "rev-parse", "HEAD"]],
+            )
+            self.assertEqual(runner.env["DUCKDB_VERSION"], sha)
+            self.assertEqual(
+                github_environment.read_text(encoding="utf-8"),
+                f"DUCKDB_VERSION={sha}\n",
+            )
+            self.assertEqual(
+                github_output.read_text(encoding="utf-8"),
+                f"duckdb_version={sha}\n",
+            )
+
     def test_artifact_paths_for_native_and_wasm(self):
         with tempfile.TemporaryDirectory() as directory:
             native = RecordingRunner(self.environment(directory))
@@ -387,6 +426,20 @@ class CIPhaseTest(unittest.TestCase):
             runner = RecordingRunner(self.environment(directory))
             with self.assertRaises(FileNotFoundError):
                 runner.upload()
+
+    def test_upload_requires_duckdb_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact = workspace / "build/release/extension/quack/quack.duckdb_extension"
+            artifact.parent.mkdir(parents=True)
+            artifact.touch()
+            env = self.environment(workspace)
+            env["DUCKDB_VERSION"] = ""
+
+            with self.assertRaisesRegex(
+                ValueError, "missing required environment variable: DUCKDB_VERSION"
+            ):
+                RecordingRunner(env).upload()
 
     def test_upload_allows_missing_unittest_binary(self):
         with tempfile.TemporaryDirectory() as directory:

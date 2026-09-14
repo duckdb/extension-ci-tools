@@ -12,6 +12,8 @@ Add this repository to an extension as the `extension-ci-tools` submodule. After
 git submodule update --init --recursive
 ```
 
+When the extension has a `duckdb` submodule, omit `duckdb_version` from the distribution and deployment workflows. CI uses the commit pinned by the submodule.
+
 ### C++
 
 [duckdb-httpfs](https://github.com/duckdb/duckdb-httpfs/) includes the standard extension and vcpkg makefiles:
@@ -34,7 +36,6 @@ jobs:
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       extension_name: httpfs
-      duckdb_version: main
       ci_tools_version: main
 ```
 
@@ -57,14 +58,13 @@ jobs:
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       extension_name: delta
-      duckdb_version: main
       ci_tools_version: main
       enable_rust: true
 ```
 
 ### C API
 
-[odbc-scanner](https://github.com/duckdb/odbc-scanner/) uses the C API makefiles. Set `USE_UNSTABLE_C_API` to `1` only when the extension needs DuckDB's unstable C API.
+[odbc-scanner](https://github.com/duckdb/odbc-scanner/) does not have a `duckdb` submodule, so it sets the DuckDB version explicitly. It uses the C API makefiles. Set `USE_UNSTABLE_C_API` to `1` only when the extension needs DuckDB's unstable C API.
 
 ```make
 PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))

@@ -29,11 +29,12 @@ on:
       extension_canonical:
         required: false
         type: string
-      # DuckDB version to build against, should in most cases be identical to
+      # DuckDB version to build against. When omitted, use the checked-out duckdb submodule.
       duckdb_version:
-        required: true
+        required: false
         type: string
-      # The version of the https://github.com/duckdb/extension-ci-tools submodule of the extension. In most cases will be identical to `duckdb_version`.
+        default: ""
+      # The extension-ci-tools ref used by this workflow.
       # Passing this explicitly is required because of https://github.com/actions/toolkit/issues/1264
       ci_tools_version:
         required: true
@@ -342,6 +343,7 @@ jobs:
       # Use system Python: Linux host configuration creates configure/venv, which must
       # remain usable inside the bind-mounted Docker workspace.
       - name: Checkout / Prepare sources
+        id: prepare_sources
         run: python3 extension-ci-tools/scripts/ci_phase.py checkout
 
       - name: Setup / Ccache
@@ -350,9 +352,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
           restore-keys: |
-            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
             extension-distribution-${{ matrix.duckdb_arch }}-
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
@@ -443,6 +445,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout / Prepare sources
+        id: prepare_sources
         run: python3 extension-ci-tools/scripts/ci_phase.py checkout
 
       - name: Setup / Go
@@ -457,9 +460,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
           restore-keys: |
-            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
             extension-distribution-${{ matrix.duckdb_arch }}-
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
@@ -555,6 +558,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout / Prepare sources
+        id: prepare_sources
         run: python extension-ci-tools/scripts/ci_phase.py checkout
 
       - name: Setup / Rust
@@ -578,9 +582,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
           restore-keys: |
-            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
             extension-distribution-${{ matrix.duckdb_arch }}-
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}
@@ -691,6 +695,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout / Prepare sources
+        id: prepare_sources
         run: python3 extension-ci-tools/scripts/ci_phase.py checkout
 
       - name: Setup / Emscripten
@@ -716,9 +721,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+          key: extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
           restore-keys: |
-            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ inputs.duckdb_version }}
+            ccache-extension-distribution-${{ matrix.duckdb_arch }}-${{ steps.prepare_sources.outputs.duckdb_version }}
             extension-distribution-${{ matrix.duckdb_arch }}-
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
           save: ${{ inputs.save_cache }}

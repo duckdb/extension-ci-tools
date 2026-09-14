@@ -112,6 +112,23 @@ class PhaseRunner:
             options["executable"] = shutil.which("bash") or "/bin/bash"
         subprocess.run(command, **options)
 
+    def capture(
+        self,
+        command: Sequence[str],
+        *,
+        cwd: Path | None = None,
+    ) -> str:
+        print(f"+ {format_command(command)}", flush=True)
+        completed = subprocess.run(
+            command,
+            check=True,
+            cwd=cwd or self.workspace,
+            env=self.env.copy(),
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        return completed.stdout.strip()
+
     def append_github_file(self, variable: str, name: str, value: str) -> None:
         destination = self.value(variable)
         if not destination:
@@ -159,6 +176,18 @@ class PhaseRunner:
         if duckdb_ref:
             self.run(["git", "-C", "duckdb", "fetch", "origin", duckdb_ref])
             self.run(["git", "-C", "duckdb", "checkout", duckdb_ref])
+
+        duckdb_version = self.value("DUCKDB_VERSION") or self.value(
+            "DUCKDB_COMMIT"
+        )
+        if not duckdb_version:
+            duckdb_version = self.capture(
+                ["git", "-C", "duckdb", "rev-parse", "HEAD"]
+            )
+            if not duckdb_version:
+                raise ValueError("could not resolve the DuckDB checkout version")
+        self.set_environment("DUCKDB_VERSION", duckdb_version)
+        self.append_github_file("GITHUB_OUTPUT", "duckdb_version", duckdb_version)
 
         extension_tag = self.value("CI_EXTENSION_TAG")
         if extension_tag:
@@ -591,7 +620,7 @@ class PhaseRunner:
         if not matches:
             raise FileNotFoundError(f"no artifact matched {path}")
         name = self.value("CI_ARTIFACT_NAME") or (
-            f"{self.required('CI_EXTENSION_NAME')}-{self.value('DUCKDB_VERSION')}-extension-"
+            f"{self.required('CI_EXTENSION_NAME')}-{self.required('DUCKDB_VERSION')}-extension-"
             f"{self.architecture}{self.value('CI_ARTIFACT_POSTFIX')}"
         )
         artifact_id = hashlib.sha256(name.encode("utf-8")).hexdigest()[:16]
