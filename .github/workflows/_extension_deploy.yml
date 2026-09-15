@@ -14,11 +14,12 @@ on:
       extension_name:
         required: true
         type: string
-      # DuckDB version to build against
+      # DuckDB version to deploy. When omitted, use the checked-out duckdb submodule.
       duckdb_version:
-        required: true
+        required: false
         type: string
-      # The version of the https://github.com/duckdb/extension-ci-tools submodule of the extension. In most cases will be identical to `duckdb_version`.
+        default: ""
+      # The extension-ci-tools ref used by this workflow.
       # Passing this explicitly is required because of https://github.com/actions/toolkit/issues/1264
       ci_tools_version:
         required: true
@@ -111,17 +112,24 @@ jobs:
           fetch-depth: 0
           submodules: 'recursive'
 
-      - name: Checkout DuckDB to version
-        run: |
-          if [ ! -d duckdb ]; then
-            git clone https://github.com/duckdb/duckdb.git
-          fi
-          cd duckdb
-          git checkout ${{ inputs.duckdb_version }}
+      - name: Checkout / Extension CI tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          ref: ${{ inputs.ci_tools_version }}
+          repository: ${{ inputs.override_ci_tools_repository }}
+
+      - name: Checkout / Prepare DuckDB source
+        id: prepare_sources
+        env:
+          CI_PLATFORM: linux
+          DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+          DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py checkout
 
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}${{startsWith(matrix.duckdb, 'wasm') && '.wasm' || ''}}
+          name: ${{ inputs.extension_name }}-${{ steps.prepare_sources.outputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}${{startsWith(matrix.duckdb, 'wasm') && '.wasm' || ''}}
           path: |
             /tmp/extension
 
