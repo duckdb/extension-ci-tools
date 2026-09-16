@@ -532,6 +532,9 @@ jobs:
       GEN: ninja
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
+      # Intel Homebrew is deprecated; keep this installer pin only while osx_amd64 is
+      # supported. See https://github.com/Homebrew/brew/blob/main/docs/Support-Tiers.md#future-macos-support
+      INTEL_HOMEBREW_INSTALLER: https://raw.githubusercontent.com/Homebrew/install/0f5b7666a65fc2d1a2615549f02771353c250f9a/install.sh
 
     steps:
       - uses: actions/checkout@v4
@@ -648,7 +651,7 @@ jobs:
       - name: install omp (x86)
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';omp;') && matrix.duckdb_arch == 'osx_amd64' }}
         run: |
-          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+          arch -x86_64 /bin/bash -c "$(curl -fsSL $INTEL_HOMEBREW_INSTALLER)"
           (echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> /Users/runner/.bash_profile
           eval "$(/usr/local/bin/brew shellenv)"
           arch -x86_64 brew install libomp
@@ -676,7 +679,7 @@ jobs:
       - name: Install unixODBC (amd64)
         if: ${{ contains(format(';{0};', inputs.extra_toolchains), ';unixodbc;') && matrix.duckdb_arch == 'osx_amd64' }}
         run: |
-          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          arch -x86_64 /bin/bash -c "$(curl -fsSL $INTEL_HOMEBREW_INSTALLER)"
           /usr/local/bin/brew config
           /usr/local/bin/brew install unixodbc
           /usr/local/bin/brew ls -v unixodbc
