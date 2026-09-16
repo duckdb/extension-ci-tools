@@ -3,6 +3,23 @@ This repository contains reusable components for building, testing and deploying
 
 DuckDB's [Extension Template](https://github.com/duckdb/extension-template/actions) and various DuckDB Extensions based on the template use this repository to deduplicate code for build configuration and easily update the extension repositories when changes occur to DuckDB's build system and/or CI.
 
+## Accompanying release materials
+
+Set `include_release_materials: true` on the distribution workflow to upload
+`build/<config>/extension/<extension_name>/release/` in an additional artifact
+named `<extension_name>-<duckdb_version>-extension-<arch><artifact_postfix>-release`.
+The existing binary artifact and its directory layout are unchanged. Native and
+Wasm builds use the same convention; `<config>` is the build type or Wasm target.
+An enabled build fails if the release directory contains no uploadable files.
+
+The extension must generate the materials as part of its build, for example by
+enabling a packaging option through `extra_extension_config`. Extensions that
+collect dependency source downloads can set `vcpkg_binary_sources: clear` to
+build those dependencies from source. The workflow transports the files; the
+extension is responsible for their content and association with its binary.
+Actions artifacts expire, so publishers must copy the materials to durable
+storage alongside their published binaries.
+
 ## Versioning
 | Extension-ci-tools Branch | DuckDB target version | Actively maintained? |
 |---------------------------|-----------------------|----------------------|

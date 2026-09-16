@@ -57,11 +57,35 @@ jobs:
       save_cache: ${{ github.event_name != 'pull_request' }}
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
       upload_all_extensions: true
+      include_release_materials: true
       extensions_test_selection: complete
       extra_extension_config: |
         duckdb_extension_load(json)
         duckdb_extension_load(tpch)
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/extension/quack/release")
+        file(WRITE "${CMAKE_BINARY_DIR}/extension/quack/release/NOTICE.txt" "Release material fixture\n")
     secrets: inherit
+
+  release-materials:
+    name: Check accompanying release artifact
+    needs: extension-template-main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: quack-v1.5.4-extension-*-release
+          path: release
+      - name: Verify the preserved content and directory layout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          artifacts = list(Path('release').iterdir())
+          assert artifacts, 'No release artifacts were uploaded'
+          # The distribution workflow selects fewer targets in reduced CI mode.
+          for release in artifacts:
+              assert [path.name for path in release.iterdir()] == ['NOTICE.txt']
+              assert (release / 'NOTICE.txt').read_text() == 'Release material fixture\n'
+          PY
 
   extension-template-rust:
     name: Extension template (Rust)
