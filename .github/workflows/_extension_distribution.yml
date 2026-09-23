@@ -176,9 +176,15 @@ on:
         required: false
         type: string
         default: 'regular'
+      # JSON object mapping architectures to a runner name or array of runner labels.
+      runners:
+        required: false
+        type: string
+        default: '{}'
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
+  USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
 
 jobs:
   generate_matrix:
@@ -200,10 +206,10 @@ jobs:
       - id: parse-matrices
         run: |
           mkdir build
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux   --output build/linux_matrix.json   --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx     --output build/osx_matrix.json     --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
-          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm    --output build/wasm_matrix.json    --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os linux   --output build/linux_matrix.json   --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --runners '${{ inputs.runners }}' --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os osx     --output build/osx_matrix.json     --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --runners '${{ inputs.runners }}' --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os windows --output build/windows_matrix.json --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --runners '${{ inputs.runners }}' --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
+          python3 ${{ inputs.matrix_parse_script }} --input extension-ci-tools/config/distribution_matrix.json --select_os wasm    --output build/wasm_matrix.json    --exclude "${{ inputs.exclude_archs }}" --opt_in "${{ inputs.opt_in_archs }}" --runners '${{ inputs.runners }}' --pretty --reduced_ci_mode ${{ inputs.reduced_ci_mode }}
 
       - id: set-matrix-linux
         run: |
@@ -256,7 +262,7 @@ jobs:
       - name: Free disk space 1
         uses: endersonmenezes/free-disk-space@v2.1.1
         continue-on-error: true
-        if: inputs.run_disk_clean_step
+        if: ${{ inputs.run_disk_clean_step && env.USE_DEFAULT_RUNNERS == 'true' }}
         with:
 #          remove_android: true # ~9.5GB in #52s
 #          remove_dotnet: true
@@ -269,7 +275,7 @@ jobs:
 
       - name: Free disk space 2
         continue-on-error: true
-        if: inputs.run_disk_clean_step
+        if: ${{ inputs.run_disk_clean_step && env.USE_DEFAULT_RUNNERS == 'true' }}
         run: |
           docker images -a -q > package.list
           if [ -s package.list ]; then
@@ -281,18 +287,22 @@ jobs:
           rm package.list
 
       - name: Restart docker to run on /mnt
+        if: ${{ env.USE_DEFAULT_RUNNERS == 'true' }}
         run: |
           sudo systemctl stop docker
 
       - name: Configure Docker with custom data directory
+        if: ${{ env.USE_DEFAULT_RUNNERS == 'true' }}
         run: |
           sudo mkdir -p /mnt/docker-data
           echo '{ "data-root": "/mnt/docker-data" }' | sudo tee /etc/docker/daemon.json
 
       - name: Start Docker with updated storage path
+        if: ${{ env.USE_DEFAULT_RUNNERS == 'true' }}
         run: sudo systemctl start docker
 
       - name: Verify Docker storage path
+        if: ${{ env.USE_DEFAULT_RUNNERS == 'true' }}
         run: docker info | grep "Docker Root Dir"
 
       - uses: actions/checkout@v4
@@ -1040,7 +1050,7 @@ jobs:
 
   wasm:
     name: DuckDB-Wasm
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     needs:
       - generate_matrix
       - linux
