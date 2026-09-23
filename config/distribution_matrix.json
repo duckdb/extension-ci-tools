@@ -89,6 +89,7 @@
     "include": [
       {
         "duckdb_arch": "wasm_mvp",
+        "runner": "ubuntu-latest",
         "vcpkg_target_triplet": "wasm32-emscripten",
         "vcpkg_host_triplet": "x64-linux",
         "run_in_reduced_ci_mode": true,
@@ -96,6 +97,7 @@
       },
       {
         "duckdb_arch": "wasm_eh",
+        "runner": "ubuntu-latest",
         "vcpkg_target_triplet": "wasm32-emscripten",
         "vcpkg_host_triplet": "x64-linux",
         "run_in_reduced_ci_mode": false,
@@ -103,6 +105,7 @@
       },
       {
         "duckdb_arch": "wasm_threads",
+        "runner": "ubuntu-latest",
         "vcpkg_target_triplet": "wasm32-emscripten",
         "vcpkg_host_triplet": "x64-linux",
         "run_in_reduced_ci_mode": false,

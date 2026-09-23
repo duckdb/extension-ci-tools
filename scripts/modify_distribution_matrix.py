@@ -15,6 +15,9 @@ parser.add_argument("--pretty", action="store_true", help="Pretty print the outp
 parser.add_argument("--reduced_ci_mode", required=True, help="Set to default/enabled/disabled, when enabled, filters out redundant archs for testing")
 parser.add_argument("--select_os", help="Select an OS to include in the output JSON")
 parser.add_argument("--deploy_matrix", action="store_true", help="Create a merged list used in deploy step")
+parser.add_argument(
+    "--runners", default="{}", help="JSON object overriding runners by architecture"
+)
 args = parser.parse_args()
 
 
@@ -25,6 +28,21 @@ opt_in_arch_values = args.opt_in.split(";")
 output_json_file_path = args.output
 select_os = args.select_os
 reduced_ci_mode = args.reduced_ci_mode
+
+runner_aliases = {
+    "linux_amd64": "linux_x64",
+    "linux_arm64": "linux_arm64",
+    "linux_amd64_musl": "linux_x64",
+    "linux_arm64_musl": "linux_arm64",
+    "osx_amd64": "macos_x64",
+    "osx_arm64": "macos_arm64",
+    "windows_amd64": "windows_x64",
+    "windows_arm64": "windows_arm64",
+    "windows_amd64_mingw": "windows_x64",
+    "wasm_mvp": "linux_x64",
+    "wasm_eh": "linux_x64",
+    "wasm_threads": "linux_x64",
+}
 
 # Parse reduced CI mode
 if reduced_ci_mode == "auto":
@@ -43,6 +61,32 @@ else:
 with open(input_json_file_path, "r") as json_file:
     data = json.load(json_file)
 
+runner_overrides = json.loads(args.runners)
+if not isinstance(runner_overrides, dict):
+    raise ValueError("runners must be a JSON object")
+
+for key, runner in runner_overrides.items():
+    valid_string = isinstance(runner, str) and runner.strip()
+    valid_labels = (
+        isinstance(runner, list)
+        and runner
+        and all(isinstance(label, str) and label.strip() for label in runner)
+    )
+    if not valid_string and not valid_labels:
+        raise ValueError(
+            f"runner override for {key!r} must be a non-empty string or string array"
+        )
+
+for config in data.values():
+    for entry in config.get("include", []):
+        arch = entry["duckdb_arch"]
+        override = runner_overrides.get(arch)
+        if override is None:
+            override = runner_overrides.get(runner_aliases.get(arch))
+        if override is not None:
+            entry["runner"] = override
+
+
 def should_run(config, reduced_ci_mode, excluded_arch_values, opt_in_arch_values):
     arch = config["duckdb_arch"]
     if arch in excluded_arch_values:
@@ -52,6 +96,7 @@ def should_run(config, reduced_ci_mode, excluded_arch_values, opt_in_arch_values
     if config["opt_in"] and arch not in opt_in_arch_values:
         return False
     return True
+
 
 # Function to filter entries based on duckdb_arch values
 def filter_entries(data, excluded_arch_values, opt_in_arch_values):
