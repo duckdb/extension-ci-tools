@@ -2,6 +2,11 @@ name: CodeQuality
 on:
   workflow_call:
     inputs:
+      extension_directory:
+        description: Extension directory relative to the repository root
+        required: false
+        type: string
+        default: '.'
       explicit_checks:
         type: string
         required: false
@@ -76,7 +81,7 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
@@ -89,6 +94,7 @@ jobs:
         run: pip3 freeze
 
       - name: Format Check
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         run: |
           clang-format --version
@@ -128,7 +134,7 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
@@ -137,5 +143,6 @@ jobs:
         run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-tidy && sudo pip3 install pybind11[global] --break-system-packages
 
       - name: Tidy Check Diff
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         run: make tidy-check
