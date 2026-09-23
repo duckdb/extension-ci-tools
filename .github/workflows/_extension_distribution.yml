@@ -21,6 +21,11 @@ on:
       VCPKG_CACHING_AWS_DEFAULT_REGION:
         required: false
     inputs:
+      extension_directory:
+        description: Extension directory relative to the repository root
+        required: false
+        type: string
+        default: '.'
       # The name with which the extension will be built
       extension_name:
         required: true
@@ -178,6 +183,7 @@ on:
         default: 'regular'
 
 env:
+  EXTENSION_DIRECTORY: ${{ inputs.extension_directory || '.' }}
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
 
 jobs:
@@ -314,11 +320,12 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Fetch override repository
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.override_duckdb_repository != ''}}
         run: |
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
@@ -327,21 +334,24 @@ jobs:
         if: ${{inputs.set_caller_as_duckdb}}
         uses: actions/checkout@v4
         with:
-          path: 'duckdb'
+          path: ${{ inputs.extension_directory || '.' }}/duckdb
           fetch-tags: true
           fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.duckdb_version != '' }}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.extension_tag != ''}}
         run: |
           git tag ${{ inputs.extension_tag }}
 
       - name: Tag DuckDB extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.duckdb_tag != ''}}
         run: |
           DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
@@ -349,12 +359,13 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
           fetch-depth: 0
 
       - name: Build Docker image
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         run: |
           docker build \
@@ -375,11 +386,11 @@ jobs:
           AWS_DEFAULT_REGION=${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
           AWS_REQUEST_CHECKSUM_CALCULATION=when_required
           VCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_target_triplet }}
-          VCPKG_OVERLAY_TRIPLETS=/duckdb_build_dir/extensions-ci-tools/toolchains
-          VCPKG_OVERLAY_PORTS=/duckdb_build_dir/extension-ci-tools/vcpkg_ports
+          VCPKG_OVERLAY_TRIPLETS=/duckdb_build_dir/$EXTENSION_DIRECTORY/extension-ci-tools/toolchains
+          VCPKG_OVERLAY_PORTS=/duckdb_build_dir/$EXTENSION_DIRECTORY/extension-ci-tools/vcpkg_ports
           BUILD_SHELL=${{ inputs.build_duckdb_shell && '1' || '0' }}
-          OPENSSL_ROOT_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
-          OPENSSL_DIR=/duckdb_build_dir/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
+          OPENSSL_ROOT_DIR=/duckdb_build_dir/$EXTENSION_DIRECTORY/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
+          OPENSSL_DIR=/duckdb_build_dir/$EXTENSION_DIRECTORY/build/${{ inputs.build_type }}/vcpkg_installed/${{ matrix.vcpkg_target_triplet }}
           OPENSSL_USE_STATIC_LIBS=true
           DUCKDB_PLATFORM=${{ matrix.duckdb_arch }}
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }}
@@ -415,6 +426,7 @@ jobs:
             ccache-extension-distribution-${{ matrix.duckdb_arch }}-
 
       - name: Run configure (outside Docker)
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
@@ -429,11 +441,12 @@ jobs:
           DEPS=$(python3 -c "import json; data=json.loads(r'$JSON'); print(' '.join(data.get('${{ matrix.duckdb_arch }}', [])) if '${{ matrix.duckdb_arch }}' in data else '')" | tr -d '\n')
           if [ ! -z "$DEPS" ]; then
             for dep in $DEPS; do
-              docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir duckdb/${{ matrix.duckdb_arch }} vcpkg install $dep --recurse
+              docker run --env-file=docker_env.txt -v "$GITHUB_WORKSPACE:/duckdb_build_dir" -w "/duckdb_build_dir/$EXTENSION_DIRECTORY" duckdb/${{ matrix.duckdb_arch }} vcpkg install $dep --recurse
             done
           fi
 
       - name: Inject extra extension config
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.extra_extension_config }}
         shell: bash
         env:
@@ -445,11 +458,11 @@ jobs:
       - name: Run configure (inside Docker)
         shell: bash
         run: |
-          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make configure_ci
+          docker run --env-file=docker_env.txt -v "$GITHUB_WORKSPACE:/duckdb_build_dir" -w "/duckdb_build_dir/$EXTENSION_DIRECTORY" -v "$GITHUB_WORKSPACE/ccache_dir:/ccache_dir" duckdb/${{ matrix.duckdb_arch }} make configure_ci
 
       - name: Build extension (inside Docker)
         run: |
-          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make ${{ inputs.build_type }}
+          docker run --env-file=docker_env.txt -v "$GITHUB_WORKSPACE:/duckdb_build_dir" -w "/duckdb_build_dir/$EXTENSION_DIRECTORY" -v "$GITHUB_WORKSPACE/ccache_dir:/ccache_dir" duckdb/${{ matrix.duckdb_arch }} make ${{ inputs.build_type }}
 
       - name: Save Ccache
         if: ${{ inputs.save_cache }}
@@ -461,9 +474,10 @@ jobs:
       - name: Test extension (inside docker)
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
         run: |
-          docker run --env-file=docker_env.txt -v `pwd`:/duckdb_build_dir -v `pwd`/ccache_dir:/ccache_dir duckdb/${{ matrix.duckdb_arch }} make test_${{ inputs.build_type }}
+          docker run --env-file=docker_env.txt -v "$GITHUB_WORKSPACE:/duckdb_build_dir" -w "/duckdb_build_dir/$EXTENSION_DIRECTORY" -v "$GITHUB_WORKSPACE/ccache_dir:/ccache_dir" duckdb/${{ matrix.duckdb_arch }} make test_${{ inputs.build_type }}
 
       - name: Test extension (outside docker)
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ matrix.duckdb_arch != 'linux_arm64' && inputs.skip_tests == false }}
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
@@ -479,7 +493,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.extension_directory || '.' }}/build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - uses: actions/upload-artifact@v4
         if: ${{ inputs.upload_all_extensions }}
@@ -487,9 +501,10 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+            ${{ inputs.extension_directory || '.' }}/build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
       - name: Print Rust logs
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
         run: |
           for filename in build/${{ inputs.build_type }}/rust/src/*/*build-*.log; do
@@ -518,8 +533,8 @@ jobs:
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
-      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/${{ inputs.extension_directory || '.' }}/extension-ci-tools/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/${{ inputs.extension_directory || '.' }}/extension-ci-tools/toolchains
       USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
       # VCPKG caching
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
@@ -572,11 +587,12 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Fetch override repository
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.override_duckdb_repository != ''}}
         run: |
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
@@ -585,21 +601,24 @@ jobs:
         if: ${{inputs.set_caller_as_duckdb}}
         uses: actions/checkout@v4
         with:
-          path: 'duckdb'
+          path: ${{ inputs.extension_directory || '.' }}/duckdb
           fetch-tags: true
           fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.duckdb_version != '' }}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.extension_tag != ''}}
         run: |
           git tag ${{ inputs.extension_tag }}
 
       - name: Tag DuckDB extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.duckdb_tag != ''}}
         run: |
           DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
@@ -640,6 +659,7 @@ jobs:
           brew install bison flex
 
       - name: Inject extra extension config
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.extra_extension_config }}
         shell: bash
         env:
@@ -693,6 +713,7 @@ jobs:
           aws --version
 
       - name: Run configure
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
@@ -700,6 +721,7 @@ jobs:
           make configure_ci
 
       - name: Install extra vcpkg dependencies
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.vcpkg_extra_dependencies != '' }}
         run: |
           JSON='${{inputs.vcpkg_extra_dependencies}}'
@@ -711,11 +733,13 @@ jobs:
           fi
 
       - name: Build extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ inputs.build_type }}
 
       - name: Test Extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ matrix.osx_build_arch == 'arm64' && inputs.skip_tests == false }}
         env:
           SUBSET_EXTENSIONS_TESTS: ${{ inputs.extensions_test_selection }}
@@ -730,7 +754,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.extension_directory || '.' }}/build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - uses: actions/upload-artifact@v4
         if: ${{ inputs.upload_all_extensions }}
@@ -738,9 +762,10 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+            ${{ inputs.extension_directory || '.' }}/build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
       - name: Print Rust logs
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
         run: |
           for filename in build/${{ inputs.build_type }}/rust/src/*/*build-*.log; do
@@ -768,8 +793,8 @@ jobs:
       # VCPKG config
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
-      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/${{ inputs.extension_directory || '.' }}/extension-ci-tools/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/${{ inputs.extension_directory || '.' }}/extension-ci-tools/toolchains
       USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
       # VCPKG caching
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
@@ -879,11 +904,12 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Fetch override repository
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.override_duckdb_repository != ''}}
         env:
           DUCKDB_GIT_REPOSITORY: ${{ inputs.override_duckdb_repository }}
@@ -894,11 +920,12 @@ jobs:
         if: ${{inputs.set_caller_as_duckdb}}
         uses: actions/checkout@v4
         with:
-          path: 'duckdb'
+          path: ${{ inputs.extension_directory || '.' }}/duckdb
           fetch-tags: true
           fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.duckdb_version != '' }}
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
@@ -906,11 +933,13 @@ jobs:
           make set_duckdb_version
 
       - name: Tag extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.extension_tag != ''}}
         run: |
           git tag ${{ inputs.extension_tag }}
 
       - name: Tag DuckDB extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.duckdb_tag != ''}}
         env:
           DUCKDB_TAG: ${{ inputs.duckdb_tag }}
@@ -933,6 +962,7 @@ jobs:
           vcpkgDirectory: ${{ env.VCPKG_WINDOWS_ROOT }}
 
       - name: Inject extra extension config
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.extra_extension_config }}
         shell: bash
         env:
@@ -942,6 +972,7 @@ jobs:
           cat ./extension_config.cmake
 
       - name: Run configure
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -951,6 +982,7 @@ jobs:
           make configure_ci
 
       - name: Install extra vcpkg dependencies
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         if: ${{ inputs.vcpkg_extra_dependencies != '' }}
         run: |
@@ -964,6 +996,7 @@ jobs:
           fi
 
       - name: Build extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         env:
           DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
           EXTENSION_NAME: ${{ inputs.extension_name }}
@@ -996,6 +1029,7 @@ jobs:
           make ${{ inputs.build_type }}
 
       - name: Test extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.skip_tests == false }}
         shell: bash
         env:
@@ -1012,7 +1046,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
+            ${{ inputs.extension_directory || '.' }}/build/${{ inputs.build_type }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension
 
       - uses: actions/upload-artifact@v4
         if: ${{ inputs.upload_all_extensions }}
@@ -1020,9 +1054,10 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
+            ${{ inputs.extension_directory || '.' }}/build/${{ inputs.build_type }}/repository/**/*.duckdb_extension
 
       - name: Print Rust logs
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
         shell: bash
         run: |
@@ -1058,8 +1093,8 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
-      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
-      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/${{ inputs.extension_directory || '.' }}/extension-ci-tools/vcpkg_ports
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/${{ inputs.extension_directory || '.' }}/extension-ci-tools/toolchains
       # VCPKG caching
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
@@ -1090,11 +1125,12 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout Extension CI tools
         with:
-          path: 'extension-ci-tools'
+          path: ${{ inputs.extension_directory || '.' }}/extension-ci-tools
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
 
       - name: Fetch override repository
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.override_duckdb_repository != ''}}
         run: |
           DUCKDB_GIT_REPOSITORY=${{ inputs.override_duckdb_repository }} make set_duckdb_repository
@@ -1103,21 +1139,24 @@ jobs:
         if: ${{inputs.set_caller_as_duckdb}}
         uses: actions/checkout@v4
         with:
-          path: 'duckdb'
+          path: ${{ inputs.extension_directory || '.' }}/duckdb
           fetch-tags: true
           fetch-depth: 0
 
       - name: Checkout DuckDB to version
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.duckdb_version != '' }}
         run: |
           DUCKDB_GIT_VERSION=${{ inputs.duckdb_version }} make set_duckdb_version
 
       - name: Tag extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.extension_tag != ''}}
         run: |
           git tag ${{ inputs.extension_tag }}
 
       - name: Tag DuckDB extension
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{inputs.duckdb_tag != ''}}
         run: |
           DUCKDB_TAG=${{ inputs.duckdb_tag }} make set_duckdb_tag
@@ -1169,6 +1208,7 @@ jobs:
           aws --version
 
       - name: Inject extra extension config
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.extra_extension_config }}
         shell: bash
         env:
@@ -1178,6 +1218,7 @@ jobs:
           cat ./extension_config.cmake
 
       - name: Run configure
+        working-directory: ${{ inputs.extension_directory || '.' }}
         shell: bash
         env:
           DUCKDB_GIT_VERSION: ${{ inputs.duckdb_version }}
@@ -1185,6 +1226,7 @@ jobs:
           make configure_ci
 
       - name: Install extra vcpkg dependencies
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.vcpkg_extra_dependencies != '' }}
         shell: bash
         run: |
@@ -1197,6 +1239,7 @@ jobs:
           fi
 
       - name: Build Wasm module
+        working-directory: ${{ inputs.extension_directory || '.' }}
         run: |
           EXTENSION_NAME=${{ inputs.extension_name }} EXTENSION_CANONICAL=${{ inputs.extension_canonical }} ENABLE_EXTENSION_AUTOINSTALL=1 ENABLE_EXTENSION_AUTOLOADING=1 make ${{ matrix.duckdb_arch }}
 
@@ -1206,7 +1249,7 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
+            ${{ inputs.extension_directory || '.' }}/build/${{ matrix.duckdb_arch }}/extension/${{ inputs.extension_name }}/${{ inputs.extension_name }}.duckdb_extension.wasm
 
       - uses: actions/upload-artifact@v4
         if: ${{ inputs.upload_all_extensions}}
@@ -1214,9 +1257,10 @@ jobs:
           if-no-files-found: error
           name: ${{ inputs.extension_name }}-${{ inputs.duckdb_version }}-extension-${{matrix.duckdb_arch}}${{inputs.artifact_postfix}}
           path: |
-            build/${{ matrix.duckdb_arch }}/repository/**/*.duckdb_extension.wasm
+            ${{ inputs.extension_directory || '.' }}/build/${{ matrix.duckdb_arch }}/repository/**/*.duckdb_extension.wasm
 
       - name: Print Rust logs
+        working-directory: ${{ inputs.extension_directory || '.' }}
         if: ${{ inputs.rust_logs && (inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;')) }}
         shell: bash
         run: |
