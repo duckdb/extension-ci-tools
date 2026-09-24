@@ -286,6 +286,7 @@ class CIPhaseTest(unittest.TestCase):
                 artifact_name,
                 [
                     ("libduckdb_static.a", b"library"),
+                    ("libduckdb_shell.a", b"shell"),
                     ("libcore_functions_extension.a", b"core functions"),
                     ("nested/libparquet_extension.a", b"parquet"),
                     ("README", b"ignored"),
@@ -297,6 +298,7 @@ class CIPhaseTest(unittest.TestCase):
                     "CI_LINUX_NATIVE_CONTAINER": "true",
                     "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
                     "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
                 }
             )
             runner = RecordingRunner(env)
@@ -318,6 +320,10 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 runner.commands[0][1]["extra_env"]["DUCKDB_PREBUILT_EXTENSIONS"],
                 "core_functions;parquet",
+            )
+            self.assertEqual(
+                (artifact_root / "extracted" / "libduckdb_shell.a").read_bytes(),
+                b"shell",
             )
             self.assertEqual(
                 (
@@ -343,6 +349,7 @@ class CIPhaseTest(unittest.TestCase):
                 artifact_name,
                 [
                     ("duckdb_static.lib", b"library"),
+                    ("duckdb_shell.lib", b"shell"),
                     ("core_functions_extension.lib", b"core functions"),
                     ("parquet_extension.lib", b"parquet"),
                 ],
@@ -352,6 +359,7 @@ class CIPhaseTest(unittest.TestCase):
                 {
                     "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
                     "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
                 }
             )
             runner = RecordingRunner(env)
@@ -366,6 +374,42 @@ class CIPhaseTest(unittest.TestCase):
                 runner.env["DUCKDB_PREBUILT_EXTENSIONS"],
                 "core_functions;parquet",
             )
+            self.assertEqual(
+                (artifact_root / "extracted" / "duckdb_shell.lib").read_bytes(),
+                b"shell",
+            )
+
+    def test_prebuilt_duckdb_requires_shell_library_when_building_shell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
+                }
+            )
+
+            self.create_prebuilt_archive(
+                artifact_root, artifact_name, [("libduckdb_static.a", b"library")]
+            )
+            with self.assertRaisesRegex(ValueError, "expected one libduckdb_shell.a"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libduckdb_shell.a", b"one"),
+                    ("nested/libduckdb_shell.a", b"two"),
+                ],
+            )
+            with self.assertRaisesRegex(ValueError, "expected one libduckdb_shell.a"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
 
     def test_prebuilt_duckdb_rejects_missing_or_duplicate_library(self):
         with tempfile.TemporaryDirectory() as directory:

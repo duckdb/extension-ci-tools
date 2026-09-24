@@ -438,6 +438,7 @@ class PhaseRunner:
             if msvc
             else "libduckdb_static.a"
         )
+        shell_library_name = "duckdb_shell.lib" if msvc else "libduckdb_shell.a"
         extension_prefix = "" if msvc else "lib"
         extension_suffix = "_extension.lib" if msvc else "_extension.a"
         with tarfile.open(archives[0], "r:gz") as bundle:
@@ -450,12 +451,12 @@ class PhaseRunner:
                 is_extension = name.startswith(extension_prefix) and name.endswith(
                     extension_suffix
                 )
-                if name != library_name and not is_extension:
+                if name not in {library_name, shell_library_name} and not is_extension:
                     continue
                 if name in selected_members:
-                    if name == library_name:
+                    if name in {library_name, shell_library_name}:
                         raise ValueError(
-                            f"expected one {library_name} in prebuilt DuckDB artifact {archives[0]}, found 2"
+                            f"expected one {name} in prebuilt DuckDB artifact {archives[0]}, found 2"
                         )
                     raise ValueError(
                         f"duplicate prebuilt library {name} in DuckDB artifact {archives[0]}"
@@ -469,6 +470,13 @@ class PhaseRunner:
             if library_name not in selected_members:
                 raise ValueError(
                     f"expected one {library_name} in prebuilt DuckDB artifact {archives[0]}, found 0"
+                )
+            if (
+                self.enabled("CI_BUILD_DUCKDB_SHELL")
+                and shell_library_name not in selected_members
+            ):
+                raise ValueError(
+                    f"expected one {shell_library_name} in prebuilt DuckDB artifact {archives[0]}, found 0"
                 )
 
             destination_root = artifact_root / "extracted"

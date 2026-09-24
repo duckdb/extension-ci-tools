@@ -81,7 +81,7 @@ on:
         type: boolean
         default: true
       prebuilt_duckdb:
-        description: JSON map from DuckDB architecture to prebuilt static-library artifact name
+        description: JSON map from DuckDB architecture to prebuilt library artifact name
         required: false
         type: string
         default: "{}"
