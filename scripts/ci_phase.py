@@ -411,6 +411,7 @@ class PhaseRunner:
             "ENABLE_EXTENSION_AUTOINSTALL": "1",
             "ENABLE_EXTENSION_AUTOLOADING": "1",
             "DUCKDB_PREBUILT_LIBRARY": self.value("DUCKDB_PREBUILT_LIBRARY"),
+            "DUCKDB_PREBUILT_EXTENSIONS": self.value("DUCKDB_PREBUILT_EXTENSIONS"),
         }
 
     def prepare_prebuilt_duckdb(self) -> None:
@@ -427,34 +428,65 @@ class PhaseRunner:
                 f"expected one prebuilt DuckDB artifact named {artifact_name} below {artifact_root}, found {len(archives)}"
             )
 
-        library_name = (
-            "duckdb_static.lib"
-            if self.platform == "windows"
+        msvc = (
+            self.platform == "windows"
             and self.architecture
             not in {"windows_amd64_mingw", "windows_amd64_rtools"}
+        )
+        library_name = (
+            "duckdb_static.lib"
+            if msvc
             else "libduckdb_static.a"
         )
+        extension_prefix = "" if msvc else "lib"
+        extension_suffix = "_extension.lib" if msvc else "_extension.a"
         with tarfile.open(archives[0], "r:gz") as bundle:
-            members = [
-                member
-                for member in bundle.getmembers()
-                if member.isfile() and Path(member.name).name == library_name
-            ]
-            if len(members) != 1:
-                raise ValueError(
-                    f"expected one {library_name} in prebuilt DuckDB artifact {archives[0]}, found {len(members)}"
+            selected_members: dict[str, tarfile.TarInfo] = {}
+            extension_names: list[str] = []
+            for member in bundle.getmembers():
+                if not member.isfile():
+                    continue
+                name = Path(member.name).name
+                is_extension = name.startswith(extension_prefix) and name.endswith(
+                    extension_suffix
                 )
-            source = bundle.extractfile(members[0])
-            if source is None:
-                raise ValueError(
-                    f"could not read {library_name} from prebuilt DuckDB artifact {archives[0]}"
-                )
-            destination = artifact_root / "extracted" / library_name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            with destination.open("wb") as target:
-                shutil.copyfileobj(source, target)
+                if name != library_name and not is_extension:
+                    continue
+                if name in selected_members:
+                    if name == library_name:
+                        raise ValueError(
+                            f"expected one {library_name} in prebuilt DuckDB artifact {archives[0]}, found 2"
+                        )
+                    raise ValueError(
+                        f"duplicate prebuilt library {name} in DuckDB artifact {archives[0]}"
+                    )
+                selected_members[name] = member
+                if is_extension:
+                    extension_names.append(
+                        name[len(extension_prefix) : -len(extension_suffix)]
+                    )
 
+            if library_name not in selected_members:
+                raise ValueError(
+                    f"expected one {library_name} in prebuilt DuckDB artifact {archives[0]}, found 0"
+                )
+
+            destination_root = artifact_root / "extracted"
+            destination_root.mkdir(parents=True, exist_ok=True)
+            for name, member in selected_members.items():
+                source = bundle.extractfile(member)
+                if source is None:
+                    raise ValueError(
+                        f"could not read {name} from prebuilt DuckDB artifact {archives[0]}"
+                    )
+                with (destination_root / name).open("wb") as target:
+                    shutil.copyfileobj(source, target)
+
+        destination = artifact_root / "extracted" / library_name
         self.set_environment("DUCKDB_PREBUILT_LIBRARY", str(destination.resolve()))
+        self.set_environment(
+            "DUCKDB_PREBUILT_EXTENSIONS", ";".join(sorted(extension_names))
+        )
 
     def docker_arguments(self) -> list[str]:
         return [
@@ -499,6 +531,7 @@ class PhaseRunner:
             "CI": "true",
             "CCACHE_MAXSIZE": "5G",
             "SUBSET_EXTENSIONS_TESTS": self.value("CI_EXTENSIONS_TEST_SELECTION"),
+            "DUCKDB_PREBUILT_EXTENSIONS": self.value("DUCKDB_PREBUILT_EXTENSIONS"),
         }
         values.update(test_environment(self.value("CI_TEST_CONFIG", "{}")))
         prebuilt_library = self.value("DUCKDB_PREBUILT_LIBRARY")

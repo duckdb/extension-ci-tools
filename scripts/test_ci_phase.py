@@ -284,7 +284,12 @@ class CIPhaseTest(unittest.TestCase):
             self.create_prebuilt_archive(
                 artifact_root,
                 artifact_name,
-                [("libduckdb_static.a", b"library")],
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libcore_functions_extension.a", b"core functions"),
+                    ("nested/libparquet_extension.a", b"parquet"),
+                    ("README", b"ignored"),
+                ],
             )
             env = self.environment(workspace)
             env.update(
@@ -306,6 +311,27 @@ class CIPhaseTest(unittest.TestCase):
                 runner.commands[0][1]["extra_env"]["DUCKDB_PREBUILT_LIBRARY"],
                 str(library.resolve()),
             )
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_EXTENSIONS"],
+                "core_functions;parquet",
+            )
+            self.assertEqual(
+                runner.commands[0][1]["extra_env"]["DUCKDB_PREBUILT_EXTENSIONS"],
+                "core_functions;parquet",
+            )
+            self.assertEqual(
+                (
+                    artifact_root
+                    / "extracted"
+                    / "libcore_functions_extension.a"
+                ).read_bytes(),
+                b"core functions",
+            )
+            self.assertEqual(
+                (artifact_root / "extracted" / "libparquet_extension.a").read_bytes(),
+                b"parquet",
+            )
+            self.assertFalse((artifact_root / "extracted" / "README").exists())
 
     def test_prebuilt_duckdb_uses_msvc_library_name(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -315,7 +341,11 @@ class CIPhaseTest(unittest.TestCase):
             self.create_prebuilt_archive(
                 artifact_root,
                 artifact_name,
-                [("duckdb_static.lib", b"library")],
+                [
+                    ("duckdb_static.lib", b"library"),
+                    ("core_functions_extension.lib", b"core functions"),
+                    ("parquet_extension.lib", b"parquet"),
+                ],
             )
             env = self.environment(workspace, "windows", "windows_amd64")
             env.update(
@@ -331,6 +361,10 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(library.read_bytes(), b"library")
             self.assertEqual(
                 runner.env["DUCKDB_PREBUILT_LIBRARY"], str(library.resolve())
+            )
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_EXTENSIONS"],
+                "core_functions;parquet",
             )
 
     def test_prebuilt_duckdb_rejects_missing_or_duplicate_library(self):
@@ -361,6 +395,18 @@ class CIPhaseTest(unittest.TestCase):
                 [("libduckdb_static.a", b"one"), ("nested/libduckdb_static.a", b"two")],
             )
             with self.assertRaisesRegex(ValueError, "found 2"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libparquet_extension.a", b"one"),
+                    ("nested/libparquet_extension.a", b"two"),
+                ],
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate prebuilt library"):
                 RecordingRunner(env).prepare_prebuilt_duckdb()
 
     def test_skip_test_does_not_execute_commands(self):
