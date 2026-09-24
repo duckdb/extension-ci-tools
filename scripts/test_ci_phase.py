@@ -266,6 +266,103 @@ class CIPhaseTest(unittest.TestCase):
                 "build/wasm_eh/repository/**/*.duckdb_extension.wasm",
             )
 
+    def create_prebuilt_archive(self, root, artifact_name, members):
+        archive_path = root / artifact_name
+        root.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive_path, "w:gz") as archive:
+            for name, contents in members:
+                member = tarfile.TarInfo(name)
+                member.size = len(contents)
+                archive.addfile(member, io.BytesIO(contents))
+        return archive_path
+
+    def test_prebuilt_duckdb_archive_is_forwarded_to_build(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [("libduckdb_static.a", b"library")],
+            )
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_LINUX_NATIVE_CONTAINER": "true",
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.build()
+
+            library = artifact_root / "extracted" / "libduckdb_static.a"
+            self.assertEqual(library.read_bytes(), b"library")
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_LIBRARY"], str(library.resolve())
+            )
+            self.assertEqual(
+                runner.commands[0][1]["extra_env"]["DUCKDB_PREBUILT_LIBRARY"],
+                str(library.resolve()),
+            )
+
+    def test_prebuilt_duckdb_uses_msvc_library_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-windows-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "windows_amd64"
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [("duckdb_static.lib", b"library")],
+            )
+            env = self.environment(workspace, "windows", "windows_amd64")
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.prepare_prebuilt_duckdb()
+
+            library = artifact_root / "extracted" / "duckdb_static.lib"
+            self.assertEqual(library.read_bytes(), b"library")
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_LIBRARY"], str(library.resolve())
+            )
+
+    def test_prebuilt_duckdb_rejects_missing_or_duplicate_library(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                }
+            )
+
+            with self.assertRaisesRegex(FileNotFoundError, "found 0"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root, artifact_name, [("duckdb.h", b"header")]
+            )
+            with self.assertRaisesRegex(ValueError, "expected one libduckdb_static.a"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [("libduckdb_static.a", b"one"), ("nested/libduckdb_static.a", b"two")],
+            )
+            with self.assertRaisesRegex(ValueError, "found 2"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
     def test_skip_test_does_not_execute_commands(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory)
