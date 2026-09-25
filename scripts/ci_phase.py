@@ -35,6 +35,11 @@ def format_command(command: Sequence[str] | str) -> str:
     return command if isinstance(command, str) else shlex.join(command)
 
 
+def format_windows_command(command: Sequence[str]) -> str:
+    """Serialize an argument list for execution by cmd.exe on Windows."""
+    return subprocess.list2cmdline(command)
+
+
 def is_true(value: str | None) -> bool:
     return (value or "").lower() in TRUE_VALUES
 
@@ -624,8 +629,10 @@ class PhaseRunner:
                 shell=True,
                 extra_env=environment,
             )
-        commands.append(f"make {self.required('CI_BUILD_TYPE')}")
-        # cmd.exe does not understand the C-runtime quote escaping used for argument lists.
+        build_command = format_windows_command(
+            [*self.retry_prefix(), "make", self.required("CI_BUILD_TYPE")]
+        )
+        commands.append(build_command)
         self.run(" && ".join(commands), shell=True, extra_env=environment)
 
     def build_wasm(self) -> None:

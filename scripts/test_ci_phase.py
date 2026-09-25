@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ci_phase import (  # noqa: E402
     PhaseRunner,
     extra_dependencies,
+    format_windows_command,
     main,
     is_true,
     test_environment,
@@ -60,6 +61,24 @@ class CIPhaseTest(unittest.TestCase):
         self.assertFalse(is_true("false"))
         self.assertTrue(tool_enabled("rust;go", "go"))
         self.assertFalse(tool_enabled("fortran", "go"))
+
+    def test_windows_command_uses_cmd_compatible_quoting(self):
+        command = format_windows_command(
+            [
+                r"C:\Program Files\Python\python.exe",
+                r"D:\a\duckdb\duckdb\scripts\ci\retry.py",
+                "--",
+                "make",
+                "release",
+            ]
+        )
+
+        self.assertEqual(
+            command,
+            '"C:\\Program Files\\Python\\python.exe" '
+            "D:\\a\\duckdb\\duckdb\\scripts\\ci\\retry.py -- make release",
+        )
+        self.assertNotIn("'", command)
 
     def test_intel_macos_dependencies_use_pinned_homebrew_installer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -554,10 +573,16 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_build_selects_vcvars_before_running_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory, "windows", "windows_amd64")
+            retry_script = Path(directory, "duckdb", "scripts", "ci", "retry.py").resolve()
+            retry_script.parent.mkdir(parents=True)
+            retry_script.touch()
             for has_vs18, version in ((True, "18"), (False, "2022")):
                 with self.subTest(has_vs18=has_vs18):
                     runner = RecordingRunner(env)
-                    with mock.patch("ci_phase.os.path.isfile", return_value=has_vs18):
+                    with mock.patch(
+                        "ci_phase.os.path.isfile",
+                        side_effect=lambda path: Path(path) == retry_script or has_vs18,
+                    ):
                         runner.build_windows()
 
                     self.assertEqual(len(runner.commands), 2)
@@ -581,7 +606,8 @@ class CIPhaseTest(unittest.TestCase):
                     self.assertNotIn("if exist", build_command)
                     self.assertNotIn(" else ", build_command)
                     self.assertNotIn("link.exe", build_command)
-                    self.assertTrue(build_command.endswith(" && make release"))
+                    self.assertIn(str(retry_script), build_command)
+                    self.assertTrue(build_command.endswith(" -- make release"))
 
     def test_upload_writes_outputs_and_validates_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
