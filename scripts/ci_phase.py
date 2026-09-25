@@ -598,10 +598,14 @@ class PhaseRunner:
 
     def build_windows(self) -> None:
         environment = self.build_environment()
-        environment["EXT_FLAGS"] = (
+        extension_flags = [
             "-DCMAKE_C_COMPILER_LAUNCHER=ccache "
             "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-        )
+        ]
+        # Static triplets have no vcpkg DLLs to deploy.
+        if "static" in self.value("VCPKG_TARGET_TRIPLET").split("-"):
+            extension_flags.append("-DVCPKG_APPLOCAL_DEPS=OFF")
+        environment["EXT_FLAGS"] = " ".join(extension_flags)
         rtools = environment["DUCKDB_PLATFORM_RTOOLS"] == "1"
         commands = ["setlocal EnableDelayedExpansion"]
         if not rtools:

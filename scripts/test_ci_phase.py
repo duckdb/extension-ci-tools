@@ -573,6 +573,7 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_build_selects_vcvars_before_running_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory, "windows", "windows_amd64")
+            env["VCPKG_TARGET_TRIPLET"] = "x64-windows-static-release"
             retry_script = Path(directory, "duckdb", "scripts", "ci", "retry.py").resolve()
             retry_script.parent.mkdir(parents=True)
             retry_script.touch()
@@ -608,6 +609,34 @@ class CIPhaseTest(unittest.TestCase):
                     self.assertNotIn("link.exe", build_command)
                     self.assertIn(str(retry_script), build_command)
                     self.assertTrue(build_command.endswith(" -- make release"))
+                    self.assertIn(
+                        "-DVCPKG_APPLOCAL_DEPS=OFF",
+                        build_options["extra_env"]["EXT_FLAGS"],
+                    )
+
+    def test_windows_disables_vcpkg_applocal_only_for_static_triplets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = (
+                ("windows_amd64", "x64-windows-static-release", True),
+                ("windows_arm64", "arm64-windows-static-release", True),
+                ("windows_amd64_mingw", "x64-mingw-static", True),
+                ("windows_amd64", "x64-windows", False),
+            )
+            for architecture, triplet, expected in cases:
+                with self.subTest(architecture=architecture, triplet=triplet):
+                    env = self.environment(directory, "windows", architecture)
+                    env["VCPKG_TARGET_TRIPLET"] = triplet
+                    runner = RecordingRunner(env)
+                    with mock.patch("ci_phase.os.path.isfile", return_value=False):
+                        runner.build_windows()
+
+                    extension_flags = runner.commands[-1][1]["extra_env"]["EXT_FLAGS"]
+                    self.assertEqual(
+                        "-DVCPKG_APPLOCAL_DEPS=OFF" in extension_flags,
+                        expected,
+                    )
+                    self.assertIn("-DCMAKE_C_COMPILER_LAUNCHER=ccache", extension_flags)
+                    self.assertIn("-DCMAKE_CXX_COMPILER_LAUNCHER=ccache", extension_flags)
 
     def test_upload_writes_outputs_and_validates_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
