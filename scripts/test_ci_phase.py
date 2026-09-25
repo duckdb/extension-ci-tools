@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ci_phase import (  # noqa: E402
     PhaseRunner,
     extra_dependencies,
+    format_windows_command,
     main,
     is_true,
     test_environment,
@@ -60,6 +61,24 @@ class CIPhaseTest(unittest.TestCase):
         self.assertFalse(is_true("false"))
         self.assertTrue(tool_enabled("rust;go", "go"))
         self.assertFalse(tool_enabled("fortran", "go"))
+
+    def test_windows_command_uses_cmd_compatible_quoting(self):
+        command = format_windows_command(
+            [
+                r"C:\Program Files\Python\python.exe",
+                r"D:\a\duckdb\duckdb\scripts\ci\retry.py",
+                "--",
+                "make",
+                "release",
+            ]
+        )
+
+        self.assertEqual(
+            command,
+            '"C:\\Program Files\\Python\\python.exe" '
+            "D:\\a\\duckdb\\duckdb\\scripts\\ci\\retry.py -- make release",
+        )
+        self.assertNotIn("'", command)
 
     def test_intel_macos_dependencies_use_pinned_homebrew_installer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -266,6 +285,193 @@ class CIPhaseTest(unittest.TestCase):
                 "build/wasm_eh/repository/**/*.duckdb_extension.wasm",
             )
 
+    def create_prebuilt_archive(self, root, artifact_name, members):
+        archive_path = root / artifact_name
+        root.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive_path, "w:gz") as archive:
+            for name, contents in members:
+                member = tarfile.TarInfo(name)
+                member.size = len(contents)
+                archive.addfile(member, io.BytesIO(contents))
+        return archive_path
+
+    def test_prebuilt_duckdb_archive_is_forwarded_to_build(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libduckdb_shell.a", b"shell"),
+                    ("libcore_functions_extension.a", b"core functions"),
+                    ("nested/libparquet_extension.a", b"parquet"),
+                    ("README", b"ignored"),
+                ],
+            )
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_LINUX_NATIVE_CONTAINER": "true",
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.build()
+
+            library = artifact_root / "extracted" / "libduckdb_static.a"
+            self.assertEqual(library.read_bytes(), b"library")
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_LIBRARY"], str(library.resolve())
+            )
+            self.assertEqual(
+                runner.commands[0][1]["extra_env"]["DUCKDB_PREBUILT_LIBRARY"],
+                str(library.resolve()),
+            )
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_EXTENSIONS"],
+                "core_functions;parquet",
+            )
+            self.assertEqual(
+                runner.commands[0][1]["extra_env"]["DUCKDB_PREBUILT_EXTENSIONS"],
+                "core_functions;parquet",
+            )
+            self.assertEqual(
+                (artifact_root / "extracted" / "libduckdb_shell.a").read_bytes(),
+                b"shell",
+            )
+            self.assertEqual(
+                (
+                    artifact_root
+                    / "extracted"
+                    / "libcore_functions_extension.a"
+                ).read_bytes(),
+                b"core functions",
+            )
+            self.assertEqual(
+                (artifact_root / "extracted" / "libparquet_extension.a").read_bytes(),
+                b"parquet",
+            )
+            self.assertFalse((artifact_root / "extracted" / "README").exists())
+
+    def test_prebuilt_duckdb_uses_msvc_library_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-windows-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "windows_amd64"
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("duckdb_static.lib", b"library"),
+                    ("duckdb_shell.lib", b"shell"),
+                    ("core_functions_extension.lib", b"core functions"),
+                    ("parquet_extension.lib", b"parquet"),
+                ],
+            )
+            env = self.environment(workspace, "windows", "windows_amd64")
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.prepare_prebuilt_duckdb()
+
+            library = artifact_root / "extracted" / "duckdb_static.lib"
+            self.assertEqual(library.read_bytes(), b"library")
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_LIBRARY"], str(library.resolve())
+            )
+            self.assertEqual(
+                runner.env["DUCKDB_PREBUILT_EXTENSIONS"],
+                "core_functions;parquet",
+            )
+            self.assertEqual(
+                (artifact_root / "extracted" / "duckdb_shell.lib").read_bytes(),
+                b"shell",
+            )
+
+    def test_prebuilt_duckdb_requires_shell_library_when_building_shell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
+                }
+            )
+
+            self.create_prebuilt_archive(
+                artifact_root, artifact_name, [("libduckdb_static.a", b"library")]
+            )
+            with self.assertRaisesRegex(ValueError, "expected one libduckdb_shell.a"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libduckdb_shell.a", b"one"),
+                    ("nested/libduckdb_shell.a", b"two"),
+                ],
+            )
+            with self.assertRaisesRegex(ValueError, "expected one libduckdb_shell.a"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+    def test_prebuilt_duckdb_rejects_missing_or_duplicate_library(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                }
+            )
+
+            with self.assertRaisesRegex(FileNotFoundError, "found 0"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root, artifact_name, [("duckdb.h", b"header")]
+            )
+            with self.assertRaisesRegex(ValueError, "expected one libduckdb_static.a"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [("libduckdb_static.a", b"one"), ("nested/libduckdb_static.a", b"two")],
+            )
+            with self.assertRaisesRegex(ValueError, "found 2"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libparquet_extension.a", b"one"),
+                    ("nested/libparquet_extension.a", b"two"),
+                ],
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate prebuilt library"):
+                RecordingRunner(env).prepare_prebuilt_duckdb()
+
     def test_skip_test_does_not_execute_commands(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory)
@@ -367,10 +573,16 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_build_selects_vcvars_before_running_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory, "windows", "windows_amd64")
+            retry_script = Path(directory, "duckdb", "scripts", "ci", "retry.py").resolve()
+            retry_script.parent.mkdir(parents=True)
+            retry_script.touch()
             for has_vs18, version in ((True, "18"), (False, "2022")):
                 with self.subTest(has_vs18=has_vs18):
                     runner = RecordingRunner(env)
-                    with mock.patch("ci_phase.os.path.isfile", return_value=has_vs18):
+                    with mock.patch(
+                        "ci_phase.os.path.isfile",
+                        side_effect=lambda path: Path(path) == retry_script or has_vs18,
+                    ):
                         runner.build_windows()
 
                     self.assertEqual(len(runner.commands), 2)
@@ -394,7 +606,8 @@ class CIPhaseTest(unittest.TestCase):
                     self.assertNotIn("if exist", build_command)
                     self.assertNotIn(" else ", build_command)
                     self.assertNotIn("link.exe", build_command)
-                    self.assertTrue(build_command.endswith(" && make release"))
+                    self.assertIn(str(retry_script), build_command)
+                    self.assertTrue(build_command.endswith(" -- make release"))
 
     def test_upload_writes_outputs_and_validates_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
