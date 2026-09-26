@@ -358,6 +358,44 @@ class CIPhaseTest(unittest.TestCase):
             )
             self.assertFalse((artifact_root / "extracted" / "README").exists())
 
+    def test_prebuilt_duckdb_extracts_capability_libraries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libduckdb_shell.a", b"shell"),
+                    ("libduckdb_httplib.a", b"httplib"),
+                    ("libduckdb_loadable_extensions.a", b"loadable extensions"),
+                    ("libparquet_extension.a", b"parquet"),
+                ],
+            )
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_BUILD_DUCKDB_SHELL": "true",
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.prepare_prebuilt_duckdb()
+
+            extracted = artifact_root / "extracted"
+            self.assertEqual(
+                (extracted / "libduckdb_httplib.a").read_bytes(), b"httplib"
+            )
+            self.assertEqual(
+                (extracted / "libduckdb_loadable_extensions.a").read_bytes(),
+                b"loadable extensions",
+            )
+            # capabilities are not extensions
+            self.assertEqual(runner.env["DUCKDB_PREBUILT_EXTENSIONS"], "parquet")
+
     def test_prebuilt_duckdb_uses_msvc_library_name(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
