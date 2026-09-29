@@ -444,6 +444,12 @@ class PhaseRunner:
             else "libduckdb_static.a"
         )
         shell_library_name = "duckdb_shell.lib" if msvc else "libduckdb_shell.a"
+        # optional capabilities built as their own archives next to the DuckDB library
+        capability_library_names = (
+            {"duckdb_httplib.lib", "duckdb_loadable_extensions.lib"}
+            if msvc
+            else {"libduckdb_httplib.a", "libduckdb_loadable_extensions.a"}
+        )
         extension_prefix = "" if msvc else "lib"
         extension_suffix = "_extension.lib" if msvc else "_extension.a"
         with tarfile.open(archives[0], "r:gz") as bundle:
@@ -456,7 +462,11 @@ class PhaseRunner:
                 is_extension = name.startswith(extension_prefix) and name.endswith(
                     extension_suffix
                 )
-                if name not in {library_name, shell_library_name} and not is_extension:
+                if (
+                    name not in {library_name, shell_library_name}
+                    and name not in capability_library_names
+                    and not is_extension
+                ):
                     continue
                 if name in selected_members:
                     if name in {library_name, shell_library_name}:
