@@ -209,6 +209,10 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          restore-keys: |
+            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            build-${{ matrix.artifact_name }}-
+            ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
@@ -292,6 +296,10 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          restore-keys: |
+            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            build-${{ matrix.artifact_name }}-
+            ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
@@ -384,6 +392,10 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          restore-keys: |
+            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            build-${{ matrix.artifact_name }}-
+            ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
       - name: Setup Rtools
         if: ${{ matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw' }}
@@ -486,6 +498,10 @@ jobs:
           max-size: 5GB
           evict-old-files: job
           key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          restore-keys: |
+            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            build-${{ matrix.artifact_name }}-
+            ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
