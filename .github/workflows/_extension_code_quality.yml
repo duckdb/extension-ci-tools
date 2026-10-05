@@ -31,6 +31,21 @@ on:
         type: string
         required: false
         default: "format;tidy"
+      # Override the default vcpkg repository
+      vcpkg_url:
+        required: false
+        type: string
+        default: "https://github.com/microsoft/vcpkg.git"
+      # Override the default vcpkg commit used by this version of DuckDB
+      vcpkg_commit:
+        required: false
+        type: string
+        default: "ce613c41372b23b1f51333815feb3edd87ef8a8b"
+      # Experimental option to allow automatically building the vcpkg dependencies of duckdb extensions that are used for testing
+      use_merged_vcpkg_manifest:
+        required: false
+        type: string
+        default: ""
     secrets:
       GH_TOKEN:
         required: false
@@ -136,6 +151,23 @@ jobs:
         shell: bash
         run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-tidy && sudo pip3 install pybind11[global] --break-system-packages
 
+      - name: Setup vcpkg
+        shell: bash
+        run: |
+          mkdir local_vcpkg_installation
+          cmake --version
+          cd local_vcpkg_installation
+          git init
+          git remote add origin ${{ inputs.vcpkg_url }}
+          git fetch origin ${{ inputs.vcpkg_commit }}
+          git checkout ${{ inputs.vcpkg_commit }}
+          ./bootstrap-vcpkg.sh
+          echo "VCPKG_ROOT=${{ github.workspace }}/local_vcpkg_installation" >> $GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_PATH=${{ github.workspace }}/local_vcpkg_installation/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/local_vcpkg_installation" >> $GITHUB_PATH
+
       - name: Tidy Check Diff
         shell: bash
+        env:
+          USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
         run: make tidy-check
