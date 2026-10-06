@@ -12,7 +12,7 @@
 #	DEFAULT_TEST_EXTENSION_DEPS : `;`-separated list of extensions that are built in `default` and `full` mode
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
-.PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix sync_oot_extensions
+.PHONY: all clean clean-python clangd format debug release pull update wasm_base wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix sync_oot_extensions
 
 all: release
 
@@ -229,22 +229,17 @@ test_reldebug:
 # WASM config
 VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
 WASM_COMPILE_TIME_COMMON_FLAGS=-DWASM_LOADABLE_EXTENSIONS=1 -DBUILD_EXTENSIONS_ONLY=1 $(TOOLCHAIN_FLAGS) $(VCPKG_EMSDK_FLAGS)
-WASM_CXX_MVP_FLAGS=
-WASM_CXX_EH_FLAGS=$(WASM_CXX_MVP_FLAGS) -fwasm-exceptions -DWEBDB_FAST_EXCEPTIONS=1
-WASM_CXX_THREADS_FLAGS=$(WASM_COMPILE_TIME_EH_FLAGS) -DWITH_WASM_THREADS=1 -DWITH_WASM_SIMD=1 -DWITH_WASM_BULK_MEMORY=1 -pthread
+# Every wasm platform uses WebAssembly exception handling
+WASM_CXX_BASE_FLAGS=-fwasm-exceptions -DWEBDB_FAST_EXCEPTIONS=1
+WASM_CXX_THREADS_FLAGS=$(WASM_CXX_BASE_FLAGS) -DWITH_WASM_THREADS=1 -DWITH_WASM_SIMD=1 -DWITH_WASM_BULK_MEMORY=1 -pthread
 
 wasm_pre_build_step:
 
-# WASM targets
-wasm_mvp: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
-	mkdir -p build/wasm_mvp
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) $(BUILD_FLAGS) -Bbuild/wasm_mvp -DCMAKE_CXX_FLAGS="$(WASM_CXX_MVP_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_mvp -DDUCKDB_CUSTOM_PLATFORM=wasm_mvp
-	emmake make -j8 -Cbuild/wasm_mvp
-
-wasm_eh: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
-	mkdir -p build/wasm_eh
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) $(BUILD_FLAGS) -Bbuild/wasm_eh -DCMAKE_CXX_FLAGS="$(WASM_CXX_EH_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_eh -DDUCKDB_CUSTOM_PLATFORM=wasm_eh
-	emmake make -j8 -Cbuild/wasm_eh
+# WASM targets (wasm_mvp and wasm_eh were replaced by wasm_base, built with emscripten >= 6)
+wasm_base: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
+	mkdir -p build/wasm_base
+	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(VCPKG_MANIFEST_FLAGS) $(WASM_COMPILE_TIME_COMMON_FLAGS) $(BUILD_FLAGS) -Bbuild/wasm_base -DCMAKE_CXX_FLAGS="$(WASM_CXX_BASE_FLAGS)" -S $(DUCKDB_SRCDIR) -DDUCKDB_EXPLICIT_PLATFORM=wasm_base -DDUCKDB_CUSTOM_PLATFORM=wasm_base
+	emmake make -j8 -Cbuild/wasm_base
 
 wasm_threads: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	mkdir -p ./build/wasm_threads

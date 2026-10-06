@@ -701,7 +701,7 @@ jobs:
       - name: Setup / Emscripten
         uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
         with:
-          version: 3.1.71
+          version: 6.0.9
 
       - name: Setup / Rust
         if: ${{ inputs.enable_rust || contains(format(';{0};', inputs.extra_toolchains), ';rust;') }}

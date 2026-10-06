@@ -277,12 +277,12 @@ class CIPhaseTest(unittest.TestCase):
                 native.artifact_path(),
                 "build/release/extension/quack/quack.duckdb_extension",
             )
-            wasm_env = self.environment(directory, "wasm", "wasm_eh")
+            wasm_env = self.environment(directory, "wasm", "wasm_base")
             wasm_env["CI_UPLOAD_ALL_EXTENSIONS"] = "true"
             wasm = RecordingRunner(wasm_env)
             self.assertEqual(
                 wasm.artifact_path(),
-                "build/wasm_eh/repository/**/*.duckdb_extension.wasm",
+                "build/wasm_base/repository/**/*.duckdb_extension.wasm",
             )
 
     def create_prebuilt_archive(self, root, artifact_name, members):
@@ -803,7 +803,7 @@ class CIPhaseTest(unittest.TestCase):
             cases = (
                 (self.environment(directory), True),
                 (self.environment(directory, "linux", "linux_arm64"), False),
-                (self.environment(directory, "wasm", "wasm_eh"), False),
+                (self.environment(directory, "wasm", "wasm_base"), False),
                 (self.environment(directory, "windows", "windows_amd64"), True),
             )
             macos_env = self.environment(directory, "macos", "osx_amd64")
