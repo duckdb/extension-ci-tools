@@ -655,12 +655,12 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_disables_vcpkg_applocal_only_for_static_triplets(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = (
-                ("windows_amd64", "x64-windows-static-release", True),
-                ("windows_arm64", "arm64-windows-static-release", True),
-                ("windows_amd64_mingw", "x64-mingw-static", True),
-                ("windows_amd64", "x64-windows", False),
+                ("windows_amd64", "x64-windows-static-release", True, None),
+                ("windows_arm64", "arm64-windows-static-release", True, "arm64-pc-windows-msvc"),
+                ("windows_amd64_mingw", "x64-mingw-static", True, None),
+                ("windows_amd64", "x64-windows", False, None),
             )
-            for architecture, triplet, expected in cases:
+            for architecture, triplet, expected, compiler_target in cases:
                 with self.subTest(architecture=architecture, triplet=triplet):
                     env = self.environment(directory, "windows", architecture)
                     env["VCPKG_TARGET_TRIPLET"] = triplet
@@ -675,6 +675,16 @@ class CIPhaseTest(unittest.TestCase):
                     )
                     self.assertIn("-DCMAKE_C_COMPILER_LAUNCHER=ccache", extension_flags)
                     self.assertIn("-DCMAKE_CXX_COMPILER_LAUNCHER=ccache", extension_flags)
+                    if compiler_target:
+                        self.assertIn(
+                            f"-DCMAKE_C_COMPILER_TARGET={compiler_target}", extension_flags
+                        )
+                        self.assertIn(
+                            f"-DCMAKE_CXX_COMPILER_TARGET={compiler_target}", extension_flags
+                        )
+                    else:
+                        self.assertNotIn("-DCMAKE_C_COMPILER_TARGET=", extension_flags)
+                        self.assertNotIn("-DCMAKE_CXX_COMPILER_TARGET=", extension_flags)
 
     def test_upload_writes_outputs_and_validates_artifact(self):
         with tempfile.TemporaryDirectory() as directory:

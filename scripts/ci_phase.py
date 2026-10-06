@@ -612,6 +612,13 @@ class PhaseRunner:
             "-DCMAKE_C_COMPILER_LAUNCHER=ccache "
             "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
         ]
+        if self.architecture == "windows_arm64":
+            extension_flags.extend(
+                [
+                    "-DCMAKE_C_COMPILER_TARGET=arm64-pc-windows-msvc",
+                    "-DCMAKE_CXX_COMPILER_TARGET=arm64-pc-windows-msvc",
+                ]
+            )
         # Static triplets have no vcpkg DLLs to deploy.
         if "static" in self.value("VCPKG_TARGET_TRIPLET").split("-"):
             extension_flags.append("-DVCPKG_APPLOCAL_DEPS=OFF")
