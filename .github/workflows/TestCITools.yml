@@ -79,7 +79,7 @@ jobs:
           && '{"linux_x64":"ubuntu-latest","osx_arm64":"namespace-profile-macos-arm64"}'
           || '{"linux_x64":"ubuntu-latest","osx_arm64":"macos-14"}'
         }}
-      exclude_archs: 'linux_arm64;osx_amd64;wasm_eh;wasm_mvp;wasm_threads;windows_amd64_mingw;windows_amd64'
+      exclude_archs: 'linux_arm64;osx_amd64;wasm_base;wasm_threads;windows_amd64_mingw;windows_amd64'
       reduced_ci_mode: disabled
       save_cache: false
       post_build_command: |
@@ -137,7 +137,7 @@ jobs:
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
-      exclude_archs: 'windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' # TODO: remove once fixed upstream
+      exclude_archs: 'windows_amd64_mingw;wasm_base;wasm_threads' # TODO: remove once fixed upstream
       save_cache: ${{ github.event_name != 'pull_request' }}
 
   delta-extension-main:
@@ -152,7 +152,7 @@ jobs:
       override_ref: main
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
-      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads;windows_amd64_mingw;windows_amd64'
+      exclude_archs: 'wasm_base;wasm_threads;windows_amd64_mingw;windows_amd64'
       extra_toolchains: 'rust'
       save_cache: ${{ github.event_name != 'pull_request' }}
       vcpkg_binary_sources: ${{ github.event_name == 'push' && vars.VCPKG_BINARY_SOURCES || '' }}
