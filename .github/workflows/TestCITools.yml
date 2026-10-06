@@ -54,7 +54,7 @@ jobs:
       extension_name: capi_quack
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3;unixodbc'
@@ -70,7 +70,7 @@ jobs:
       artifact_postfix: custom-runners
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       runners: >-
@@ -96,7 +96,7 @@ jobs:
       extension_name: quack
       override_repository: duckdb/extension-template
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3;downgraded_aws_cli;'
@@ -117,7 +117,7 @@ jobs:
     uses: ./.github/workflows/_extension_deploy.yml
     with:
       extension_name: quack
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       deploy_script: /bin/true
@@ -133,7 +133,7 @@ jobs:
       extension_name: rusty_quack
       override_repository: duckdb/extension-template-rs
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'
