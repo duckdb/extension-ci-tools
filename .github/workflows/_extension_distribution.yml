@@ -516,8 +516,8 @@ jobs:
       AWS_REQUEST_CHECKSUM_CALCULATION: when_required
       BUILD_SHELL: ${{ inputs.build_duckdb_shell && '1' || '0' }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'cl' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'clang-cl' }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'clang-cl' }}
       GEN: ninja
       CI_PLATFORM: windows
       CI_MATRIX_RUNNER: ${{ matrix.runner }}
@@ -548,6 +548,9 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.11'
+      - name: Show compiler version
+        if: ${{ matrix.duckdb_arch != 'windows_amd64_rtools' && matrix.duckdb_arch != 'windows_amd64_mingw' }}
+        run: clang-cl --version
 
       - name: Checkout / DuckDB from calling workflow
         if: ${{ inputs.set_caller_as_duckdb }}

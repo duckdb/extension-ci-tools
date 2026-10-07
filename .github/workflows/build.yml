@@ -346,8 +346,8 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
       CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'cl' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'clang-cl' }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'clang-cl' }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -378,6 +378,9 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
+      - name: Show compiler version
+        if: ${{ matrix.duckdb_arch != 'windows_amd64_rtools' && matrix.duckdb_arch != 'windows_amd64_mingw' }}
+        run: clang-cl --version
       - name: Setup Rust
         if: ${{ matrix.toolchain == 'rust' }}
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
@@ -635,8 +638,8 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
-      CC: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'gcc' || 'cl' }}
-      CXX: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'g++' || 'cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'clang-cl' }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'clang-cl' }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -661,6 +664,9 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
+      - name: Show compiler version
+        if: ${{ matrix.duckdb_arch != 'windows_amd64_rtools' && matrix.duckdb_arch != 'windows_amd64_mingw' }}
+        run: clang-cl --version
       - name: Setup Rtools
         if: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' }}
         uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
