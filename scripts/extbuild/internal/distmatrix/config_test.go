@@ -33,6 +33,49 @@ func TestParseDistributionMatrixConfigFile(t *testing.T) {
 	assert.Contains(t, platforms, "wasm")
 }
 
+func TestWindowsVCPKGToolchainSelection(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "config", "distribution_matrix.json"))
+	require.NoError(t, err)
+	matrix, err := ParseMatrixFile(data)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		toolchain string
+		suffix    string
+	}{
+		{toolchain: "cl"},
+		{toolchain: "clang-cl", suffix: "-clangcl"},
+	} {
+		t.Run(tc.toolchain, func(t *testing.T) {
+			platforms, computeErr := ComputePlatformMatrices(matrix, ComputeOptions{
+				Platform:              "windows",
+				OptIn:                 "windows_arm64",
+				ReducedCIMode:         ReducedCIDisabled,
+				WindowsVCPKGToolchain: tc.toolchain,
+			})
+			require.NoError(t, computeErr)
+
+			triplets := map[string]string{}
+			for _, entry := range platforms["windows"].Include {
+				triplets[entry.DuckDBArch] = entry.VCPKGTargetTriplet
+				assert.Equal(t, entry.VCPKGTargetTriplet, entry.VCPKGHostTriplet)
+			}
+			assert.Equal(t, "x64-windows-static-release"+tc.suffix, triplets["windows_amd64"])
+			assert.Equal(t, "arm64-windows-static-release"+tc.suffix, triplets["windows_arm64"])
+			assert.Equal(t, "x64-mingw-static", triplets["windows_amd64_mingw"])
+		})
+	}
+}
+
+func TestParseWindowsVCPKGToolchainRejectsUnknownValue(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseWindowsVCPKGToolchain("clangcl")
+	require.ErrorContains(t, err, "must be cl|clang-cl")
+}
+
 func TestParseMatrixFileRejectsUnknownFields(t *testing.T) {
 	t.Parallel()
 

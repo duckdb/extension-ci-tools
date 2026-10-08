@@ -10,15 +10,16 @@ import (
 
 func newMatrixCommand() *cobra.Command {
 	var (
-		inputPath        string
-		platformsRaw     string
-		archsRaw         string
-		excludeRaw       string
-		optInRaw         string
-		runnerJSON       string
-		reducedCIModeRaw string
-		outPath          string
-		deployOnly       bool
+		inputPath             string
+		platformsRaw          string
+		archsRaw              string
+		excludeRaw            string
+		optInRaw              string
+		runnerJSON            string
+		reducedCIModeRaw      string
+		windowsVCPKGToolchain string
+		outPath               string
+		deployOnly            bool
 	)
 
 	cmd := &cobra.Command{
@@ -56,12 +57,13 @@ func newMatrixCommand() *cobra.Command {
 			}
 
 			result, err := distmatrix.ComputePlatformMatrices(matrix, distmatrix.ComputeOptions{
-				Platform:      platformsRaw,
-				Arch:          archsRaw,
-				Exclude:       excludeRaw,
-				OptIn:         optInRaw,
-				ReducedCIMode: reducedCIMode,
-				RunnerJSON:    runnerJSON,
+				Platform:              platformsRaw,
+				Arch:                  archsRaw,
+				Exclude:               excludeRaw,
+				OptIn:                 optInRaw,
+				ReducedCIMode:         reducedCIMode,
+				RunnerJSON:            runnerJSON,
+				WindowsVCPKGToolchain: windowsVCPKGToolchain,
 			})
 			if err != nil {
 				return fmt.Errorf("compute platform matrices: %w", err)
@@ -107,6 +109,7 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Comma-separated list of opt-in duckdb_arch values")
 	cmd.Flags().StringVar(&runnerJSON, "runners", "{}", "JSON object with runner overrides keyed by selector or duckdb_arch")
 	cmd.Flags().StringVar(&reducedCIModeRaw, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
+	cmd.Flags().StringVar(&windowsVCPKGToolchain, "windows-vcpkg-toolchain", "cl", "Windows vcpkg toolchain: cl|clang-cl")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 	cmd.Flags().BoolVar(&deployOnly, "deploy", false, "Emit only deploy_matrix output with duckdb_arch values")
 

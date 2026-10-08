@@ -655,20 +655,38 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_disables_vcpkg_applocal_only_for_static_triplets(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = (
-                ("windows_amd64", "x64-windows-static-release-clangcl", True, None),
+                ("windows_amd64", "x64-windows-static-release", "cl", True, None),
+                (
+                    "windows_amd64",
+                    "x64-windows-static-release-clangcl",
+                    "clang-cl",
+                    True,
+                    None,
+                ),
                 (
                     "windows_arm64",
                     "arm64-windows-static-release-clangcl",
+                    "clang-cl",
                     True,
                     "arm64-pc-windows-msvc",
                 ),
-                ("windows_amd64_mingw", "x64-mingw-static", True, None),
-                ("windows_amd64", "x64-windows", False, None),
+                (
+                    "windows_arm64",
+                    "arm64-windows-static-release",
+                    "cl",
+                    True,
+                    None,
+                ),
+                ("windows_amd64_mingw", "x64-mingw-static", "cl", True, None),
+                ("windows_amd64", "x64-windows", "cl", False, None),
             )
-            for architecture, triplet, expected, compiler_target in cases:
-                with self.subTest(architecture=architecture, triplet=triplet):
+            for architecture, triplet, toolchain, expected, compiler_target in cases:
+                with self.subTest(
+                    architecture=architecture, triplet=triplet, toolchain=toolchain
+                ):
                     env = self.environment(directory, "windows", architecture)
                     env["VCPKG_TARGET_TRIPLET"] = triplet
+                    env["WINDOWS_VCPKG_TOOLCHAIN"] = toolchain
                     runner = RecordingRunner(env)
                     with mock.patch("ci_phase.os.path.isfile", return_value=False):
                         runner.build_windows()

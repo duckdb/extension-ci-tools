@@ -612,7 +612,10 @@ class PhaseRunner:
             "-DCMAKE_C_COMPILER_LAUNCHER=ccache "
             "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
         ]
-        if self.architecture == "windows_arm64":
+        if (
+            self.architecture == "windows_arm64"
+            and self.value("WINDOWS_VCPKG_TOOLCHAIN", "cl") == "clang-cl"
+        ):
             extension_flags.extend(
                 [
                     "-DCMAKE_C_COMPILER_TARGET=arm64-pc-windows-msvc",
