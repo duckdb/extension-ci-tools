@@ -129,7 +129,6 @@ env:
   CI_CUDA_VERSION: 13
   VCPKG_BINARY_SOURCES: clear;http,https://vcpkg-cache.duckdb.org,read
   AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-  WINDOWS_VCPKG_TOOLCHAIN: ${{ inputs.windows_vcpkg_toolchain }}
   GEN: ninja
 
 jobs:
@@ -147,7 +146,7 @@ jobs:
     steps:
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: duckdb/duckdb-ci/matrix@712cd5c7364edf6cf8980347be54fa442426ad15 # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
@@ -190,7 +189,7 @@ jobs:
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
     steps:
       - name: Prepare sources
-        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@712cd5c7364edf6cf8980347be54fa442426ad15 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -224,7 +223,7 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@712cd5c7364edf6cf8980347be54fa442426ad15 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test

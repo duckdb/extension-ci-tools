@@ -686,7 +686,7 @@ class CIPhaseTest(unittest.TestCase):
                 ):
                     env = self.environment(directory, "windows", architecture)
                     env["VCPKG_TARGET_TRIPLET"] = triplet
-                    env["WINDOWS_VCPKG_TOOLCHAIN"] = toolchain
+                    env["CC"] = toolchain
                     runner = RecordingRunner(env)
                     with mock.patch("ci_phase.os.path.isfile", return_value=False):
                         runner.build_windows()

@@ -55,13 +55,12 @@ const (
 )
 
 type ComputeOptions struct {
-	Platform              string
-	Arch                  string
-	Exclude               string
-	OptIn                 string
-	ReducedCIMode         ReducedCIMode
-	RunnerJSON            string
-	WindowsVCPKGToolchain string
+	Platform      string
+	Arch          string
+	Exclude       string
+	OptIn         string
+	ReducedCIMode ReducedCIMode
+	RunnerJSON    string
 }
 
 type RunnerOverrides map[string]json.RawMessage
@@ -89,10 +88,6 @@ func ParseMatrixFile(data []byte) (MatrixFile, error) {
 
 func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string]PlatformMatrix, error) {
 	runnerOverrides, err := ParseRunnerOverrides(opts.RunnerJSON)
-	if err != nil {
-		return nil, err
-	}
-	windowsVCPKGToolchain, err := ParseWindowsVCPKGToolchain(opts.WindowsVCPKGToolchain)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +130,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 		filtered := make([]PlatformOutput, 0, len(cfg.Include))
 		for _, entry := range cfg.Include {
 			if includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet) {
-				output := toPlatformOutput(entry, windowsVCPKGToolchain)
+				output := toPlatformOutput(entry)
 				if override, ok := runnerOverrides.lookup(entry.DuckDBArch); ok {
 					output.Runner = override
 				}
@@ -220,17 +215,6 @@ func ParseReducedCIMode(mode string) (ReducedCIMode, error) {
 	}
 }
 
-func ParseWindowsVCPKGToolchain(value string) (string, error) {
-	toolchain := strings.TrimSpace(value)
-	if toolchain == "" {
-		toolchain = "cl"
-	}
-	if toolchain != "cl" && toolchain != "clang-cl" {
-		return "", fmt.Errorf("invalid Windows vcpkg toolchain: %q (must be cl|clang-cl)", toolchain)
-	}
-	return toolchain, nil
-}
-
 func normalizePlatforms(platforms []string) ([]string, error) {
 	clean := normalizeValues(platforms)
 	if len(clean) == 0 {
@@ -307,25 +291,14 @@ func ParseRunnerOverrides(raw string) (RunnerOverrides, error) {
 	return result, nil
 }
 
-func toPlatformOutput(entry Entry, windowsVCPKGToolchain string) PlatformOutput {
+func toPlatformOutput(entry Entry) PlatformOutput {
 	return PlatformOutput{
 		DuckDBArch:         entry.DuckDBArch,
 		Runner:             entry.Runner,
 		OSXBuildArch:       entry.OSXBuildArch,
-		VCPKGTargetTriplet: selectVCPKGTriplet(entry.DuckDBArch, entry.VCPKGTargetTriplet, windowsVCPKGToolchain),
-		VCPKGHostTriplet:   selectVCPKGTriplet(entry.DuckDBArch, entry.VCPKGHostTriplet, windowsVCPKGToolchain),
+		VCPKGTargetTriplet: entry.VCPKGTargetTriplet,
+		VCPKGHostTriplet:   entry.VCPKGHostTriplet,
 	}
-}
-
-func selectVCPKGTriplet(duckdbArch, triplet, windowsVCPKGToolchain string) string {
-	if duckdbArch != "windows_amd64" && duckdbArch != "windows_arm64" {
-		return triplet
-	}
-	baseTriplet := strings.TrimSuffix(triplet, "-clangcl")
-	if windowsVCPKGToolchain == "clang-cl" {
-		return baseTriplet + "-clangcl"
-	}
-	return baseTriplet
 }
 
 // lookup returns the runner override for a duckdb_arch. For string values

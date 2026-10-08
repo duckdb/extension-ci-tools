@@ -614,7 +614,7 @@ class PhaseRunner:
         ]
         if (
             self.architecture == "windows_arm64"
-            and self.value("WINDOWS_VCPKG_TOOLCHAIN", "cl") == "clang-cl"
+            and self.value("CC", "cl") == "clang-cl"
         ):
             extension_flags.extend(
                 [
