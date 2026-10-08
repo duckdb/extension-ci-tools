@@ -1,0 +1,33 @@
+if(NOT _DUCKDB_VCPKG_CLANGCL_TOOLCHAIN)
+	set(_DUCKDB_VCPKG_CLANGCL_TOOLCHAIN ON)
+
+	find_program(CMAKE_C_COMPILER NAMES clang-cl.exe clang-cl REQUIRED)
+	find_program(CMAKE_CXX_COMPILER NAMES clang-cl.exe clang-cl REQUIRED)
+
+	if(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
+		set(_duckdb_clangcl_arch "-m32")
+	elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "x64")
+		set(_duckdb_clangcl_arch "-m64")
+	elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "arm")
+		set(_duckdb_clangcl_arch "--target=arm-pc-windows-msvc")
+	elseif(VCPKG_TARGET_ARCHITECTURE STREQUAL "arm64")
+		set(_duckdb_clangcl_arch "--target=arm64-pc-windows-msvc")
+	else()
+		message(FATAL_ERROR "Unsupported clang-cl target architecture: ${VCPKG_TARGET_ARCHITECTURE}")
+	endif()
+
+	string(APPEND VCPKG_C_FLAGS " ${_duckdb_clangcl_arch}")
+	string(APPEND VCPKG_CXX_FLAGS " ${_duckdb_clangcl_arch}")
+
+	if(DEFINED Z_VCPKG_ROOT_DIR)
+		set(_duckdb_vcpkg_root "${Z_VCPKG_ROOT_DIR}")
+	elseif(DEFINED _VCPKG_ROOT_DIR)
+		set(_duckdb_vcpkg_root "${_VCPKG_ROOT_DIR}")
+	elseif(DEFINED ENV{VCPKG_ROOT})
+		set(_duckdb_vcpkg_root "$ENV{VCPKG_ROOT}")
+	else()
+		message(FATAL_ERROR "Unable to determine the vcpkg root")
+	endif()
+
+	include("${_duckdb_vcpkg_root}/scripts/toolchains/windows.cmake")
+endif()
