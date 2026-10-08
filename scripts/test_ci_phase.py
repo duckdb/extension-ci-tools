@@ -611,7 +611,7 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_build_selects_vcvars_before_running_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory, "windows", "windows_amd64")
-            env["VCPKG_TARGET_TRIPLET"] = "x64-windows-static-release"
+            env["VCPKG_TARGET_TRIPLET"] = "x64-windows-static-release-clangcl"
             retry_script = Path(directory, "duckdb", "scripts", "ci", "retry.py").resolve()
             retry_script.parent.mkdir(parents=True)
             retry_script.touch()
@@ -655,8 +655,13 @@ class CIPhaseTest(unittest.TestCase):
     def test_windows_disables_vcpkg_applocal_only_for_static_triplets(self):
         with tempfile.TemporaryDirectory() as directory:
             cases = (
-                ("windows_amd64", "x64-windows-static-release", True, None),
-                ("windows_arm64", "arm64-windows-static-release", True, "arm64-pc-windows-msvc"),
+                ("windows_amd64", "x64-windows-static-release-clangcl", True, None),
+                (
+                    "windows_arm64",
+                    "arm64-windows-static-release-clangcl",
+                    True,
+                    "arm64-pc-windows-msvc",
+                ),
                 ("windows_amd64_mingw", "x64-mingw-static", True, None),
                 ("windows_amd64", "x64-windows", False, None),
             )
