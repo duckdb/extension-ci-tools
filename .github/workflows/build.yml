@@ -95,6 +95,11 @@ on:
         required: false
         type: string
         default: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # Release 2026.06.24
+      windows_vcpkg_toolchain:
+        description: Windows compiler and matching vcpkg toolchain (cl or clang-cl)
+        required: false
+        type: string
+        default: cl
     secrets:
       VCPKG_CACHING_AWS_ACCESS_KEY_ID:
         required: false
@@ -129,7 +134,7 @@ env:
 jobs:
   matrix:
     name: Compute matrix
-    runs-on: ubuntu-slim
+    runs-on: ${{ fromJSON(inputs.runners).linux_slim || 'ubuntu-slim' }}
     outputs:
       build_linux: ${{ steps.matrix.outputs.build_linux }}
       test_linux: ${{ steps.matrix.outputs.test_linux }}
@@ -141,13 +146,14 @@ jobs:
     steps:
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: duckdb/duckdb-ci/matrix@712cd5c7364edf6cf8980347be54fa442426ad15 # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
           runners: ${{ inputs.runners }}
           reduced_ci_mode: ${{ inputs.reduced_ci_mode }}
           image_version: ${{ inputs.image_version }}
+          windows_vcpkg_toolchain: ${{ inputs.windows_vcpkg_toolchain }}
           groups: ${{ inputs.groups }}
 
   build_linux:
@@ -183,7 +189,7 @@ jobs:
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
     steps:
       - name: Prepare sources
-        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@712cd5c7364edf6cf8980347be54fa442426ad15 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -217,7 +223,7 @@ jobs:
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@712cd5c7364edf6cf8980347be54fa442426ad15 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -347,8 +353,8 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
       CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'clang-cl' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'clang-cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_vcpkg_toolchain }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_vcpkg_toolchain }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -379,9 +385,6 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
-      - name: Show compiler version
-        if: ${{ matrix.duckdb_arch != 'windows_amd64_rtools' && matrix.duckdb_arch != 'windows_amd64_mingw' }}
-        run: clang-cl --version
       - name: Setup Rust
         if: ${{ matrix.toolchain == 'rust' }}
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
@@ -640,8 +643,8 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'clang-cl' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'clang-cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_vcpkg_toolchain }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_vcpkg_toolchain }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -666,9 +669,6 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
-      - name: Show compiler version
-        if: ${{ matrix.duckdb_arch != 'windows_amd64_rtools' && matrix.duckdb_arch != 'windows_amd64_mingw' }}
-        run: clang-cl --version
       - name: Setup Rtools
         if: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' }}
         uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
