@@ -39,6 +39,43 @@ jobs:
       ci_tools_version: main
 ```
 
+#### Shared extension sources and project configuration
+
+With a DuckDB revision that supports the new sync options, enable shared extension
+checkouts before including `duckdb_extension.Makefile`:
+
+```make
+DUCKDB_NEW_EXTENSION_BUILD := 1
+BUILD_EXTENSIONS := httpfs;avro;aws
+EXTENSION_CONFIG_BASE_DIR := $(PROJ_DIR)extension-configs
+EXTRA_EXTENSION_CONFIGS := $(PROJ_DIR)extension_overrides.cmake
+```
+
+The wrapper passes the same extension selection, config list, and config directory
+to DuckDB's sync script and CMake. Sync populates `duckdb/extension/external/` and
+writes the combined vcpkg manifest to the extension project's `build/vcpkg.json`
+before configuration. New mode takes precedence over `USE_MERGED_VCPKG_MANIFEST`,
+including for WebAssembly targets. The previous build flow remains available when
+`DUCKDB_NEW_EXTENSION_BUILD` is unset.
+
+`BUILD_EXTENSIONS` selects named extensions. `DUCKDB_EXTENSIONS` is an alias that
+takes precedence when set. Legacy `CORE_EXTENSIONS` entries and the dependencies
+selected by `BUILD_EXTENSION_TEST_DEPS` are added to that list; they do not need
+to be exported by the extension's Makefile.
+
+`EXTRA_EXTENSION_CONFIGS` is prepended to the project's `EXT_CONFIG`. Alternatively,
+set `EXTENSION_CONFIGS` to supply the complete semicolon-separated config list.
+Include the project's own config in that list so its extension and vcpkg dependencies
+are retained. With the updated DuckDB loader, explicit configs take precedence over
+named defaults, and the first declaration of an extension wins. Use these configs
+to control `GIT_URL` and literal `GIT_TAG` hashes.
+
+`EXTENSION_CONFIG_BASE_DIR` is optional. It replaces DuckDB's default directory of
+`<extension>.cmake` files for named lookups. Use absolute config paths, as in the
+example: relative paths are resolved from the DuckDB source directory, not the
+extension project. These settings configure extension revisions, not vcpkg registry
+baselines.
+
 ### Rust
 
 [duckdb-delta](https://github.com/duckdb/duckdb-delta/) uses the standard extension makefile and enables the Rust toolchain in CI:
