@@ -3,6 +3,7 @@ if(NOT _DUCKDB_VCPKG_CLANGCL_TOOLCHAIN)
 
 	find_program(CMAKE_C_COMPILER NAMES clang-cl.exe clang-cl REQUIRED)
 	find_program(CMAKE_CXX_COMPILER NAMES clang-cl.exe clang-cl REQUIRED)
+	find_program(CMAKE_RC_COMPILER NAMES llvm-rc.exe llvm-rc rc.exe rc REQUIRED)
 
 	if(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
 		set(_duckdb_clangcl_arch "-m32")
