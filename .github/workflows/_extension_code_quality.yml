@@ -14,9 +14,11 @@ on:
       override_ref:
         type: string
         required: false
+      # Deprecated: code quality checks use the checked-out duckdb submodule.
       duckdb_version:
         type: string
-        required: true
+        required: false
+        default: ""
       override_ci_tools_repository:
         type: string
         required: false
@@ -134,7 +136,7 @@ jobs:
 
       - name: Install
         shell: bash
-        run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-tidy && sudo pip3 install pybind11[global] --break-system-packages
+        run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-tidy && sudo pip3 install 'pybind11[global]' --break-system-packages
 
       - name: Tidy Check Diff
         shell: bash
