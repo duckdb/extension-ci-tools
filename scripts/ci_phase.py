@@ -555,6 +555,9 @@ class PhaseRunner:
             "CCACHE_MAXSIZE": "5G",
             "SUBSET_EXTENSIONS_TESTS": self.value("CI_EXTENSIONS_TEST_SELECTION"),
             "DUCKDB_PREBUILT_EXTENSIONS": self.value("DUCKDB_PREBUILT_EXTENSIONS"),
+            # git's own environment variable; the workflow forwards the caller's GIT_CONFIG_PARAMETERS secret so
+            # a dependency fetched during the build (FetchContent, submodules) can authenticate inside the container
+            "GIT_CONFIG_PARAMETERS": self.value("GIT_CONFIG_PARAMETERS"),
         }
         values.update(test_environment(self.value("CI_TEST_CONFIG", "{}")))
         prebuilt_library = self.value("DUCKDB_PREBUILT_LIBRARY")

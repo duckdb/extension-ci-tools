@@ -20,6 +20,14 @@ on:
         required: false
       VCPKG_CACHING_AWS_DEFAULT_REGION:
         required: false
+      # Extra git configuration for every git invocation of the build, in the format git itself reads
+      # from this environment variable: shell-quoted key=value pairs, e.g.
+      #   'url.https://x-access-token:<token>@github.com/org/dep.insteadOf=https://github.com/org/dep'
+      # which lets a FetchContent / submodule dependency on a private repository clone with a token the
+      # calling repository holds as a secret.  Passed through unchanged to the native builds and into the
+      # Linux build container; nothing here reads it.
+      GIT_CONFIG_PARAMETERS:
+        required: false
     inputs:
       # The name with which the extension will be built
       extension_name:
@@ -237,6 +245,7 @@ env:
   CI_RUST_LOGS: ${{ inputs.rust_logs }}
   CI_RUN_DISK_CLEAN_STEP: ${{ inputs.run_disk_clean_step }}
   CI_USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
+  GIT_CONFIG_PARAMETERS: ${{ secrets.GIT_CONFIG_PARAMETERS }}
 
 jobs:
   generate_matrix:
