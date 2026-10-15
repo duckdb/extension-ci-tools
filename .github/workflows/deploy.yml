@@ -75,7 +75,7 @@ jobs:
   deploy:
     name: Deploy
     if: ${{ inputs.deploy_latest || inputs.deploy_versioned }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-slim' || 'ubuntu-latest' }}
     env:
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
