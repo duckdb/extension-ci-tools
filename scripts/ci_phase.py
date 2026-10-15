@@ -13,15 +13,34 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tarfile
 from typing import Mapping, Sequence
+import urllib.error
+import urllib.request
 
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
+DEFAULT_PREBUILT_DUCKDB_BASE_URL = "https://duckdb-staging.duckdb.org"
+PREBUILT_DUCKDB_ARTIFACTS = {
+    "linux_amd64": "duckdb-static-libs-linux-amd64.tar.gz",
+    "linux_arm64": "duckdb-static-libs-linux-arm64.tar.gz",
+    "linux_amd64_musl": "duckdb-static-libs-linux-amd64-musl.tar.gz",
+    "linux_arm64_musl": "duckdb-static-libs-linux-arm64-musl.tar.gz",
+    "osx_amd64": "duckdb-static-libs-osx-amd64.tar.gz",
+    "osx_arm64": "duckdb-static-libs-osx-arm64.tar.gz",
+    "windows_amd64": "duckdb-static-libs-windows-amd64.tar.gz",
+    "windows_arm64": "duckdb-static-libs-windows-arm64.tar.gz",
+    "windows_amd64_mingw": "duckdb-static-libs-windows-mingw.tar.gz",
+}
+PREBUILT_DUCKDB_USER_AGENT = "duckdb-extension-ci-tools/prebuilt-duckdb"
+STAGED_DUCKDB_VERSION_PATTERN = re.compile(
+    r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|rc|dev)[0-9]+)?$"
+)
 
 # Intel Homebrew is deprecated; keep this installer pin only while osx_amd64 is
 # supported. See https://github.com/Homebrew/brew/blob/main/docs/Support-Tiers.md#future-macos-support
@@ -46,6 +65,10 @@ def is_true(value: str | None) -> bool:
 
 def tool_enabled(toolchains: str, tool: str) -> bool:
     return f";{tool};" in f";{toolchains.strip(';')};"
+
+
+def prebuilt_duckdb_artifact_name(architecture: str) -> str:
+    return PREBUILT_DUCKDB_ARTIFACTS.get(architecture, "")
 
 
 def test_environment(config: str) -> dict[str, str]:
@@ -201,6 +224,91 @@ class PhaseRunner:
         duckdb_tag = self.value("DUCKDB_TAG")
         if duckdb_tag:
             self.run(["make", "set_duckdb_tag"], extra_env={"DUCKDB_TAG": duckdb_tag})
+
+        if self.enabled("CI_FETCH_PREBUILT_DUCKDB"):
+            self.prebuilt()
+
+    def _open_prebuilt_url(self, url: str):
+        request = urllib.request.Request(
+            url, headers={"User-Agent": PREBUILT_DUCKDB_USER_AGENT}
+        )
+        return urllib.request.urlopen(request, timeout=60)
+
+    def _prebuilt_cache_miss(self, url: str, error: Exception) -> None:
+        print(
+            f"Prebuilt DuckDB archive is unavailable; building DuckDB from source "
+            f"instead ({url}: {error}).",
+            flush=True,
+        )
+
+    def prebuilt(self) -> None:
+        if self.value("CI_PREBUILT_DUCKDB_ARTIFACT"):
+            print("A prebuilt DuckDB archive is already configured.", flush=True)
+            return
+
+        if self.value("CI_BUILD_TYPE", "release").lower() != "release":
+            print(
+                "Prebuilt DuckDB archives are only available for release builds; "
+                "building DuckDB from source.",
+                flush=True,
+            )
+            return
+
+        artifact_name = prebuilt_duckdb_artifact_name(self.architecture)
+        if not artifact_name:
+            print(
+                f"No prebuilt DuckDB archive is defined for {self.architecture}; "
+                "building DuckDB from source.",
+                flush=True,
+            )
+            return
+
+        duckdb_commit = self.capture(
+            ["git", "-C", "duckdb", "rev-parse", "HEAD"]
+        ).lower()
+        if re.fullmatch(r"[a-f0-9]{10,64}", duckdb_commit) is None:
+            raise ValueError(f"invalid checked-out DuckDB commit: {duckdb_commit}")
+
+        short_commit = duckdb_commit[:10]
+        base_url = self.value(
+            "CI_PREBUILT_DUCKDB_BASE_URL", DEFAULT_PREBUILT_DUCKDB_BASE_URL
+        ).rstrip("/")
+        version_url = f"{base_url}/{short_commit}/latest_alpha_version.txt"
+        try:
+            with self._open_prebuilt_url(version_url) as response:
+                staged_version = response.read().decode("utf-8").strip()
+        except (OSError, urllib.error.URLError) as error:
+            self._prebuilt_cache_miss(version_url, error)
+            return
+
+        if STAGED_DUCKDB_VERSION_PATTERN.fullmatch(staged_version) is None:
+            raise ValueError(
+                f"invalid staged DuckDB version for {duckdb_commit}: {staged_version!r}"
+            )
+
+        artifact_url = (
+            f"{base_url}/{short_commit}/{staged_version}/duckdb/duckdb/"
+            f"github_release/{artifact_name}"
+        )
+        artifact_root = (
+            self.workspace / ".ci" / "prebuilt-duckdb" / self.architecture
+        )
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        destination = artifact_root / artifact_name
+        temporary = destination.with_name(f".{destination.name}.part")
+        try:
+            with self._open_prebuilt_url(artifact_url) as response:
+                with temporary.open("wb") as target:
+                    shutil.copyfileobj(response, target)
+            temporary.replace(destination)
+        except (OSError, urllib.error.URLError) as error:
+            temporary.unlink(missing_ok=True)
+            self._prebuilt_cache_miss(artifact_url, error)
+            return
+
+        print(f"Using prebuilt DuckDB archive: {artifact_url}", flush=True)
+        self.set_environment("CI_PREBUILT_DUCKDB_ARTIFACT", artifact_name)
+        self.set_environment("CI_PREBUILT_DUCKDB_PATH", str(artifact_root.resolve()))
 
     def inject_extension_config(self) -> None:
         config_parts: list[str] = []

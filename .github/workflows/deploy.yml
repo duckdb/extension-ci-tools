@@ -1,0 +1,142 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      duckdb_version:
+        description: DuckDB version produced by build.yml
+        required: true
+        type: string
+      duckdb_commit:
+        description: Exact DuckDB commit produced by build.yml
+        required: false
+        type: string
+        default: ""
+      ci_tools_version:
+        description: extension-ci-tools ref used by the deployment jobs
+        required: false
+        type: string
+        default: main
+      ci_tools_repository:
+        description: Repository containing extension-ci-tools
+        required: false
+        type: string
+        default: duckdb/extension-ci-tools
+      extension_repository:
+        description: Extension repository override
+        required: false
+        type: string
+        default: ""
+      extension_ref:
+        description: Extension repository ref override
+        required: false
+        type: string
+        default: ""
+      duckdb_repository:
+        description: DuckDB repository override
+        required: false
+        type: string
+        default: ""
+      deploy_extensions:
+        description: Semicolon-separated extension names to deploy; empty deploys all extensions
+        required: false
+        type: string
+        default: ""
+      deploy_latest:
+        description: Deploy extensions to the latest DuckDB version path
+        required: false
+        type: boolean
+        default: false
+      deploy_versioned:
+        description: Deploy extensions to their versioned DuckDB path
+        required: false
+        type: boolean
+        default: false
+      deploy_script:
+        description: Upload script
+        required: false
+        type: string
+        default: ./duckdb/scripts/extension-upload-single.sh
+    secrets:
+      DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT:
+        required: false
+      DUCKDB_EXTENSIONS_NIGHTLY_S3_ID:
+        required: false
+      DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY:
+        required: false
+      S3_DUCKDB_ORG_EXTENSION_SIGNING_PK:
+        required: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    if: ${{ inputs.deploy_latest || inputs.deploy_versioned }}
+    runs-on: ubuntu-latest
+    env:
+      CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
+    steps:
+      - name: Prepare sources
+        uses: duckdb/duckdb-ci/prepare-extension@712cd5c7364edf6cf8980347be54fa442426ad15 # main
+        with:
+          extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          extension-ref: ${{ inputs.extension_ref }}
+          duckdb-repository: ${{ inputs.duckdb_repository }}
+          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install deployment prerequisites
+        env:
+          PIP_BREAK_SYSTEM_PACKAGES: 1
+        run: python3 -m pip install awscli
+      - name: Download extension artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: "*-extensions-*"
+          path: ${{ env.CI_EXTENSION_ARTIFACT_DIR }}
+          merge-multiple: true
+      - name: Deploy extensions
+        shell: bash
+        env:
+          AWS_ENDPOINT_URL: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY }}
+          DUCKDB_EXTENSION_SIGNING_PK: ${{ secrets.S3_DUCKDB_ORG_EXTENSION_SIGNING_PK }}
+          DUCKDB_DEPLOY_SCRIPT_MODE: ${{ secrets.DUCKDB_EXTENSIONS_NIGHTLY_S3_KEY != '' && 'for_real' || '' }}
+          DEPLOY_EXTENSIONS: ${{ inputs.deploy_extensions }}
+          DEPLOY_LATEST: ${{ inputs.deploy_latest }}
+          DEPLOY_SCRIPT: ${{ inputs.deploy_script }}
+          DEPLOY_VERSIONED: ${{ inputs.deploy_versioned }}
+        run: |
+          set -euo pipefail
+          extension_version="$(git tag --points-at HEAD | head -n 1)"
+          extension_version="${extension_version:-$(git rev-parse --short HEAD)}"
+          duckdb_version="$(git -C duckdb tag --points-at HEAD | head -n 1)"
+          duckdb_version="${duckdb_version:-$(git -C duckdb rev-parse --short HEAD)}"
+          deploy_args=()
+          if [[ "${DEPLOY_LATEST}" == "true" ]]; then
+            deploy_args+=(--latest)
+          fi
+          if [[ "${DEPLOY_VERSIONED}" == "true" ]]; then
+            deploy_args+=(--versioned)
+          fi
+          python3 extension-ci-tools/scripts/deploy_artifacts.py \
+            --root "$CI_EXTENSION_ARTIFACT_DIR" \
+            --script "$DEPLOY_SCRIPT" \
+            --extension-version "$extension_version" \
+            --duckdb-version "$duckdb_version" \
+            --bucket duckdb-extensions-nightly \
+            --extensions "$DEPLOY_EXTENSIONS" \
+            "${deploy_args[@]}"
