@@ -34,7 +34,8 @@ on:
         required: false
         type: string
         default: ""
-      # ';' separated list of architectures to opt into, for example: 'windows_arm64;linux_arm64_musl'
+      # ';' separated list of architectures to opt into, for example: 'osx_amd64;windows_arm64;linux_arm64_musl'
+      # Explicit opt-ins override reduced CI, while exclusions take precedence.
       opt_in_archs:
         required: false
         type: string

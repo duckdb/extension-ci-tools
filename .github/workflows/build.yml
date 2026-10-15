@@ -48,7 +48,7 @@ on:
         type: string
         default: ""
       opt_in_archs:
-        description: Semicolon-separated opt-in architectures
+        description: Semicolon-separated opt-in architectures; opt-ins override reduced CI, while exclusions take precedence
         required: false
         type: string
         default: ""
@@ -181,7 +181,7 @@ jobs:
           echo "commit=${duckdb_commit}" >> "$GITHUB_OUTPUT"
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@712cd5c7364edf6cf8980347be54fa442426ad15 # main
+        uses: duckdb/duckdb-ci/matrix@5011b57af251c624a1dca014905565384718af4d # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}

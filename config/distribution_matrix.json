@@ -44,7 +44,7 @@
         "vcpkg_target_triplet": "x64-osx-release",
         "vcpkg_host_triplet": "arm64-osx-release",
         "run_in_reduced_ci_mode": false,
-        "opt_in": false
+        "opt_in": true
       },
       {
         "duckdb_arch": "osx_arm64",

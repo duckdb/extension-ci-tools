@@ -180,14 +180,13 @@ func includeEntry(entry Entry, archTokens map[string]struct{}, excludedSet map[s
 		return false
 	}
 
-	if reducedCI && !entry.RunInReducedCIMode {
-		return false
+	if entry.OptIn {
+		_, ok := optInSet[duckdbArch]
+		return ok
 	}
 
-	if entry.OptIn {
-		if _, ok := optInSet[duckdbArch]; !ok {
-			return false
-		}
+	if reducedCI && !entry.RunInReducedCIMode {
+		return false
 	}
 
 	return true
