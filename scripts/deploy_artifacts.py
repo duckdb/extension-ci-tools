@@ -103,7 +103,6 @@ def deploy_extensions(
                 shutil.copy2(source, destination)
                 subprocess.run(
                     [
-                        "bash",
                         script.as_posix(),
                         name,
                         extension_version,

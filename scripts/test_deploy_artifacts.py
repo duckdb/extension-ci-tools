@@ -52,19 +52,21 @@ class DeployArtifactsTest(unittest.TestCase):
                 False,
             )
             command = run.call_args.args[0]
-            self.assertEqual(command[:8], [
-                "bash",
-                "duckdb/scripts/extension-upload-single.sh",
-                "quack",
-                "abc123",
-                "v1.2.3",
-                "linux_amd64",
-                "bucket",
-                "true",
-            ])
-            self.assertEqual(command[8], "false")
-            self.assertTrue(command[9])
-            self.assertNotIn("\\", command[9])
+            self.assertEqual(
+                command[:7],
+                [
+                    "duckdb/scripts/extension-upload-single.sh",
+                    "quack",
+                    "abc123",
+                    "v1.2.3",
+                    "linux_amd64",
+                    "bucket",
+                    "true",
+                ],
+            )
+            self.assertEqual(command[7], "false")
+            self.assertTrue(command[8])
+            self.assertNotIn("\\", command[8])
             run.assert_called_once_with(command, check=True)
 
     @mock.patch("deploy_artifacts.subprocess.run")
@@ -93,7 +95,7 @@ class DeployArtifactsTest(unittest.TestCase):
 
             self.assertEqual(
                 [
-                    (call.args[0][5], call.args[0][2])
+                    (call.args[0][4], call.args[0][1])
                     for call in run.call_args_list
                 ],
                 [
@@ -124,7 +126,7 @@ class DeployArtifactsTest(unittest.TestCase):
             )
 
             command = run.call_args.args[0]
-            self.assertEqual(command[2], "httpfs")
+            self.assertEqual(command[1], "httpfs")
             run.assert_called_once_with(command, check=True)
 
     @mock.patch("deploy_artifacts.subprocess.run")
@@ -152,7 +154,7 @@ class DeployArtifactsTest(unittest.TestCase):
                     {"httpfs"},
                 )
             self.assertEqual(run.call_count, 1)
-            self.assertEqual(run.call_args.args[0][5], "wasm_eh")
+            self.assertEqual(run.call_args.args[0][4], "wasm_eh")
 
     @mock.patch("deploy_artifacts.subprocess.run")
     def test_deploy_continues_after_failure_and_fails_at_end(self, run):
@@ -184,7 +186,7 @@ class DeployArtifactsTest(unittest.TestCase):
                 )
             self.assertEqual(run.call_count, 2)
             self.assertEqual(
-                [call.args[0][2] for call in run.call_args_list],
+                [call.args[0][1] for call in run.call_args_list],
                 ["first", "second"],
             )
 
