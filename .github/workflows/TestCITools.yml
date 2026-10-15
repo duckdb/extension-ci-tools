@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  phase-runner-tests:
-    name: Distribution phase runner tests (${{ matrix.os }})
+  test-phase:
+    name: Test phase (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -109,8 +109,8 @@ jobs:
         duckdb_extension_load(tpch)
     secrets: inherit
 
-  deploy-dry-run:
-    name: Deploy workflow dry run
+  extension-template-main-deploy:
+    name: 
     needs:
       - extension-template-main
     uses: ./.github/workflows/_extension_deploy.yml
@@ -122,8 +122,8 @@ jobs:
       deploy_script: /bin/true
       reduced_ci_mode: enabled
 
-  prepare-single-job-deploy-test:
-    name: Prepare single-job deploy test
+  test-deploy-prepare:
+    name: Prepare deploy test
     runs-on: ubuntu-latest
     steps:
       - name: Create synthetic extension artifacts
@@ -146,10 +146,10 @@ jobs:
           path: deploy-test/wasm
           if-no-files-found: error
 
-  single-job-deploy-dry-run:
-    name: Single-job deploy workflow dry run
+  test-deploy:
+    name: Test deploy
     needs:
-      - prepare-single-job-deploy-test
+      - test-deploy-prepare
     uses: ./.github/workflows/deploy.yml
     with:
       duckdb_version: v2.0-cyanoptera
