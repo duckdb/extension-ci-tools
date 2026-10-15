@@ -237,6 +237,7 @@ env:
   CI_RUST_LOGS: ${{ inputs.rust_logs }}
   CI_RUN_DISK_CLEAN_STEP: ${{ inputs.run_disk_clean_step }}
   CI_USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
+  CI_FETCH_PREBUILT_DUCKDB: true
 
 jobs:
   generate_matrix:

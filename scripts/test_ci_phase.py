@@ -9,6 +9,7 @@ import tarfile
 import tempfile
 import unittest
 from unittest import mock
+import urllib.error
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -19,6 +20,7 @@ from ci_phase import (  # noqa: E402
     format_windows_command,
     main,
     is_true,
+    prebuilt_duckdb_artifact_name,
     test_environment,
     tool_enabled,
 )
@@ -51,6 +53,7 @@ class CIPhaseTest(unittest.TestCase):
             "CI_EXTENSION_CANONICAL": "",
             "DUCKDB_VERSION": "v1.2.3",
             "CI_BUILD_TYPE": "release",
+            "CI_FETCH_PREBUILT_DUCKDB": "true",
             "CI_TEST_CONFIG": "{}",
             "CI_EXTENSIONS_TEST_SELECTION": "regular",
         }
@@ -173,6 +176,7 @@ class CIPhaseTest(unittest.TestCase):
                 }
             )
             runner = RecordingRunner(env)
+            runner.prebuilt = mock.Mock()
             runner.checkout()
             commands = [command for command, _ in runner.commands]
             self.assertEqual(
@@ -189,11 +193,24 @@ class CIPhaseTest(unittest.TestCase):
                 runner.commands[-1][1]["extra_env"],
                 {"DUCKDB_TAG": "v1.2.3-test"},
             )
+            runner.prebuilt.assert_called_once_with()
+
+    def test_checkout_does_not_fetch_prebuilt_without_distribution_flag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            del env["CI_FETCH_PREBUILT_DUCKDB"]
+            runner = RecordingRunner(env)
+            runner.prebuilt = mock.Mock()
+
+            runner.checkout()
+
+            runner.prebuilt.assert_not_called()
 
     def test_checkout_clones_default_repository(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory)
             runner = RecordingRunner(env)
+            runner.prebuilt = mock.Mock()
             runner.checkout()
             commands = [command for command, _ in runner.commands]
             self.assertEqual(
@@ -209,6 +226,7 @@ class CIPhaseTest(unittest.TestCase):
                     ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                 ],
             )
+            runner.prebuilt.assert_called_once_with()
 
     def test_checkout_reuses_existing_duckdb_repository(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -217,6 +235,7 @@ class CIPhaseTest(unittest.TestCase):
             env = self.environment(workspace)
             env["CI_DUCKDB_GIT_REPOSITORY"] = "https://github.com/duckdb/duckdb.git"
             runner = RecordingRunner(env)
+            runner.prebuilt = mock.Mock()
             runner.checkout()
             commands = [command for command, _ in runner.commands]
             self.assertEqual(
@@ -235,6 +254,7 @@ class CIPhaseTest(unittest.TestCase):
                     ["git", "-C", "duckdb", "checkout", "v1.2.3"],
                 ],
             )
+            runner.prebuilt.assert_called_once_with()
 
     def test_checkout_resolves_existing_duckdb_when_version_is_omitted(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -253,6 +273,7 @@ class CIPhaseTest(unittest.TestCase):
             sha = "0123456789abcdef0123456789abcdef01234567"
             runner = RecordingRunner(env)
             runner.captured_output = sha
+            runner.prebuilt = mock.Mock()
 
             runner.checkout()
 
@@ -269,6 +290,7 @@ class CIPhaseTest(unittest.TestCase):
                 github_output.read_text(encoding="utf-8"),
                 f"duckdb_version={sha}\n",
             )
+            runner.prebuilt.assert_called_once_with()
 
     def test_artifact_paths_for_native_and_wasm(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -294,6 +316,155 @@ class CIPhaseTest(unittest.TestCase):
                 member.size = len(contents)
                 archive.addfile(member, io.BytesIO(contents))
         return archive_path
+
+    def test_prebuilt_duckdb_artifact_names_cover_native_matrix(self):
+        expected = {
+            "linux_amd64": "duckdb-static-libs-linux-amd64.tar.gz",
+            "linux_arm64": "duckdb-static-libs-linux-arm64.tar.gz",
+            "linux_amd64_musl": "duckdb-static-libs-linux-amd64-musl.tar.gz",
+            "linux_arm64_musl": "duckdb-static-libs-linux-arm64-musl.tar.gz",
+            "osx_amd64": "duckdb-static-libs-osx-amd64.tar.gz",
+            "osx_arm64": "duckdb-static-libs-osx-arm64.tar.gz",
+            "windows_amd64": "duckdb-static-libs-windows-amd64.tar.gz",
+            "windows_arm64": "duckdb-static-libs-windows-arm64.tar.gz",
+            "windows_amd64_mingw": "duckdb-static-libs-windows-mingw.tar.gz",
+        }
+        for architecture, artifact_name in expected.items():
+            with self.subTest(architecture=architecture):
+                self.assertEqual(
+                    prebuilt_duckdb_artifact_name(architecture), artifact_name
+                )
+        self.assertEqual(prebuilt_duckdb_artifact_name("wasm_eh"), "")
+
+    def test_fetch_prebuilt_duckdb_skips_non_release_builds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["CI_BUILD_TYPE"] = "debug"
+            runner = RecordingRunner(env)
+
+            with mock.patch.object(runner, "_open_prebuilt_url") as open_url:
+                runner.prebuilt()
+
+            open_url.assert_not_called()
+            self.assertNotIn("CI_PREBUILT_DUCKDB_ARTIFACT", runner.env)
+
+    def test_fetch_prebuilt_duckdb_archive_sets_existing_build_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            github_env = workspace / "github-env"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "GITHUB_ENV": str(github_env),
+                    "CI_PREBUILT_DUCKDB_BASE_URL": "https://staging.example",
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=[
+                    io.BytesIO(b"v2.0.0-alpha46057\n"),
+                    io.BytesIO(b"archive contents"),
+                ],
+            ) as open_url:
+                runner.prebuilt()
+
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            self.assertEqual(
+                (artifact_root / artifact_name).read_bytes(), b"archive contents"
+            )
+            self.assertEqual(
+                runner.env["CI_PREBUILT_DUCKDB_ARTIFACT"], artifact_name
+            )
+            self.assertEqual(
+                runner.env["CI_PREBUILT_DUCKDB_PATH"], str(artifact_root.resolve())
+            )
+            self.assertEqual(
+                github_env.read_text(encoding="utf-8").splitlines(),
+                [
+                    f"CI_PREBUILT_DUCKDB_ARTIFACT={artifact_name}",
+                    f"CI_PREBUILT_DUCKDB_PATH={artifact_root.resolve()}",
+                ],
+            )
+            self.assertEqual(
+                [call.args[0] for call in open_url.call_args_list],
+                [
+                    "https://staging.example/b15358c371/latest_alpha_version.txt",
+                    "https://staging.example/b15358c371/v2.0.0-alpha46057/"
+                    "duckdb/duckdb/github_release/"
+                    "duckdb-static-libs-linux-amd64.tar.gz",
+                ],
+            )
+
+    def test_fetch_prebuilt_duckdb_falls_back_when_pointer_is_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = RecordingRunner(self.environment(directory))
+            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            missing = urllib.error.HTTPError(
+                "https://staging.example/pointer", 404, "Not Found", {}, None
+            )
+
+            with mock.patch.object(
+                runner, "_open_prebuilt_url", side_effect=missing
+            ):
+                runner.prebuilt()
+            missing.close()
+
+            self.assertNotIn("CI_PREBUILT_DUCKDB_ARTIFACT", runner.env)
+            self.assertFalse((Path(directory) / ".ci").exists())
+
+    def test_fetch_prebuilt_duckdb_falls_back_when_archive_is_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = RecordingRunner(self.environment(directory))
+            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            missing = urllib.error.HTTPError(
+                "https://staging.example/archive", 404, "Not Found", {}, None
+            )
+
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=[io.BytesIO(b"v2.0.0-alpha46057\n"), missing],
+            ):
+                runner.prebuilt()
+            missing.close()
+
+            self.assertNotIn("CI_PREBUILT_DUCKDB_ARTIFACT", runner.env)
+            artifact_root = (
+                Path(directory) / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            )
+            self.assertEqual(list(artifact_root.iterdir()), [])
+
+    def test_fetch_prebuilt_duckdb_falls_back_on_network_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = RecordingRunner(self.environment(directory))
+            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=urllib.error.URLError("offline"),
+            ):
+                runner.prebuilt()
+
+            self.assertNotIn("CI_PREBUILT_DUCKDB_ARTIFACT", runner.env)
+
+    def test_fetch_prebuilt_duckdb_rejects_invalid_staged_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = RecordingRunner(self.environment(directory))
+            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                return_value=io.BytesIO(b"../../unexpected\n"),
+            ):
+                with self.assertRaisesRegex(ValueError, "invalid staged DuckDB version"):
+                    runner.prebuilt()
 
     def test_prebuilt_duckdb_archive_is_forwarded_to_build(self):
         with tempfile.TemporaryDirectory() as directory:
