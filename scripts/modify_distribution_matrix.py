@@ -47,9 +47,9 @@ def should_run(config, reduced_ci_mode, excluded_arch_values, opt_in_arch_values
     arch = config["duckdb_arch"]
     if arch in excluded_arch_values:
         return False
+    if config["opt_in"]:
+        return arch in opt_in_arch_values
     if reduced_ci_mode and not config["run_in_reduced_ci_mode"]:
-        return False
-    if config["opt_in"] and arch not in opt_in_arch_values:
         return False
     return True
 

@@ -58,7 +58,7 @@ jobs:
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3;unixodbc'
       # mingw arch below is not opt-in, included to check that it is allowed in the list
-      opt_in_archs: 'windows_arm64;linux_amd64_musl;linux_arm64_musl;windows_amd64_mingw;'
+      opt_in_archs: 'osx_amd64;windows_arm64;linux_amd64_musl;linux_arm64_musl;windows_amd64_mingw;'
       save_cache: ${{ github.event_name != 'pull_request' }}
 
   extension-template-custom-runners:
