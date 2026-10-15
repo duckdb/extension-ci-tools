@@ -157,6 +157,29 @@ class CIPhaseTest(unittest.TestCase):
             self.assertIn("DUCKDB_VERSION=v2.0.0-alpha39940\n", docker_environment)
             self.assertIn(f"DUCKDB_COMMIT={commit}\n", docker_environment)
 
+    def test_requested_duckdb_tag_labels_the_build(self):
+        # The community repository passes the commit to build as duckdb_version and the version it deploys for as
+        # duckdb_tag. The commit is still what is checked out and what names the artifacts; the build is labeled
+        # with the tag, which DuckDB 2.0 reads from DUCKDB_VERSION.
+        with tempfile.TemporaryDirectory() as directory:
+            commit = "0123456789abcdef0123456789abcdef01234567"
+            env = self.environment(directory)
+            env.update({"DUCKDB_VERSION": commit, "DUCKDB_TAG": "v2.0.0-alpha46057"})
+            runner = RecordingRunner(env)
+
+            self.assertEqual(runner.duckdb_ref(), commit)
+            self.assertEqual(runner.env["DUCKDB_VERSION"], commit)
+            native_environment = runner.build_environment()
+            self.assertEqual(native_environment["DUCKDB_VERSION"], "v2.0.0-alpha46057")
+            self.assertEqual(native_environment["DUCKDB_GIT_VERSION"], commit)
+
+            runner.create_docker_environment()
+            docker_environment = Path(directory, "docker_env.txt").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("DUCKDB_VERSION=v2.0.0-alpha46057\n", docker_environment)
+            self.assertIn(f"DUCKDB_GIT_VERSION={commit}\n", docker_environment)
+
     def test_duckdb_ref_falls_back_to_version(self):
         with tempfile.TemporaryDirectory() as directory:
             runner = RecordingRunner(self.environment(directory))

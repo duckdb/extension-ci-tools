@@ -86,6 +86,15 @@ class PhaseRunner:
     def duckdb_ref(self) -> str:
         return self.value("DUCKDB_COMMIT") or self.value("DUCKDB_VERSION")
 
+    def engine_version(self) -> str:
+        """The version label the build gives DuckDB, which DuckDB 2.0 reads from DUCKDB_VERSION.
+
+        A caller that requests a DUCKDB_TAG checks out DUCKDB_VERSION as a ref (often a commit). 2.0 no longer derives
+        its label from git tags, so set_duckdb_tag alone leaves the commit as the engine version; forward the
+        requested tag instead.
+        """
+        return self.value("DUCKDB_TAG") or self.value("DUCKDB_VERSION")
+
     def required(self, name: str) -> str:
         value = self.value(name)
         if not value:
@@ -406,7 +415,7 @@ class PhaseRunner:
     def build_environment(self) -> dict[str, str]:
         is_rtools = self.architecture in {"windows_amd64_rtools", "windows_amd64_mingw"}
         return {
-            "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
+            "DUCKDB_VERSION": self.engine_version(),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_PLATFORM_RTOOLS": "1" if is_rtools else "0",
@@ -541,7 +550,7 @@ class PhaseRunner:
             "OPENSSL_ROOT_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
             "OPENSSL_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
             "OPENSSL_USE_STATIC_LIBS": "true",
-            "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
+            "DUCKDB_VERSION": self.engine_version(),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_GIT_VERSION": self.duckdb_ref(),
