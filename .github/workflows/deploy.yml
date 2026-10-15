@@ -132,6 +132,7 @@ jobs:
           if [[ "${DEPLOY_VERSIONED}" == "true" ]]; then
             deploy_args+=(--versioned)
           fi
+          set -x
           python3 extension-ci-tools/scripts/deploy_artifacts.py \
             --root "$CI_EXTENSION_ARTIFACT_DIR" \
             --script "$DEPLOY_SCRIPT" \
