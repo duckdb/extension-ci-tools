@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: duckdb/extension-ci-tools
+      image_version:
+        description: duckdb-ci container image version
+        required: false
+        type: string
+        default: 20260814-e87a46ea
       extension_repository:
         description: Extension repository override
         required: false
@@ -70,12 +75,18 @@ on:
 permissions:
   actions: read
   contents: read
+  packages: read
 
 jobs:
   deploy:
     name: Deploy
     if: ${{ inputs.deploy_latest || inputs.deploy_versioned }}
     runs-on: ${{ github.repository_owner == 'duckdb' && 'namespace-profile-linux-slim' || 'ubuntu-latest' }}
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/manylinux_2_28_amd64_main:${{ inputs.image_version }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     env:
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
@@ -93,14 +104,6 @@ jobs:
           path: extension-ci-tools
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
-      - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.11"
-      - name: Install deployment prerequisites
-        env:
-          PIP_BREAK_SYSTEM_PACKAGES: 1
-        run: python3 -m pip install awscli
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
