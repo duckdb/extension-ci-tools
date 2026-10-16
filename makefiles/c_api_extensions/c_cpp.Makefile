@@ -100,9 +100,7 @@ ifneq ($(DUCKDB_WASM_PLATFORM),)
 	CMAKE_WRAPPER=emcmake
 	CMAKE_BUILD_FLAGS += -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 	EXTRA_CMAKE_FLAGS += -DDUCKDB_WASM_EXTENSION=1
-	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_mvp')
-	endif
-	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_eh')
+	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_base')
 		CMAKE_CXX_FLAGS += -fwasm-exceptions
 	endif
 	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_threads')

@@ -51,7 +51,7 @@ endif
 EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension
 EXTENSION_FILENAME_NO_METADATA=$(EXTENSION_LIB_FILENAME)
 
-DUCKDB_WASM_PLATFORM=$(filter wasm_mvp wasm_eh wasm_threads,$(DUCKDB_PLATFORM))
+DUCKDB_WASM_PLATFORM=$(filter wasm_base wasm_threads,$(DUCKDB_PLATFORM))
 
 ifneq ($(DUCKDB_WASM_PLATFORM),)
 	EXTENSION_FILENAME=$(EXTENSION_NAME).duckdb_extension.wasm
@@ -275,11 +275,8 @@ move_wasm_extension:
 	$(PYTHON_VENV_BIN) -c "from pathlib import Path;Path('$(EXTENSION_BUILD_PATH)/extension/$(EXTENSION_NAME)').mkdir(parents=True, exist_ok=True)"
 	$(PYTHON_VENV_BIN) -c "import shutil;shutil.copyfile('$(EXTENSION_BUILD_PATH)/release/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)', '$(EXTENSION_BUILD_PATH)/extension/$(EXTENSION_NAME)/$(EXTENSION_FILENAME)')"
 
-wasm_mvp:
-	DUCKDB_PLATFORM=wasm_mvp make configure release move_wasm_extension
-
-wasm_eh:
-	DUCKDB_PLATFORM=wasm_eh make configure release move_wasm_extension
+wasm_base:
+	DUCKDB_PLATFORM=wasm_base make configure release move_wasm_extension
 
 wasm_threads:
 	DUCKDB_PLATFORM=wasm_threads make configure release move_wasm_extension
