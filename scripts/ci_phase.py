@@ -241,27 +241,25 @@ class PhaseRunner:
             flush=True,
         )
 
-    def prebuilt(self) -> None:
-        if self.value("CI_PREBUILT_DUCKDB_ARTIFACT"):
-            print("A prebuilt DuckDB archive is already configured.", flush=True)
-            return
-
+    def prebuilt(self) -> bool:
         if self.value("CI_BUILD_TYPE", "release").lower() != "release":
             print(
                 "Prebuilt DuckDB archives are only available for release builds; "
                 "building DuckDB from source.",
                 flush=True,
             )
-            return
+            return False
 
-        artifact_name = prebuilt_duckdb_artifact_name(self.architecture)
+        artifact_name = self.value(
+            "CI_PREBUILT_DUCKDB_ARTIFACT"
+        ) or prebuilt_duckdb_artifact_name(self.architecture)
         if not artifact_name:
             print(
                 f"No prebuilt DuckDB archive is defined for {self.architecture}; "
                 "building DuckDB from source.",
                 flush=True,
             )
-            return
+            return False
 
         duckdb_commit = self.capture(
             ["git", "-C", "duckdb", "rev-parse", "HEAD"]
@@ -279,7 +277,7 @@ class PhaseRunner:
                 staged_version = response.read().decode("utf-8").strip()
         except (OSError, urllib.error.URLError) as error:
             self._prebuilt_cache_miss(version_url, error)
-            return
+            return False
 
         if STAGED_DUCKDB_VERSION_PATTERN.fullmatch(staged_version) is None:
             raise ValueError(
@@ -290,8 +288,11 @@ class PhaseRunner:
             f"{base_url}/{short_commit}/{staged_version}/duckdb/duckdb/"
             f"github_release/{artifact_name}"
         )
-        artifact_root = (
+        default_artifact_root = (
             self.workspace / ".ci" / "prebuilt-duckdb" / self.architecture
+        )
+        artifact_root = Path(
+            self.value("CI_PREBUILT_DUCKDB_PATH", str(default_artifact_root))
         )
         artifact_root.mkdir(parents=True, exist_ok=True)
         destination = artifact_root / artifact_name
@@ -304,11 +305,12 @@ class PhaseRunner:
         except (OSError, urllib.error.URLError) as error:
             temporary.unlink(missing_ok=True)
             self._prebuilt_cache_miss(artifact_url, error)
-            return
+            return False
 
         print(f"Using prebuilt DuckDB archive: {artifact_url}", flush=True)
         self.set_environment("CI_PREBUILT_DUCKDB_ARTIFACT", artifact_name)
         self.set_environment("CI_PREBUILT_DUCKDB_PATH", str(artifact_root.resolve()))
+        return True
 
     def inject_extension_config(self) -> None:
         config_parts: list[str] = []
@@ -771,7 +773,14 @@ class PhaseRunner:
         self.run_with_retry(["make", self.architecture], extra_env=self.build_environment())
 
     def build(self) -> None:
-        self.prepare_prebuilt_duckdb()
+        prebuilt_source = self.value("CI_PREBUILT_DUCKDB_SOURCE")
+        if prebuilt_source == "staged":
+            if self.prebuilt():
+                self.prepare_prebuilt_duckdb()
+        elif prebuilt_source != "disabled":
+            # An empty source preserves compatibility with workflows that only
+            # configure CI_PREBUILT_DUCKDB_ARTIFACT.
+            self.prepare_prebuilt_duckdb()
         getattr(self, f"build_{self.platform}")()
 
     def _run_tests(self) -> None:

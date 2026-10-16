@@ -91,7 +91,7 @@ jobs:
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
     steps:
       - name: Prepare sources
-        uses: duckdb/duckdb-ci/prepare-extension@712cd5c7364edf6cf8980347be54fa442426ad15 # main
+        uses: duckdb/duckdb-ci/prepare-extension@46370d44f2162edd523c8e0d35902967c2817152 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
