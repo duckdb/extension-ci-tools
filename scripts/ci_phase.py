@@ -312,7 +312,7 @@ class PhaseRunner:
         self.set_environment("CI_PREBUILT_DUCKDB_PATH", str(artifact_root.resolve()))
         return True
 
-    def inject_extension_config(self) -> None:
+    def extension_config(self) -> str:
         config_parts: list[str] = []
         raw_paths = self.value("CI_EXTENSION_CONFIG_PATHS", "[]")
         paths = json.loads(raw_paths)
@@ -328,7 +328,20 @@ class PhaseRunner:
         inline_config = self.value("CI_EXTRA_EXTENSION_CONFIG")
         if inline_config:
             config_parts.append(inline_config.rstrip("\n"))
-        config = "\n\n".join(part for part in config_parts if part)
+        return "\n\n".join(part for part in config_parts if part)
+
+    def source_extensions(self) -> set[str]:
+        """Extensions the config builds from a local checkout; a prebuilt copy would silently replace them."""
+        names: set[str] = set()
+        for match in re.finditer(
+            r"duckdb_extension_load\s*\(\s*([A-Za-z0-9_]+)([^)]*)\)", self.extension_config()
+        ):
+            if re.search(r"\bSOURCE_DIR\b", match.group(2)):
+                names.add(match.group(1).lower())
+        return names
+
+    def inject_extension_config(self) -> None:
+        config = self.extension_config()
         if not config:
             return
         path = self.workspace / "extension_config.cmake"
@@ -617,8 +630,9 @@ class PhaseRunner:
 
         destination = artifact_root / "extracted" / library_name
         self.set_environment("DUCKDB_PREBUILT_LIBRARY", str(destination.resolve()))
+        prebuilt_extensions = set(extension_names) - self.source_extensions()
         self.set_environment(
-            "DUCKDB_PREBUILT_EXTENSIONS", ";".join(sorted(extension_names))
+            "DUCKDB_PREBUILT_EXTENSIONS", ";".join(sorted(prebuilt_extensions))
         )
 
     def docker_arguments(self) -> list[str]:
