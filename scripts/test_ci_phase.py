@@ -611,6 +611,46 @@ class CIPhaseTest(unittest.TestCase):
             # capabilities are not extensions
             self.assertEqual(runner.env["DUCKDB_PREBUILT_EXTENSIONS"], "parquet")
 
+    def test_prebuilt_duckdb_skips_extensions_built_from_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact_name = "duckdb-static-libs-linux-amd64.tar.gz"
+            artifact_root = workspace / ".ci" / "prebuilt-duckdb" / "linux_amd64"
+            self.create_prebuilt_archive(
+                artifact_root,
+                artifact_name,
+                [
+                    ("libduckdb_static.a", b"library"),
+                    ("libparquet_extension.a", b"parquet"),
+                    ("libhttpfs_extension.a", b"httpfs"),
+                ],
+            )
+            # the Makefile always includes the root config, even when the matrix lists another file
+            (workspace / "extension_config.cmake").write_text(
+                "# duckdb_extension_load(parquet SOURCE_DIR /elsewhere)\n"
+                "DUCKDB_EXTENSION_LOAD(HTTPFS # built here (see README)\n"
+                "\tSOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}\n"
+                "\tINCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/src/include\n"
+                ")\n"
+                "duckdb_extension_statically_link(httpfs)\n",
+                encoding="utf-8",
+            )
+            group_config = workspace / "config" / "group.cmake"
+            group_config.parent.mkdir()
+            group_config.write_text("duckdb_extension_load(parquet)\n", encoding="utf-8")
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "CI_PREBUILT_DUCKDB_ARTIFACT": artifact_name,
+                    "CI_PREBUILT_DUCKDB_PATH": str(artifact_root),
+                    "CI_EXTENSION_CONFIG_PATHS": '["config/group.cmake"]',
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.prepare_prebuilt_duckdb()
+
+            self.assertEqual(runner.env["DUCKDB_PREBUILT_EXTENSIONS"], "parquet")
+
     def test_prebuilt_duckdb_uses_msvc_library_name(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
