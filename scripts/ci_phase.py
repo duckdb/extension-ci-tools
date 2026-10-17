@@ -332,13 +332,18 @@ class PhaseRunner:
 
     def source_extensions(self) -> set[str]:
         """Extensions the config builds from a local checkout; a prebuilt copy would silently replace them."""
-        names: set[str] = set()
-        for match in re.finditer(
-            r"duckdb_extension_load\s*\(\s*([A-Za-z0-9_]+)([^)]*)\)", self.extension_config()
-        ):
-            if re.search(r"\bSOURCE_DIR\b", match.group(2)):
-                names.add(match.group(1).lower())
-        return names
+        parts = [self.extension_config()]
+        # the Makefile always includes the repo's own config, whatever the matrix lists
+        root_config = self.workspace / "extension_config.cmake"
+        if root_config.is_file():
+            parts.append(root_config.read_text(encoding="utf-8"))
+        config = re.sub(r"#[^\n]*", "", "\n".join(parts))
+        return {
+            name.lower()
+            for name in re.findall(
+                r"(?i:duckdb_extension_load)\s*\(\s*(\w+)[^)]*\bSOURCE_DIR\b", config
+            )
+        }
 
     def inject_extension_config(self) -> None:
         config = self.extension_config()
