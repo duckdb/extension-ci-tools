@@ -134,6 +134,11 @@ on:
         required: false
         type: string
         default: ""
+      # Optional DuckDB commit SHA -- useful for building against untagged versions of DuckDB
+      duckdb_commit:
+        required: false
+        type: string
+        default: ""
       # If set tot true, skip tests
       skip_tests:
         required: false
@@ -214,6 +219,7 @@ env:
   CI_EXTENSION_NAME: ${{ inputs.extension_name }}
   CI_EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
   DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+  DUCKDB_COMMIT: ${{ inputs.duckdb_commit }}
   CI_DUCKDB_GIT_REPOSITORY: ${{ inputs.override_duckdb_repository }}
   CI_EXTENSION_TAG: ${{ inputs.extension_tag }}
   DUCKDB_TAG: ${{ inputs.duckdb_tag }}
