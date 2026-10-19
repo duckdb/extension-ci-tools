@@ -10,6 +10,10 @@ import subprocess
 import tempfile
 
 
+class DeploymentError(RuntimeError):
+    """One or more extension deployments failed."""
+
+
 def extension_name(path: Path) -> str:
     wasm_suffix = ".duckdb_extension.wasm"
     native_suffix = ".duckdb_extension"
@@ -20,7 +24,17 @@ def extension_name(path: Path) -> str:
     raise ValueError(f"not a DuckDB extension binary: {path}")
 
 
-def discover_extensions(root: Path) -> list[tuple[str, Path]]:
+def extension_architecture(root: Path, path: Path) -> str:
+    relative_path = path.relative_to(root)
+    if len(relative_path.parts) < 3:
+        raise ValueError(
+            f"extension binary does not use <version>/<architecture>/<file> layout: "
+            f"{path}"
+        )
+    return relative_path.parent.name
+
+
+def discover_extensions(root: Path) -> list[tuple[str, str, Path]]:
     candidates = sorted(
         path
         for path in root.rglob("*.duckdb_extension*")
@@ -30,17 +44,22 @@ def discover_extensions(root: Path) -> list[tuple[str, Path]]:
             or path.name.endswith(".duckdb_extension.wasm")
         )
     )
-    selected: dict[str, Path] = {}
+    selected: dict[tuple[str, str], Path] = {}
     for path in candidates:
         name = extension_name(path)
-        if name in selected:
+        architecture = extension_architecture(root, path)
+        key = (architecture, name)
+        if key in selected:
             print(
-                f"warning: skipping duplicate extension {name!r}: {path} "
-                f"(using {selected[name]})"
+                f"warning: skipping duplicate extension {name!r} for "
+                f"{architecture}: {path} (using {selected[key]})"
             )
             continue
-        selected[name] = path
-    return list(selected.items())
+        selected[key] = path
+    return [
+        (architecture, name, path)
+        for (architecture, name), path in sorted(selected.items())
+    ]
 
 
 def deploy_extensions(
@@ -48,35 +67,68 @@ def deploy_extensions(
     script: PurePath,
     extension_version: str,
     duckdb_version: str,
-    architecture: str,
     bucket: str,
     deploy_latest: bool,
     deploy_versioned: bool,
+    requested_extensions: set[str] | None = None,
 ) -> None:
     extensions = discover_extensions(root)
     if not extensions:
         raise FileNotFoundError(f"no extension binaries found below {root}")
+    failures: list[str] = []
+    if requested_extensions:
+        architectures = sorted({architecture for architecture, _, _ in extensions})
+        for architecture in architectures:
+            available = {
+                name
+                for candidate_architecture, name, _ in extensions
+                if candidate_architecture == architecture
+            }
+            missing = sorted(requested_extensions - available)
+            if missing:
+                failures.append(
+                    f"{architecture}: requested extensions not found: "
+                    f"{', '.join(missing)}"
+                )
+        extensions = [
+            extension
+            for extension in extensions
+            if extension[1] in requested_extensions
+        ]
     with tempfile.TemporaryDirectory(prefix="duckdb-extension-deploy-") as directory:
         staging = Path(directory)
-        for name, source in extensions:
+        for architecture, name, source in extensions:
             destination = staging / source.name
-            shutil.copy2(source, destination)
-            subprocess.run(
-                [
-                    "bash",
-                    script.as_posix(),
-                    name,
-                    extension_version,
-                    duckdb_version,
-                    architecture,
-                    bucket,
-                    str(deploy_latest).lower(),
-                    str(deploy_versioned).lower(),
-                    staging.as_posix(),
-                ],
-                check=True,
-            )
-            destination.unlink()
+            try:
+                shutil.copy2(source, destination)
+                subprocess.run(
+                    [
+                        script.as_posix(),
+                        name,
+                        extension_version,
+                        duckdb_version,
+                        architecture,
+                        bucket,
+                        str(deploy_latest).lower(),
+                        str(deploy_versioned).lower(),
+                        staging.as_posix(),
+                    ],
+                    check=True,
+                )
+            except subprocess.CalledProcessError as error:
+                failures.append(
+                    f"{architecture}/{name}: upload command exited with "
+                    f"{error.returncode}"
+                )
+            except OSError as error:
+                failures.append(f"{architecture}/{name}: {error}")
+            finally:
+                destination.unlink(missing_ok=True)
+    if failures:
+        raise DeploymentError(
+            "one or more extension deployments failed:\n- "
+            + "\n- ".join(failures)
+        )
 
 
 def main() -> None:
@@ -85,20 +137,29 @@ def main() -> None:
     parser.add_argument("--script", type=Path, required=True)
     parser.add_argument("--extension-version", required=True)
     parser.add_argument("--duckdb-version", required=True)
-    parser.add_argument("--architecture", required=True)
     parser.add_argument("--bucket", required=True)
+    parser.add_argument(
+        "--extensions",
+        default="",
+        help="Semicolon-separated extension names to deploy; empty deploys all",
+    )
     parser.add_argument("--latest", action="store_true")
     parser.add_argument("--versioned", action="store_true")
     args = parser.parse_args()
+    requested_extensions = {
+        extension.strip()
+        for extension in args.extensions.split(";")
+        if extension.strip()
+    }
     deploy_extensions(
         args.root,
         args.script,
         args.extension_version,
         args.duckdb_version,
-        args.architecture,
         args.bucket,
         args.latest,
         args.versioned,
+        requested_extensions,
     )
 
 

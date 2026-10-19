@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  phase-runner-tests:
-    name: Distribution phase runner tests (${{ matrix.os }})
+  test-phase:
+    name: Test phase (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -42,7 +42,6 @@ jobs:
       extension_name: quack
       override_repository: duckdb/extension-template
       override_ref: main
-      duckdb_version: main
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3'
@@ -54,12 +53,12 @@ jobs:
       extension_name: capi_quack
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'python3;unixodbc'
       # mingw arch below is not opt-in, included to check that it is allowed in the list
-      opt_in_archs: 'windows_arm64;linux_amd64_musl;linux_arm64_musl;windows_amd64_mingw;'
+      opt_in_archs: 'osx_amd64;windows_arm64;linux_amd64_musl;linux_arm64_musl;windows_amd64_mingw;'
       save_cache: ${{ github.event_name != 'pull_request' }}
 
   extension-template-custom-runners:
@@ -70,7 +69,7 @@ jobs:
       artifact_postfix: custom-runners
       override_repository: duckdb/extension-template-c
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       runners: >-
@@ -96,7 +95,7 @@ jobs:
       extension_name: quack
       override_repository: duckdb/extension-template
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'parser_tools;fortran;omp;go;python3;downgraded_aws_cli;'
@@ -110,18 +109,57 @@ jobs:
         duckdb_extension_load(tpch)
     secrets: inherit
 
-  deploy-dry-run:
-    name: Deploy workflow dry run
+  extension-template-main-deploy:
+    name: 
     needs:
       - extension-template-main
     uses: ./.github/workflows/_extension_deploy.yml
     with:
       extension_name: quack
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       deploy_script: /bin/true
       reduced_ci_mode: enabled
+
+  test-deploy-prepare:
+    name: Prepare deploy test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create synthetic extension artifacts
+        shell: bash
+        run: |
+          mkdir -p deploy-test/linux/v1/linux_amd64
+          mkdir -p deploy-test/wasm/v1/wasm_eh
+          touch deploy-test/linux/v1/linux_amd64/quack.duckdb_extension
+          touch deploy-test/wasm/v1/wasm_eh/quack.duckdb_extension.wasm
+      - name: Upload Linux extension artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: main-extensions-linux_amd64
+          path: deploy-test/linux
+          if-no-files-found: error
+      - name: Upload Wasm extension artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: main-extensions-wasm_eh
+          path: deploy-test/wasm
+          if-no-files-found: error
+
+  test-deploy:
+    name: Test deploy
+    needs:
+      - test-deploy-prepare
+    uses: ./.github/workflows/deploy.yml
+    with:
+      duckdb_version: v2.0-cyanoptera
+      ci_tools_repository: ${{ github.repository }}
+      ci_tools_version: ${{ github.sha }}
+      extension_repository: duckdb/extension-template
+      extension_ref: main
+      deploy_extensions: quack
+      deploy_latest: true
+      deploy_script: /bin/true
 
   extension-template-rust:
     name: Extension template (Rust)
@@ -133,7 +171,7 @@ jobs:
       extension_name: rusty_quack
       override_repository: duckdb/extension-template-rs
       override_ref: main
-      duckdb_version: v1.5.4
+      duckdb_version: v2.0-cyanoptera
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
       extra_toolchains: 'rust;python3'

@@ -14,6 +14,10 @@ git submodule update --init --recursive
 
 When the extension has a `duckdb` submodule, omit `duckdb_version` from the distribution and deployment workflows. CI uses the commit pinned by the submodule.
 
+The distribution workflow automatically checks DuckDB's staging storage for a
+static-library archive matching the resolved DuckDB commit and native platform.
+When no staged archive is available, it builds DuckDB from source as before.
+
 ### C++
 
 [duckdb-httpfs](https://github.com/duckdb/duckdb-httpfs/) includes the standard extension and vcpkg makefiles:

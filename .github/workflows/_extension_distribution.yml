@@ -44,7 +44,8 @@ on:
         required: false
         type: string
         default: ""
-      # ';' separated list of architectures to opt into, for example: 'windows_arm64;linux_arm64_musl'
+      # ';' separated list of architectures to opt into, for example: 'osx_amd64;windows_arm64;linux_arm64_musl'
+      # Explicit opt-ins override reduced CI, while exclusions take precedence.
       opt_in_archs:
         required: false
         type: string
@@ -237,6 +238,7 @@ env:
   CI_RUST_LOGS: ${{ inputs.rust_logs }}
   CI_RUN_DISK_CLEAN_STEP: ${{ inputs.run_disk_clean_step }}
   CI_USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
+  CI_FETCH_PREBUILT_DUCKDB: true
 
 jobs:
   generate_matrix:
@@ -548,7 +550,6 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.11'
-
       - name: Checkout / DuckDB from calling workflow
         if: ${{ inputs.set_caller_as_duckdb }}
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

@@ -4,18 +4,20 @@ on:
   workflow_call:
     inputs:
       duckdb_version:
-        description: DuckDB version to build
-        required: true
+        description: DuckDB version to build; omitted when the extension repository pins a DuckDB submodule
+        required: false
         type: string
+        default: ""
       duckdb_commit:
-        description: Exact DuckDB commit to build
+        description: Exact DuckDB commit to build; omitted when the extension repository pins a DuckDB submodule
         required: false
         type: string
         default: ""
       ci_tools_version:
         description: extension-ci-tools ref used by build and test jobs
-        required: true
+        required: false
         type: string
+        default: main
       groups:
         description: YAML extension groups passed to duckdb-ci/matrix
         required: true
@@ -46,7 +48,7 @@ on:
         type: string
         default: ""
       opt_in_archs:
-        description: Semicolon-separated opt-in architectures
+        description: Semicolon-separated opt-in architectures; opt-ins override reduced CI, while exclusions take precedence
         required: false
         type: string
         default: ""
@@ -80,8 +82,13 @@ on:
         required: false
         type: boolean
         default: true
+      prebuilt_source:
+        description: Prebuilt DuckDB source (workflow, staged, or disabled); defaults to staged unless a legacy artifact is provided
+        required: false
+        type: string
+        default: ""
       prebuilt_duckdb:
-        description: JSON map from DuckDB architecture to prebuilt library artifact name
+        description: Deprecated JSON map from DuckDB architecture to same-run artifact name
         required: false
         type: string
         default: "{}"
@@ -95,6 +102,11 @@ on:
         required: false
         type: string
         default: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # Release 2026.06.24
+      windows_vcpkg_toolchain:
+        description: Windows compiler and matching vcpkg toolchain (cl or clang-cl)
+        required: false
+        type: string
+        default: cl
     secrets:
       VCPKG_CACHING_AWS_ACCESS_KEY_ID:
         required: false
@@ -104,14 +116,19 @@ on:
         required: false
       VCPKG_CACHING_AWS_DEFAULT_REGION:
         required: false
+    outputs:
+      duckdb_version:
+        description: Resolved DuckDB version used by the build
+        value: ${{ jobs.matrix.outputs.duckdb_version }}
+      duckdb_commit:
+        description: Resolved DuckDB commit used by the build
+        value: ${{ jobs.matrix.outputs.duckdb_commit }}
 
 permissions:
   contents: read
   packages: read
 
 env:
-  DUCKDB_COMMIT: ${{ inputs.duckdb_commit }}
-  DUCKDB_VERSION: ${{ inputs.duckdb_version }}
   CI_BUILD_TYPE: release
   CI_BUILD_DUCKDB_SHELL: true
   CI_UPLOAD_ALL_EXTENSIONS: true
@@ -129,8 +146,10 @@ env:
 jobs:
   matrix:
     name: Compute matrix
-    runs-on: ubuntu-slim
+    runs-on: ${{ fromJSON(inputs.runners).linux_slim || 'ubuntu-slim' }}
     outputs:
+      duckdb_version: ${{ steps.duckdb-version.outputs.version }}
+      duckdb_commit: ${{ steps.duckdb-version.outputs.commit }}
       build_linux: ${{ steps.matrix.outputs.build_linux }}
       test_linux: ${{ steps.matrix.outputs.test_linux }}
       build_macos: ${{ steps.matrix.outputs.build_macos }}
@@ -139,15 +158,42 @@ jobs:
       test_windows: ${{ steps.matrix.outputs.test_windows }}
       build_wasm: ${{ steps.matrix.outputs.build_wasm }}
     steps:
+      - name: Checkout extension metadata
+        if: ${{ inputs.duckdb_version == '' && inputs.duckdb_commit == '' }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
+          ref: ${{ inputs.extension_ref }}
+          fetch-depth: 0
+      - name: Resolve DuckDB version
+        id: duckdb-version
+        shell: bash
+        env:
+          INPUT_DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+          INPUT_DUCKDB_COMMIT: ${{ inputs.duckdb_commit }}
+        run: |
+          set -euo pipefail
+          duckdb_commit="${INPUT_DUCKDB_COMMIT:-${INPUT_DUCKDB_VERSION}}"
+          duckdb_version="${INPUT_DUCKDB_VERSION:-${duckdb_commit}}"
+          if [[ -z "${duckdb_commit}" ]]; then
+            if ! duckdb_commit="$(git rev-parse HEAD:duckdb 2>/dev/null)"; then
+              echo "duckdb_version or duckdb_commit is required when the extension repository has no duckdb submodule" >&2
+              exit 1
+            fi
+            duckdb_version="${duckdb_commit}"
+          fi
+          echo "version=${duckdb_version}" >> "$GITHUB_OUTPUT"
+          echo "commit=${duckdb_commit}" >> "$GITHUB_OUTPUT"
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: duckdb/duckdb-ci/matrix@46370d44f2162edd523c8e0d35902967c2817152 # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
           runners: ${{ inputs.runners }}
           reduced_ci_mode: ${{ inputs.reduced_ci_mode }}
           image_version: ${{ inputs.image_version }}
+          windows_vcpkg_toolchain: ${{ inputs.windows_vcpkg_toolchain }}
           groups: ${{ inputs.groups }}
 
   build_linux:
@@ -165,6 +211,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.build_linux) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: linux
       CI_LINUX_NATIVE_CONTAINER: true
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -179,17 +227,18 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
-      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
+      CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
+      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] || matrix.prebuilt_duckdb_artifact }}
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
     steps:
       - name: Prepare sources
-        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@46370d44f2162edd523c8e0d35902967c2817152 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -197,7 +246,7 @@ jobs:
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
       - name: Download prebuilt DuckDB
-        if: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
@@ -208,16 +257,16 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          key: build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
           restore-keys: |
-            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            ccache-build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
             build-${{ matrix.artifact_name }}-
             ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@c641f80401c143f6a3dc96d681f5adbaf4dd3551 # main
+        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@46370d44f2162edd523c8e0d35902967c2817152 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -244,6 +293,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.build_macos) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: macos
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CI_OSX_BUILD_ARCH: ${{ matrix.osx_build_arch }}
@@ -259,7 +310,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
-      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
+      CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
+      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] || matrix.prebuilt_duckdb_artifact }}
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
     steps:
       - name: Prepare sources
@@ -268,8 +320,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -277,7 +329,7 @@ jobs:
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
       - name: Download prebuilt DuckDB
-        if: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
@@ -295,9 +347,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          key: build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
           restore-keys: |
-            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            ccache-build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
             build-${{ matrix.artifact_name }}-
             ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
@@ -331,6 +383,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.build_windows) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: windows
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
@@ -340,14 +394,16 @@ jobs:
       CI_HAS_RUST: ${{ matrix.toolchain == 'rust' }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
       AWS_DEFAULT_REGION: ${{ secrets.VCPKG_CACHING_AWS_DEFAULT_REGION }}
-      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
+      CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
+      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] || matrix.prebuilt_duckdb_artifact }}
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || 'cl' }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || 'cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_vcpkg_toolchain }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_vcpkg_toolchain }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -360,8 +416,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -369,7 +425,7 @@ jobs:
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
       - name: Download prebuilt DuckDB
-        if: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
           name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
@@ -391,9 +447,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          key: build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
           restore-keys: |
-            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            ccache-build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
             build-${{ matrix.artifact_name }}-
             ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
@@ -448,6 +504,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.build_wasm) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       GEN: make
       CI_PLATFORM: wasm
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -470,8 +528,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -497,9 +555,9 @@ jobs:
         with:
           max-size: 5GB
           evict-old-files: job
-          key: build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+          key: build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
           restore-keys: |
-            ccache-build-${{ matrix.artifact_name }}-${{ inputs.duckdb_version }}
+            ccache-build-${{ matrix.artifact_name }}-${{ needs.matrix.outputs.duckdb_version }}
             build-${{ matrix.artifact_name }}-
             ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
@@ -538,6 +596,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.test_linux) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: linux
       CI_LINUX_NATIVE_CONTAINER: true
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
@@ -552,8 +612,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -580,6 +640,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.test_macos) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: macos
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CI_OSX_BUILD_ARCH: ${{ matrix.osx_build_arch }}
@@ -595,8 +657,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -629,14 +691,17 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.matrix.outputs.test_windows) }}
     env:
+      DUCKDB_VERSION: ${{ needs.matrix.outputs.duckdb_version }}
+      DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: windows
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CI_EXTENSION_NAME: all-extensions
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
+      VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
-      CC: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'gcc' || 'cl' }}
-      CXX: ${{ matrix.duckdb_arch == 'windows_amd64_mingw' && 'g++' || 'cl' }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_vcpkg_toolchain }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_vcpkg_toolchain }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -649,8 +714,8 @@ jobs:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
           duckdb-repository: ${{ inputs.duckdb_repository != '' && inputs.duckdb_repository || 'duckdb/duckdb' }}
-          duckdb-ref: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
-          duckdb-sha: ${{ inputs.duckdb_commit || inputs.duckdb_version }}
+          duckdb-ref: ${{ needs.matrix.outputs.duckdb_commit }}
+          duckdb-sha: ${{ needs.matrix.outputs.duckdb_commit }}
       - name: Checkout extension-ci-tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
