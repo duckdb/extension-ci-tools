@@ -71,8 +71,6 @@ else ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
 endif
 
 #### VCPKG config
-EXTENSION_CONFIG_STEP_WASM ?=
-
 # Set the toolchain
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
@@ -82,6 +80,7 @@ endif
 # Out-of-tree extensions are synchronized before CMake configures. The sync step also
 # writes the merged vcpkg manifest, including the driving extension's own vcpkg.json.
 EXTENSION_CONFIG_STEP = sync_oot_extensions
+EXTENSION_CONFIG_STEP_WASM = sync_oot_extensions
 VCPKG_MANIFEST_FLAGS := -DVCPKG_MANIFEST_DIR='${PROJ_DIR}build'
 
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
