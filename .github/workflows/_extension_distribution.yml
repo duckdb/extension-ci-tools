@@ -115,7 +115,7 @@ on:
         required: false
         type: string
         default: ""
-      # Experimental option to allow automatically building the vcpkg dependencies of duckdb extensions that are used for testing
+      # Deprecated no-op retained temporarily for callers that still pass it.
       use_merged_vcpkg_manifest:
         required: false
         type: string
@@ -209,7 +209,6 @@ on:
 
 env:
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
-  USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
   USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
   CI_EXTENSION_NAME: ${{ inputs.extension_name }}
   CI_EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
@@ -403,7 +402,6 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
-      USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
@@ -510,7 +508,6 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
-      USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.VCPKG_CACHING_AWS_SECRET_ACCESS_KEY }}
       AWS_ENDPOINT_URL: ${{ secrets.VCPKG_CACHING_AWS_ENDPOINT_URL }}
@@ -653,7 +650,6 @@ jobs:
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_TOOLCHAIN_PATH: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-      USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
       VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/extension-ci-tools/vcpkg_ports
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
       AWS_ACCESS_KEY_ID: ${{ secrets.VCPKG_CACHING_AWS_ACCESS_KEY_ID }}
