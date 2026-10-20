@@ -64,15 +64,9 @@ func TestComputePlatformMatrices(t *testing.T) {
   "wasm": {
     "include": [
       {
-        "duckdb_arch": "wasm_mvp",
+        "duckdb_arch": "wasm_base",
         "runner": "ubuntu-latest",
         "run_in_reduced_ci_mode": true,
-        "opt_in": false
-      },
-      {
-        "duckdb_arch": "wasm_eh",
-        "runner": "ubuntu-latest",
-        "run_in_reduced_ci_mode": false,
         "opt_in": false
       },
       {
@@ -109,17 +103,17 @@ func TestComputePlatformMatrices(t *testing.T) {
 				Platform: "wasm",
 			},
 			expected: map[string][]string{
-				"wasm": {"wasm_eh", "wasm_mvp", "wasm_threads"},
+				"wasm": {"wasm_base", "wasm_threads"},
 			},
 		},
 		{
-			name: "wasm reduced mode enabled includes only mvp",
+			name: "wasm reduced mode enabled includes only base",
 			opts: distmatrix.ComputeOptions{
 				Platform:      "wasm",
 				ReducedCIMode: distmatrix.ReducedCIEnabled,
 			},
 			expected: map[string][]string{
-				"wasm": {"wasm_mvp"},
+				"wasm": {"wasm_base"},
 			},
 		},
 		{
@@ -157,7 +151,7 @@ func TestComputePlatformMatrices(t *testing.T) {
 			},
 		},
 		{
-			name: "exclude removes specific duckdb_arch values",
+			name: "exclude removes specific duckdb_arch values, wasm_eh aliases wasm_base",
 			opts: distmatrix.ComputeOptions{
 				Platform: "windows;wasm",
 				Exclude:  "windows_amd64_mingw,wasm_mvp,wasm_eh,wasm_threads",

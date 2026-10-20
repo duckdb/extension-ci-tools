@@ -80,6 +80,32 @@ func TestOSXAMD64RequiresExplicitOptInRegardlessOfReducedCIMode(t *testing.T) {
 	assert.Equal(t, []string{"osx_arm64"}, platformArchs(excluded["osx"]))
 }
 
+func TestExcludeWasmEHAliasSkipsWasmBase(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "config", "distribution_matrix.json"))
+	require.NoError(t, err)
+
+	matrix, err := ParseMatrixFile(data)
+	require.NoError(t, err)
+
+	excluded, err := ComputePlatformMatrices(matrix, ComputeOptions{
+		Platform:      "wasm",
+		Exclude:       "wasm_eh",
+		ReducedCIMode: ReducedCIDisabled,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"wasm_threads"}, platformArchs(excluded["wasm"]))
+
+	notExcluded, err := ComputePlatformMatrices(matrix, ComputeOptions{
+		Platform:      "wasm",
+		Exclude:       "wasm_mvp",
+		ReducedCIMode: ReducedCIDisabled,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"wasm_base", "wasm_threads"}, platformArchs(notExcluded["wasm"]))
+}
+
 func TestParseMatrixFileRejectsUnknownFields(t *testing.T) {
 	t.Parallel()
 
@@ -120,8 +146,7 @@ func TestRunnerOverrideAliasesCoverAllRunnerEntriesInDistributionMatrix(t *testi
 		"windows_amd64":       "windows_x64",
 		"windows_arm64":       "windows_arm64",
 		"windows_amd64_mingw": "windows_x64",
-		"wasm_mvp":            "linux_x64",
-		"wasm_eh":             "linux_x64",
+		"wasm_base":           "linux_x64",
 		"wasm_threads":        "linux_x64",
 	}
 
