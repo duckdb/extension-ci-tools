@@ -57,6 +57,7 @@ const (
 type ComputeOptions struct {
 	Platform      string
 	Arch          string
+	ExactArchs    string // exact duckdb_arch allow-list; overrides Exclude, OptIn and ReducedCIMode
 	Exclude       string
 	OptIn         string
 	ReducedCIMode ReducedCIMode
@@ -117,6 +118,11 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 	}
 	reducedCI := parsedReducedCIMode == ReducedCIEnabled
 
+	selectedSet, err := exactArchSet(matrix, opts.ExactArchs)
+	if err != nil {
+		return nil, err
+	}
+
 	optInSet := toSet(splitList(opts.OptIn))
 	excludedSet := toSet(splitList(opts.Exclude))
 	results := make(map[string]PlatformMatrix, len(platforms))
@@ -129,7 +135,11 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 
 		filtered := make([]PlatformOutput, 0, len(cfg.Include))
 		for _, entry := range cfg.Include {
-			if includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet) {
+			include := includeEntry(entry, archTokens, excludedSet, reducedCI, optInSet)
+			if selectedSet != nil {
+				_, include = selectedSet[entry.DuckDBArch]
+			}
+			if include {
 				output := toPlatformOutput(entry)
 				if override, ok := runnerOverrides.lookup(entry.DuckDBArch); ok {
 					output.Runner = override
@@ -190,6 +200,38 @@ func includeEntry(entry Entry, archTokens map[string]struct{}, excludedSet map[s
 	}
 
 	return true
+}
+
+// exactArchSet returns nil when no archs are requested.
+func exactArchSet(matrix MatrixFile, raw string) (map[string]struct{}, error) {
+	requested := normalizeValues(splitList(raw))
+	if len(requested) == 0 {
+		return nil, nil
+	}
+
+	known := map[string]struct{}{}
+	for _, cfg := range matrix {
+		for _, entry := range cfg.Include {
+			known[entry.DuckDBArch] = struct{}{}
+		}
+	}
+
+	var unknown []string
+	for _, arch := range requested {
+		if _, ok := known[arch]; !ok {
+			unknown = append(unknown, arch)
+		}
+	}
+	if len(unknown) > 0 {
+		valid := make([]string, 0, len(known))
+		for arch := range known {
+			valid = append(valid, arch)
+		}
+		slices.Sort(valid)
+		return nil, fmt.Errorf("unknown duckdb_arch: %s (valid: %s)", strings.Join(unknown, ";"), strings.Join(valid, ";"))
+	}
+
+	return toSet(requested), nil
 }
 
 func matchesArchToken(duckdbArch string, tokens map[string]struct{}) bool {

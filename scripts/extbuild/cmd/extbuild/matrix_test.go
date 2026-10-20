@@ -61,6 +61,22 @@ func TestComputePlatformMatrices(t *testing.T) {
       }
     ]
   },
+  "osx": {
+    "include": [
+      {
+        "duckdb_arch": "osx_amd64",
+        "runner": "macos-15",
+        "run_in_reduced_ci_mode": false,
+        "opt_in": true
+      },
+      {
+        "duckdb_arch": "osx_arm64",
+        "runner": "macos-15",
+        "run_in_reduced_ci_mode": false,
+        "opt_in": false
+      }
+    ]
+  },
   "wasm": {
     "include": [
       {
@@ -190,6 +206,44 @@ func TestComputePlatformMatrices(t *testing.T) {
 				"linux": {"linux_amd64", "linux_amd64_musl", "linux_arm64"},
 			},
 		},
+		{
+			name: "exact archs selects an opt in entry without opt in list",
+			opts: distmatrix.ComputeOptions{
+				ExactArchs: "osx_amd64",
+			},
+			expected: map[string][]string{
+				"linux":   {},
+				"osx":     {"osx_amd64"},
+				"wasm":    {},
+				"windows": {},
+			},
+		},
+		{
+			name: "exact archs overrides reduced ci mode, exclude and opt in",
+			opts: distmatrix.ComputeOptions{
+				Platform:      "linux;wasm;windows",
+				ExactArchs:    "linux_arm64;wasm_eh",
+				Exclude:       "linux_arm64",
+				OptIn:         "windows_arm64",
+				ReducedCIMode: distmatrix.ReducedCIEnabled,
+			},
+			expected: map[string][]string{
+				"linux":   {"linux_arm64"},
+				"wasm":    {"wasm_eh"},
+				"windows": {},
+			},
+		},
+		{
+			name: "empty exact archs keeps default filtering",
+			opts: distmatrix.ComputeOptions{
+				Platform:      "linux",
+				ExactArchs:    " ; ",
+				ReducedCIMode: distmatrix.ReducedCIEnabled,
+			},
+			expected: map[string][]string{
+				"linux": {"linux_amd64"},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -207,6 +261,21 @@ func TestComputePlatformMatrices(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputePlatformMatricesRejectsUnknownExactArchs(t *testing.T) {
+	t.Parallel()
+
+	matrix := mustParseMatrixFixture(t, `{
+  "linux": {"include": [{"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04"}]},
+  "osx": {"include": [{"duckdb_arch":"osx_amd64","runner":"macos-15","opt_in":true}]}
+}`)
+
+	_, err := distmatrix.ComputePlatformMatrices(matrix, distmatrix.ComputeOptions{
+		Platform:   "linux",
+		ExactArchs: "osx_amd64;osx_x86",
+	})
+	require.EqualError(t, err, "unknown duckdb_arch: osx_x86 (valid: linux_amd64;osx_amd64)")
 }
 
 func TestMatrixSubcommandWritesOutputFile(t *testing.T) {
@@ -355,6 +424,44 @@ func TestMatrixSubcommandDeployMode(t *testing.T) {
 	assert.NotContains(t, content, "windows_matrix=")
 
 	assert.Equal(t, "linux_amd64\nwindows_amd64\n", stdout)
+}
+
+func TestMatrixSubcommandDeployModeWithExactArchs(t *testing.T) {
+	t.Parallel()
+
+	inputJSON := `{
+  "linux": {
+    "include": [
+      {"duckdb_arch":"linux_amd64","runner":"ubuntu-24.04","run_in_reduced_ci_mode":true,"opt_in":false}
+    ]
+  },
+  "osx": {
+    "include": [
+      {"duckdb_arch":"osx_amd64","runner":"macos-15","run_in_reduced_ci_mode":false,"opt_in":true},
+      {"duckdb_arch":"osx_arm64","runner":"macos-15","run_in_reduced_ci_mode":false,"opt_in":false}
+    ]
+  }
+}`
+
+	outputPath, stdout := runMatrixCommand(t, inputJSON, []string{
+		"--exact-archs", "osx_amd64",
+		"--exclude", "osx_amd64",
+		"--reduced-ci-mode", "enabled",
+		"--deploy",
+	})
+
+	out, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	assert.Equal(t, "deploy_matrix={\"include\":[{\"duckdb_arch\":\"osx_amd64\"}]}\n", string(out))
+	assert.Equal(t, "osx_amd64\n", stdout)
+}
+
+func TestMatrixSubcommandRejectsArchWithExactArchs(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := executeRootCommandWithResult(t, []string{"matrix", "--arch", "amd64", "--exact-archs", "osx_amd64"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "[arch exact-archs] were all set")
 }
 
 func mustParseMatrixFixture(t *testing.T, inputJSON string) distmatrix.MatrixFile {
