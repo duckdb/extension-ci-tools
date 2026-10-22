@@ -17,11 +17,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ci_phase import (  # noqa: E402
     PhaseRunner,
     extra_dependencies,
+    fetch_duckdb_tags,
     format_windows_command,
     highest_duckdb_version_tag,
     main,
     is_true,
     prebuilt_duckdb_artifact_name,
+    resolve_duckdb_version,
+    staged_duckdb_version,
+    tags_at_commit,
     test_environment,
     tool_enabled,
 )
@@ -97,6 +101,166 @@ class CIPhaseTest(unittest.TestCase):
             highest_duckdb_version_tag(["release-v2.0.0", "v2.0"]),
             "",
         )
+
+    def test_staged_duckdb_version(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        open_url = mock.Mock(return_value=io.BytesIO(b"v2.0.0-alpha48877\n"))
+
+        version = staged_duckdb_version(
+            commit, "https://staging.example/", open_url
+        )
+
+        self.assertEqual(version, "v2.0.0-alpha48877")
+        open_url.assert_called_once_with(
+            "https://staging.example/5bf940c131/latest_alpha_version.txt"
+        )
+
+    def test_tags_at_commit_includes_lightweight_and_annotated_tags(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        remote_tags = "\n".join(
+            [
+                f"{commit}\trefs/tags/v2.0.0",
+                "0123456789012345678901234567890123456789\trefs/tags/v2.0.0-rc1",
+                f"{commit}\trefs/tags/v2.0.0-rc1^{{}}",
+                f"{commit}\trefs/heads/main",
+            ]
+        )
+
+        self.assertEqual(
+            tags_at_commit(remote_tags, commit),
+            ["v2.0.0", "v2.0.0-rc1"],
+        )
+
+    @mock.patch("ci_phase.subprocess.run")
+    def test_fetch_duckdb_tags_uses_github_repository_name(self, run):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        run.return_value.stdout = f"{commit}\trefs/tags/v2.0.0\n"
+
+        self.assertEqual(fetch_duckdb_tags("duckdb/duckdb", commit), ["v2.0.0"])
+        run.assert_called_once_with(
+            [
+                "git",
+                "ls-remote",
+                "--tags",
+                "https://github.com/duckdb/duckdb.git",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+
+    def test_resolve_duckdb_version_prefers_highest_version_tag(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        open_url = mock.Mock()
+
+        self.assertEqual(
+            resolve_duckdb_version(
+                "",
+                commit,
+                ["v2.0.0-rc1", "not-a-version", "v2.0.0"],
+                open_url=open_url,
+            ),
+            "v2.0.0",
+        )
+        open_url.assert_not_called()
+
+    def test_resolve_duckdb_version_uses_staged_version_for_commit(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        open_url = mock.Mock(return_value=io.BytesIO(b"v2.0.0-alpha48877\n"))
+
+        self.assertEqual(
+            resolve_duckdb_version("", commit, open_url=open_url),
+            "v2.0.0-alpha48877",
+        )
+
+    def test_resolve_duckdb_version_preserves_explicit_version(self):
+        open_url = mock.Mock()
+
+        self.assertEqual(
+            resolve_duckdb_version(
+                "v2.0.0",
+                "5bf940c1318234d360aa98d476fbcd7762997c2f",
+                open_url=open_url,
+            ),
+            "v2.0.0",
+        )
+        open_url.assert_not_called()
+
+    def test_resolve_duckdb_version_falls_back_when_pointer_is_missing(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        missing = urllib.error.HTTPError(
+            "https://staging.example/pointer", 404, "Not Found", {}, None
+        )
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            version = resolve_duckdb_version(
+                "", commit, open_url=mock.Mock(side_effect=missing)
+            )
+        missing.close()
+
+        self.assertEqual(version, commit)
+        self.assertIn("Could not resolve staged DuckDB version", output.getvalue())
+
+    def test_resolve_version_phase_writes_staged_version_output(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        with tempfile.TemporaryDirectory() as directory:
+            github_output = Path(directory) / "github-output"
+            environment = {
+                "DUCKDB_VERSION": "",
+                "DUCKDB_COMMIT": commit,
+                "GITHUB_OUTPUT": str(github_output),
+            }
+            with (
+                mock.patch.dict(os.environ, environment, clear=True),
+                mock.patch.object(sys, "argv", ["ci_phase.py", "resolve-version"]),
+                mock.patch("ci_phase.fetch_duckdb_tags", return_value=[]),
+                mock.patch(
+                    "ci_phase.open_prebuilt_url",
+                    return_value=io.BytesIO(b"v2.0.0-alpha48877\n"),
+                ),
+            ):
+                main()
+
+            self.assertEqual(
+                github_output.read_text(encoding="utf-8"),
+                "version=v2.0.0-alpha48877\n",
+            )
+
+    def test_resolve_version_phase_prefers_tag_over_staged_version(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+        with tempfile.TemporaryDirectory() as directory:
+            github_output = Path(directory) / "github-output"
+            environment = {
+                "DUCKDB_VERSION": "",
+                "DUCKDB_COMMIT": commit,
+                "GITHUB_OUTPUT": str(github_output),
+            }
+            with (
+                mock.patch.dict(os.environ, environment, clear=True),
+                mock.patch.object(sys, "argv", ["ci_phase.py", "resolve-version"]),
+                mock.patch(
+                    "ci_phase.fetch_duckdb_tags",
+                    return_value=["v2.0.0-rc1", "v2.0.0"],
+                ),
+                mock.patch("ci_phase.open_prebuilt_url") as open_url,
+            ):
+                main()
+
+            self.assertEqual(
+                github_output.read_text(encoding="utf-8"),
+                "version=v2.0.0\n",
+            )
+            open_url.assert_not_called()
+
+    def test_staged_duckdb_version_rejects_invalid_pointer(self):
+        commit = "5bf940c1318234d360aa98d476fbcd7762997c2f"
+
+        with self.assertRaisesRegex(ValueError, "invalid staged DuckDB version"):
+            staged_duckdb_version(
+                commit,
+                open_url=mock.Mock(return_value=io.BytesIO(b"../../unexpected\n")),
+            )
 
     def test_windows_command_uses_cmd_compatible_quoting(self):
         command = format_windows_command(
