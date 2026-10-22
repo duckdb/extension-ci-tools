@@ -1,4 +1,4 @@
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import os
 from pathlib import Path
@@ -18,6 +18,7 @@ from ci_phase import (  # noqa: E402
     PhaseRunner,
     extra_dependencies,
     format_windows_command,
+    highest_duckdb_version_tag,
     main,
     is_true,
     prebuilt_duckdb_artifact_name,
@@ -31,6 +32,7 @@ class RecordingRunner(PhaseRunner):
         super().__init__(environ)
         self.commands = []
         self.captured_output = ""
+        self.captured_outputs = []
 
     def run(self, command, **kwargs):
         self.commands.append((command, kwargs))
@@ -40,6 +42,8 @@ class RecordingRunner(PhaseRunner):
 
     def capture(self, command, **kwargs):
         self.commands.append((command, {**kwargs, "capture": True}))
+        if self.captured_outputs:
+            return self.captured_outputs.pop(0)
         return self.captured_output
 
 
@@ -64,6 +68,35 @@ class CIPhaseTest(unittest.TestCase):
         self.assertFalse(is_true("false"))
         self.assertTrue(tool_enabled("rust;go", "go"))
         self.assertFalse(tool_enabled("fortran", "go"))
+
+    def test_highest_duckdb_version_tag(self):
+        self.assertEqual(
+            highest_duckdb_version_tag(
+                [
+                    "not-a-version",
+                    "v2.0.0-dev99",
+                    "v2.0.0-alpha1",
+                    "v2.0.0-rc3",
+                    "v2.0.0",
+                    "v1.99.99",
+                ]
+            ),
+            "v2.0.0",
+        )
+        self.assertEqual(
+            highest_duckdb_version_tag(
+                ["v2.0.0-dev100", "v2.0.0-alpha1", "v2.0.0-rc1"]
+            ),
+            "v2.0.0-rc1",
+        )
+        self.assertEqual(
+            highest_duckdb_version_tag(["v2.0.0-rc2", "v2.0.0-rc10"]),
+            "v2.0.0-rc10",
+        )
+        self.assertEqual(
+            highest_duckdb_version_tag(["release-v2.0.0", "v2.0"]),
+            "",
+        )
 
     def test_windows_command_uses_cmd_compatible_quoting(self):
         command = format_windows_command(
@@ -272,16 +305,27 @@ class CIPhaseTest(unittest.TestCase):
             )
             sha = "0123456789abcdef0123456789abcdef01234567"
             runner = RecordingRunner(env)
-            runner.captured_output = sha
+            runner.captured_outputs = ["", sha]
             runner.prebuilt = mock.Mock()
 
-            runner.checkout()
+            output = io.StringIO()
+            with redirect_stdout(output):
+                runner.checkout()
 
             self.assertEqual(
                 [command for command, _ in runner.commands],
-                [["git", "-C", "duckdb", "rev-parse", "HEAD"]],
+                [
+                    ["git", "-C", "duckdb", "fetch", "origin", "--tags", "--force"],
+                    ["git", "-C", "duckdb", "tag", "--points-at", "HEAD"],
+                    ["git", "-C", "duckdb", "rev-parse", "HEAD"],
+                ],
             )
             self.assertEqual(runner.env["DUCKDB_VERSION"], sha)
+            self.assertIn("DuckDB tags pointing at HEAD: (none)", output.getvalue())
+            self.assertIn(
+                f"No supported DuckDB version tag found; using commit: {sha}",
+                output.getvalue(),
+            )
             self.assertEqual(
                 github_environment.read_text(encoding="utf-8"),
                 f"DUCKDB_VERSION={sha}\n",
@@ -289,6 +333,62 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 github_output.read_text(encoding="utf-8"),
                 f"duckdb_version={sha}\n",
+            )
+            runner.prebuilt.assert_called_once_with()
+
+    def test_checkout_selects_highest_version_tag_and_logs_all_tags(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "duckdb").mkdir()
+            github_environment = workspace / "github-environment"
+            github_output = workspace / "github-output"
+            env = self.environment(workspace)
+            env.update(
+                {
+                    "DUCKDB_VERSION": "",
+                    "GITHUB_ENV": str(github_environment),
+                    "GITHUB_OUTPUT": str(github_output),
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.captured_output = "\n".join(
+                [
+                    "v2.0.0-rc2",
+                    "not-a-version",
+                    "v2.0.0",
+                    "v2.0.0-alpha9",
+                ]
+            )
+            runner.prebuilt = mock.Mock()
+
+            output = io.StringIO()
+            with redirect_stdout(output):
+                runner.checkout()
+
+            self.assertEqual(
+                [command for command, _ in runner.commands],
+                [
+                    ["git", "-C", "duckdb", "fetch", "origin", "--tags", "--force"],
+                    ["git", "-C", "duckdb", "tag", "--points-at", "HEAD"],
+                ],
+            )
+            self.assertEqual(runner.env["DUCKDB_VERSION"], "v2.0.0")
+            self.assertIn(
+                "DuckDB tags pointing at HEAD: "
+                "not-a-version, v2.0.0, v2.0.0-alpha9, v2.0.0-rc2",
+                output.getvalue(),
+            )
+            self.assertIn(
+                "Selected DuckDB version tag: v2.0.0",
+                output.getvalue(),
+            )
+            self.assertEqual(
+                github_environment.read_text(encoding="utf-8"),
+                "DUCKDB_VERSION=v2.0.0\n",
+            )
+            self.assertEqual(
+                github_output.read_text(encoding="utf-8"),
+                "duckdb_version=v2.0.0\n",
             )
             runner.prebuilt.assert_called_once_with()
 
@@ -349,7 +449,7 @@ class CIPhaseTest(unittest.TestCase):
             open_url.assert_not_called()
             self.assertNotIn("CI_PREBUILT_DUCKDB_ARTIFACT", runner.env)
 
-    def test_fetch_prebuilt_duckdb_archive_sets_existing_build_contract(self):
+    def test_fetch_prebuilt_duckdb_uses_explicit_version(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
             github_env = workspace / "github-env"
@@ -367,10 +467,7 @@ class CIPhaseTest(unittest.TestCase):
             with mock.patch.object(
                 runner,
                 "_open_prebuilt_url",
-                side_effect=[
-                    io.BytesIO(b"v2.0.0-alpha46057\n"),
-                    io.BytesIO(b"archive contents"),
-                ],
+                return_value=io.BytesIO(b"archive contents"),
             ) as open_url:
                 fetched = runner.prebuilt()
 
@@ -396,17 +493,74 @@ class CIPhaseTest(unittest.TestCase):
             self.assertEqual(
                 [call.args[0] for call in open_url.call_args_list],
                 [
-                    "https://staging.example/b15358c371/latest_alpha_version.txt",
-                    "https://staging.example/b15358c371/v2.0.0-alpha46057/"
+                    "https://staging.example/b15358c371/v1.2.3/"
                     "duckdb/duckdb/github_release/"
                     "matrix-static-libs.tar.gz",
                 ],
             )
 
+    def test_fetch_prebuilt_duckdb_commit_uses_latest_alpha_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["DUCKDB_VERSION"] = (
+                "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            )
+            runner = RecordingRunner(env)
+            runner.captured_output = env["DUCKDB_VERSION"]
+
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=[
+                    io.BytesIO(b"v2.0.0-alpha46057\n"),
+                    io.BytesIO(b"archive contents"),
+                ],
+            ) as open_url:
+                fetched = runner.prebuilt()
+
+            self.assertTrue(fetched)
+            self.assertEqual(
+                [call.args[0] for call in open_url.call_args_list],
+                [
+                    "https://duckdb-staging.duckdb.org/b15358c371/"
+                    "latest_alpha_version.txt",
+                    "https://duckdb-staging.duckdb.org/b15358c371/"
+                    "v2.0.0-alpha46057/duckdb/duckdb/github_release/"
+                    "duckdb-static-libs-linux-amd64.tar.gz",
+                ],
+            )
+
+    def test_fetch_prebuilt_duckdb_uses_explicit_alpha_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["DUCKDB_VERSION"] = "v2.0.0-alpha46057"
+            runner = RecordingRunner(env)
+            runner.captured_output = (
+                "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            )
+
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                return_value=io.BytesIO(b"archive contents"),
+            ) as open_url:
+                fetched = runner.prebuilt()
+
+            self.assertTrue(fetched)
+            open_url.assert_called_once_with(
+                "https://duckdb-staging.duckdb.org/b15358c371/"
+                "v2.0.0-alpha46057/duckdb/duckdb/github_release/"
+                "duckdb-static-libs-linux-amd64.tar.gz"
+            )
+
     def test_fetch_prebuilt_duckdb_falls_back_when_pointer_is_missing(self):
         with tempfile.TemporaryDirectory() as directory:
-            runner = RecordingRunner(self.environment(directory))
-            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            env = self.environment(directory)
+            env["DUCKDB_VERSION"] = (
+                "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            )
+            runner = RecordingRunner(env)
+            runner.captured_output = env["DUCKDB_VERSION"]
             missing = urllib.error.HTTPError(
                 "https://staging.example/pointer", 404, "Not Found", {}, None
             )
@@ -432,7 +586,7 @@ class CIPhaseTest(unittest.TestCase):
             with mock.patch.object(
                 runner,
                 "_open_prebuilt_url",
-                side_effect=[io.BytesIO(b"v2.0.0-alpha46057\n"), missing],
+                side_effect=missing,
             ):
                 fetched = runner.prebuilt()
             missing.close()
@@ -499,8 +653,12 @@ class CIPhaseTest(unittest.TestCase):
 
     def test_fetch_prebuilt_duckdb_rejects_invalid_staged_version(self):
         with tempfile.TemporaryDirectory() as directory:
-            runner = RecordingRunner(self.environment(directory))
-            runner.captured_output = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            env = self.environment(directory)
+            env["DUCKDB_VERSION"] = (
+                "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            )
+            runner = RecordingRunner(env)
+            runner.captured_output = env["DUCKDB_VERSION"]
 
             with mock.patch.object(
                 runner,
