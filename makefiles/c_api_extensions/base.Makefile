@@ -2,6 +2,7 @@
 #
 # Inputs
 #   EXTENSION_NAME         : name of the extension (lower case)
+#   CAPI_VERSION           : C API version (default 1; version 2 adds _v2 to the Wasm entrypoint)
 #   TARGET_DUCKDB_VERSION  : the target version of DuckDB that the extension targets
 # 	USE_UNSTABLE_C_API     : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   EXTENSION_VERSION      : the version of the extension, if left blank it will be autodetected
@@ -197,13 +198,19 @@ output_distribution_matrix:
 #############################################
 ### Linking
 #############################################
+CAPI_VERSION?=1
+CAPI_ENTRYPOINT_SUFFIX=
+ifeq ($(CAPI_VERSION),2)
+	CAPI_ENTRYPOINT_SUFFIX=_v2
+endif
+
 ifneq ($(DUCKDB_WASM_PLATFORM),)
 
 link_wasm_debug:
-	emcc $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_LIB_FILENAME) -o $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
+	emcc $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_LIB_FILENAME) -o $(EXTENSION_BUILD_PATH)/debug/$(EXTENSION_FILENAME_NO_METADATA) -O3 -g -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api$(CAPI_ENTRYPOINT_SUFFIX)"
 
 link_wasm_release:
-	emcc $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_LIB_FILENAME) -o $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api"
+	emcc $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_LIB_FILENAME) -o $(EXTENSION_BUILD_PATH)/release/$(EXTENSION_FILENAME_NO_METADATA) -O3 -sSIDE_MODULE=2 -sEXPORTED_FUNCTIONS="_$(EXTENSION_NAME)_init_c_api$(CAPI_ENTRYPOINT_SUFFIX)"
 
 else
 link_wasm_debug:
