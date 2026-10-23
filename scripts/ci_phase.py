@@ -686,7 +686,6 @@ class PhaseRunner:
     def create_docker_environment(self) -> None:
         values = {
             "VCPKG_BINARY_SOURCES": self.value("VCPKG_BINARY_SOURCES"),
-            "USE_MERGED_VCPKG_MANIFEST": self.value("USE_MERGED_VCPKG_MANIFEST"),
             "AWS_ACCESS_KEY_ID": self.value("AWS_ACCESS_KEY_ID"),
             "AWS_SECRET_ACCESS_KEY": self.value("AWS_SECRET_ACCESS_KEY"),
             "AWS_ENDPOINT_URL": self.value("AWS_ENDPOINT_URL"),

@@ -71,29 +71,17 @@ else ifeq ($(DUCKDB_PLATFORM),windows_amd64_rtools)
 endif
 
 #### VCPKG config
-EXTENSION_CONFIG_STEP ?=
-EXTENSION_CONFIG_STEP_WASM ?=
-
 # Set the toolchain
 VCPKG_TOOLCHAIN_PATH?=
 ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_BUILD=1 -DCMAKE_TOOLCHAIN_FILE='${VCPKG_TOOLCHAIN_PATH}'
 endif
 
-# Add the extension config step which ensures the vcpkg dependencies of all extensions get merged properly
-ifdef DUCKDB_NEW_EXTENSION_BUILD
-	# New-style build: out-of-tree extensions are pre-cloned into duckdb/extension/external
-	# and their merged vcpkg manifest (including this extension's own vcpkg.json) is written
-	# to build/ before cmake configures, so vcpkg picks it up at project() time.
-	EXTENSION_CONFIG_STEP= sync_oot_extensions
-	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}build'
-else ifeq (${USE_MERGED_VCPKG_MANIFEST}, 1)
-	EXTENSION_CONFIG_STEP= build/extension_configuration/vcpkg.json
-	EXTENSION_CONFIG_STEP_WASM=extension_configuration_wasm
-	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}build/extension_configuration'
-else ifneq ("${VCPKG_TOOLCHAIN_PATH}", "")
-	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}'
-endif
+# Out-of-tree extensions are synchronized before CMake configures. The sync step also
+# writes the merged vcpkg manifest, including the driving extension's own vcpkg.json.
+EXTENSION_CONFIG_STEP = sync_oot_extensions
+EXTENSION_CONFIG_STEP_WASM = sync_oot_extensions
+VCPKG_MANIFEST_FLAGS := -DVCPKG_MANIFEST_DIR='${PROJ_DIR}build'
 
 ifneq ("${VCPKG_TARGET_TRIPLET}", "")
 	TOOLCHAIN_FLAGS:=${TOOLCHAIN_FLAGS} -DVCPKG_TARGET_TRIPLET='${VCPKG_TARGET_TRIPLET}'
@@ -252,30 +240,9 @@ wasm_threads: wasm_pre_build_step ${EXTENSION_CONFIG_STEP_WASM}
 	emmake make -j8 -Cbuild/wasm_threads
 
 
-###### Extension config step
-extension_configuration_default:
-	mkdir -p build/extension_configuration
-	mkdir -p duckdb/build/extension_configuration
-	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DEXTENSION_CONFIG_BUILD=TRUE -DVCPKG_BUILD=1 -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/extension_configuration
-	cmake --build build/extension_configuration
-	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
-
-extension_configuration_wasm:
-	mkdir -p build/extension_configuration
-	mkdir -p duckdb/build/extension_configuration
-	emcmake cmake $(GENERATOR) $(EXTENSION_CONFIG_FLAG) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) -DEXTENSION_CONFIG_BUILD=TRUE -Bbuild/extension_configuration -S $(DUCKDB_SRCDIR)
-	emmake make -j8 -Cbuild/extension_configuration
-	cp duckdb/build/extension_configuration/vcpkg.json build/extension_configuration/vcpkg.json
-
-EXTENSION_CONFIG_TARGET?=extension_configuration_default
-
-extension_configuration: build/extension_configuration/vcpkg.json
-
-build/extension_configuration/vcpkg.json: ${EXTENSION_CONFIG_TARGET}
-
-# New-style out-of-tree extension sync: clone/patch out-of-tree extensions into
-# duckdb/extension/external and write the merged vcpkg manifest into build/.
 sync_oot_extensions:
+	@test -f '$(DUCKDB_SRCDIR)/scripts/sync_out_of_tree_extensions.py' || \
+		{ echo "DuckDB checkout must provide $(DUCKDB_SRCDIR)/scripts/sync_out_of_tree_extensions.py" >&2; exit 1; }
 	mkdir -p '${PROJ_DIR}build'
 	python3 $(DUCKDB_SRCDIR)/scripts/sync_out_of_tree_extensions.py --extension-configs '$(EXTENSION_CONFIGS)' --output-dir '${PROJ_DIR}build'
 

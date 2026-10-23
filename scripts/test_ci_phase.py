@@ -175,6 +175,7 @@ class CIPhaseTest(unittest.TestCase):
                 {
                     "DUCKDB_VERSION": "v2.0.0-alpha39940",
                     "DUCKDB_COMMIT": commit,
+                    "USE_MERGED_VCPKG_MANIFEST": "1",
                 }
             )
             runner = RecordingRunner(env)
@@ -192,6 +193,7 @@ class CIPhaseTest(unittest.TestCase):
             )
             self.assertIn("DUCKDB_VERSION=v2.0.0-alpha39940\n", docker_environment)
             self.assertIn(f"DUCKDB_COMMIT={commit}\n", docker_environment)
+            self.assertNotIn("USE_MERGED_VCPKG_MANIFEST", docker_environment)
 
     def test_duckdb_ref_falls_back_to_version(self):
         with tempfile.TemporaryDirectory() as directory:
