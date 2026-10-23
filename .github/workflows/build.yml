@@ -149,7 +149,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners).linux_slim || 'ubuntu-slim' }}
     outputs:
       duckdb_version: ${{ steps.duckdb-version.outputs.version }}
-      duckdb_commit: ${{ steps.duckdb-version.outputs.commit }}
+      duckdb_commit: ${{ steps.duckdb-commit.outputs.commit }}
       build_linux: ${{ steps.matrix.outputs.build_linux }}
       test_linux: ${{ steps.matrix.outputs.test_linux }}
       build_macos: ${{ steps.matrix.outputs.build_macos }}
@@ -165,8 +165,8 @@ jobs:
           repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           ref: ${{ inputs.extension_ref }}
           fetch-depth: 0
-      - name: Resolve DuckDB version
-        id: duckdb-version
+      - name: Resolve DuckDB commit
+        id: duckdb-commit
         shell: bash
         env:
           INPUT_DUCKDB_VERSION: ${{ inputs.duckdb_version }}
@@ -174,16 +174,26 @@ jobs:
         run: |
           set -euo pipefail
           duckdb_commit="${INPUT_DUCKDB_COMMIT:-${INPUT_DUCKDB_VERSION}}"
-          duckdb_version="${INPUT_DUCKDB_VERSION:-${duckdb_commit}}"
           if [[ -z "${duckdb_commit}" ]]; then
             if ! duckdb_commit="$(git rev-parse HEAD:duckdb 2>/dev/null)"; then
               echo "duckdb_version or duckdb_commit is required when the extension repository has no duckdb submodule" >&2
               exit 1
             fi
-            duckdb_version="${duckdb_commit}"
           fi
-          echo "version=${duckdb_version}" >> "$GITHUB_OUTPUT"
           echo "commit=${duckdb_commit}" >> "$GITHUB_OUTPUT"
+      - name: Checkout extension-ci-tools
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: extension-ci-tools
+          repository: ${{ inputs.ci_tools_repository }}
+          ref: ${{ inputs.ci_tools_version }}
+      - name: Resolve DuckDB version
+        id: duckdb-version
+        env:
+          DUCKDB_VERSION: ${{ inputs.duckdb_version }}
+          DUCKDB_COMMIT: ${{ steps.duckdb-commit.outputs.commit }}
+          CI_DUCKDB_GIT_REPOSITORY: ${{ inputs.duckdb_repository }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py resolve-version
       - name: Compute matrix
         id: matrix
         uses: duckdb/duckdb-ci/matrix@46370d44f2162edd523c8e0d35902967c2817152 # main
