@@ -50,6 +50,12 @@ on:
         required: false
         type: string
         default: ""
+      # ';' separated list of architectures to build exactly, for example: 'osx_amd64'
+      # When set, exclude_archs, opt_in_archs and reduced CI do not apply; unknown names fail the matrix step.
+      exact_archs:
+        required: false
+        type: string
+        default: ""
       # ';' separated list of architectures that should not fail the workflow
       allow_failure_archs:
         required: false
@@ -283,6 +289,7 @@ jobs:
             --input extension-ci-tools/config/distribution_matrix.json \
             --exclude "${{ inputs.exclude_archs }}" \
             --opt-in "${{ inputs.opt_in_archs }}" \
+            --exact-archs "${{ inputs.exact_archs }}" \
             --runners '${{ inputs.runners }}' \
             --reduced-ci-mode "${{ inputs.reduced_ci_mode }}" \
             --out "$GITHUB_OUTPUT"

@@ -13,6 +13,7 @@ func newMatrixCommand() *cobra.Command {
 		inputPath        string
 		platformsRaw     string
 		archsRaw         string
+		exactArchsRaw    string
 		excludeRaw       string
 		optInRaw         string
 		runnerJSON       string
@@ -58,6 +59,7 @@ func newMatrixCommand() *cobra.Command {
 			result, err := distmatrix.ComputePlatformMatrices(matrix, distmatrix.ComputeOptions{
 				Platform:      platformsRaw,
 				Arch:          archsRaw,
+				ExactArchs:    exactArchsRaw,
 				Exclude:       excludeRaw,
 				OptIn:         optInRaw,
 				ReducedCIMode: reducedCIMode,
@@ -103,12 +105,14 @@ func newMatrixCommand() *cobra.Command {
 	cmd.Flags().StringVar(&inputPath, "input", "config/distribution_matrix.json", "Input distribution matrix JSON file")
 	cmd.Flags().StringVar(&platformsRaw, "platform", "", "Comma-separated list of platforms")
 	cmd.Flags().StringVar(&archsRaw, "arch", "", "Comma-separated list of arch tokens (amd64;arm64)")
+	cmd.Flags().StringVar(&exactArchsRaw, "exact-archs", "", "Comma-separated list of duckdb_arch values to build exactly, ignoring --exclude, --opt-in and --reduced-ci-mode")
 	cmd.Flags().StringVar(&excludeRaw, "exclude", "", "Comma-separated list of duckdb_arch values to exclude")
 	cmd.Flags().StringVar(&optInRaw, "opt-in", "", "Comma-separated list of opt-in duckdb_arch values")
 	cmd.Flags().StringVar(&runnerJSON, "runners", "{}", "JSON object with runner overrides keyed by selector or duckdb_arch")
 	cmd.Flags().StringVar(&reducedCIModeRaw, "reduced-ci-mode", "", "Reduced CI mode: auto|enabled|disabled")
 	cmd.Flags().StringVar(&outPath, "out", "", "Path to write GitHub output lines")
 	cmd.Flags().BoolVar(&deployOnly, "deploy", false, "Emit only deploy_matrix output with duckdb_arch values")
+	cmd.MarkFlagsMutuallyExclusive("arch", "exact-archs")
 
 	return cmd
 }
