@@ -775,6 +775,7 @@ class PhaseRunner:
             "AWS_DEFAULT_REGION": self.value("AWS_DEFAULT_REGION"),
             "AWS_REQUEST_CHECKSUM_CALCULATION": "when_required",
             "VCPKG_TARGET_TRIPLET": self.value("VCPKG_TARGET_TRIPLET"),
+            "VCPKG_HOST_TRIPLET": self.value("VCPKG_HOST_TRIPLET"),
             "VCPKG_OVERLAY_TRIPLETS": f"/duckdb_build_dir/{self.value('CI_VCPKG_OVERLAY_TRIPLETS')}",
             "VCPKG_OVERLAY_PORTS": f"/duckdb_build_dir/{self.value('CI_VCPKG_OVERLAY_PORTS')}",
             "CUDAARCHS": self.value("CI_CUDA_ARCHS"),

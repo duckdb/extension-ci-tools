@@ -1136,12 +1136,16 @@ class CIPhaseTest(unittest.TestCase):
                     "CI_VCPKG_OVERLAY_PORTS": "extension-ci-tools/vcpkg_ports",
                     "CI_VCPKG_OVERLAY_TRIPLETS": "extension-ci-tools/toolchains",
                     "CI_CUDA_VERSION": "13",
+                    "VCPKG_TARGET_TRIPLET": "arm64-linux-release",
+                    "VCPKG_HOST_TRIPLET": "arm64-linux-release",
                 }
             )
             runner = RecordingRunner(env)
             runner.build_linux()
             docker_environment = Path(directory, "docker_env.txt").read_text(encoding="utf-8")
             self.assertIn("CCACHE_MAXSIZE=5G\n", docker_environment)
+            self.assertIn("VCPKG_TARGET_TRIPLET=arm64-linux-release\n", docker_environment)
+            self.assertIn("VCPKG_HOST_TRIPLET=arm64-linux-release\n", docker_environment)
             configure = runner.commands[-2][0]
             self.assertIn(f"{Path(directory).resolve() / '.ccache'}:/ccache_dir", configure)
 
