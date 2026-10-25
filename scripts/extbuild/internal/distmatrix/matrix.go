@@ -118,7 +118,7 @@ func ComputePlatformMatrices(matrix MatrixFile, opts ComputeOptions) (map[string
 	reducedCI := parsedReducedCIMode == ReducedCIEnabled
 
 	optInSet := toSet(splitList(opts.OptIn))
-	excludedSet := toSet(splitList(opts.Exclude))
+	excludedSet := expandExcludeAliases(toSet(splitList(opts.Exclude)))
 	results := make(map[string]PlatformMatrix, len(platforms))
 
 	for _, platform := range platforms {
@@ -251,6 +251,22 @@ func normalizeValues(values []string) []string {
 	return out
 }
 
+// excludeAliases maps retired duckdb_arch names to the platform that replaced
+// them, so an extension that still lists the old name in exclude_archs keeps
+// skipping the corresponding build.
+var excludeAliases = map[string]string{
+	"wasm_eh": "wasm_base",
+}
+
+func expandExcludeAliases(excluded map[string]struct{}) map[string]struct{} {
+	for alias, target := range excludeAliases {
+		if _, ok := excluded[alias]; ok {
+			excluded[target] = struct{}{}
+		}
+	}
+	return excluded
+}
+
 func toSet(values []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(values))
 	for _, value := range normalizeValues(values) {
@@ -344,7 +360,7 @@ func runnerOverrideAliases(duckdbArch string) string {
 		return "windows_x64"
 	case "windows_arm64":
 		return "windows_arm64"
-	case "wasm_mvp", "wasm_eh", "wasm_threads":
+	case "wasm_base", "wasm_threads":
 		return "linux_x64"
 	}
 
