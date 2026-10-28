@@ -1,9 +1,10 @@
 import argparse
 import shutil
 
-# Metadata block is always 256 bytes; only the trailing signature slot varies (RSA-2048/3072/4096 -> 256/384/512).
+# Metadata block is always 256 bytes; the signature size varies (RSA-2048/3072/4096 -> 256/384/512).
 METADATA_SIZE = 256
 SIGNATURE_SIZE_RSA2048 = 256
+LEGACY_SIGNATURE_SLOT_SIZE = 256
 SUPPORTED_SIGNATURE_SIZES = [256, 384, 512]
 
 def unsigned_leb128(value):
@@ -18,19 +19,26 @@ def unsigned_leb128(value):
             out.append(byte)
             return bytes(out)
 
+def footer_size(signature_size):
+    # Bytes after the Wasm header: [meta][sig 256] for legacy, else [M1][sig][M2 = M1][256 zeros].
+    if signature_size == SIGNATURE_SIZE_RSA2048:
+        return METADATA_SIZE + signature_size
+    return 2 * METADATA_SIZE + signature_size + LEGACY_SIGNATURE_SLOT_SIZE
+
 def start_signature(signature_size):
     # This is needed so that Wasm binaries are valid
     encoded_string = ''.encode('ascii')
+    inner_size = unsigned_leb128(footer_size(signature_size))
     # 0 for custom section
     encoded_string += int(0).to_bytes(1, byteorder='big')
-    # Outer section length: 1 + 16 + 2 + 8x32 metadata + signature_size (531/659/787 -> [147,4]/[147,5]/[147,6])
-    encoded_string += unsigned_leb128(1 + 16 + 2 + METADATA_SIZE + signature_size)
+    # Outer section length: 1 (name length) + 16 (name) + inner size field + footer
+    encoded_string += unsigned_leb128(1 + 16 + len(inner_size) + footer_size(signature_size))
     # 10 in hex = 16 in decimal, lenght of name, 1 byte
     encoded_string += int(16).to_bytes(1, byteorder='big')
     # the name of the WebAssembly custom section, 16 bytes
     encoded_string += b'duckdb_signature'
-    # Inner footer size: 8x32 metadata + signature_size (512/640/768 -> [128,4]/[128,5]/[128,6])
-    encoded_string += unsigned_leb128(METADATA_SIZE + signature_size)
+    # Inner footer size
+    encoded_string += inner_size
     return encoded_string
 
 def padded_byte_string(input):
@@ -61,7 +69,8 @@ def main():
                             default=SIGNATURE_SIZE_RSA2048,
                             help='Size in bytes of the trailing signature slot: 256 for RSA-2048 (default), '
                                  '384 for RSA-3072, 512 for RSA-4096. For non-default sizes the size is written as a '
-                                 'marker into reserved field 6 so the verifier can locate the larger signature.')
+                                 'marker into reserved field 6 and the metadata is repeated after the signature, '
+                                 'followed by a zeroed 256-byte legacy slot.')
 
     args = arg_parser.parse_args()
 
@@ -116,6 +125,7 @@ def main():
     print(f" - Metadata:")
     with open(OUTPUT_FILE_TMP, 'ab') as file:
         file.write(start_signature(SIGNATURE_SIZE))
+        metadata_start = file.tell()
         print(f"   - FIELD8 (unused)            = EMPTY")
         file.write(padded_byte_string(""))
         print(f"   - FIELD7 (signature size)    = {SIGNATURE_MARKER if SIGNATURE_MARKER else 'EMPTY'}")
@@ -135,6 +145,15 @@ def main():
 
         # Write some empty space for the signature
         file.write(b"\x00" * SIGNATURE_SIZE)
+
+    if SIGNATURE_SIZE != SIGNATURE_SIZE_RSA2048:
+        # Repeat the metadata at the fixed tail position, then the zeroed legacy signature slot
+        with open(OUTPUT_FILE_TMP, 'rb') as file:
+            file.seek(metadata_start)
+            metadata = file.read(METADATA_SIZE)
+        with open(OUTPUT_FILE_TMP, 'ab') as file:
+            file.write(metadata)
+            file.write(b"\x00" * LEGACY_SIGNATURE_SLOT_SIZE)
 
 
     # Finally we mv the tmp file to complete the process
