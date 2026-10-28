@@ -25,6 +25,7 @@ import urllib.request
 
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
+DEFAULT_DUCKDB_REPOSITORY = "https://github.com/duckdb/duckdb.git"
 DEFAULT_PREBUILT_DUCKDB_BASE_URL = "https://duckdb-staging.duckdb.org"
 PREBUILT_DUCKDB_ARTIFACTS = {
     "linux_amd64": "duckdb-static-libs-linux-amd64.tar.gz",
@@ -39,8 +40,9 @@ PREBUILT_DUCKDB_ARTIFACTS = {
 }
 PREBUILT_DUCKDB_USER_AGENT = "duckdb-extension-ci-tools/prebuilt-duckdb"
 STAGED_DUCKDB_VERSION_PATTERN = re.compile(
-    r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|rc|dev)[0-9]+)?$"
+    r"^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(alpha|rc|dev)([0-9]+))?$"
 )
+DUCKDB_VERSION_STAGE_RANK = {"dev": 0, "alpha": 1, "rc": 2, None: 3}
 
 # Intel Homebrew is deprecated; keep this installer pin only while osx_amd64 is
 # supported. See https://github.com/Homebrew/brew/blob/main/docs/Support-Tiers.md#future-macos-support
@@ -69,6 +71,118 @@ def tool_enabled(toolchains: str, tool: str) -> bool:
 
 def prebuilt_duckdb_artifact_name(architecture: str) -> str:
     return PREBUILT_DUCKDB_ARTIFACTS.get(architecture, "")
+
+
+def open_prebuilt_url(url: str):
+    request = urllib.request.Request(
+        url, headers={"User-Agent": PREBUILT_DUCKDB_USER_AGENT}
+    )
+    return urllib.request.urlopen(request, timeout=60)
+
+
+def staged_duckdb_version(
+    duckdb_commit: str,
+    base_url: str = DEFAULT_PREBUILT_DUCKDB_BASE_URL,
+    open_url=None,
+) -> str:
+    if re.fullmatch(r"[a-f0-9]{10,64}", duckdb_commit) is None:
+        raise ValueError(f"invalid DuckDB commit: {duckdb_commit}")
+
+    open_url = open_url or open_prebuilt_url
+    version_url = (
+        f"{base_url.rstrip('/')}/{duckdb_commit[:10]}/latest_alpha_version.txt"
+    )
+    with open_url(version_url) as response:
+        version = response.read().decode("utf-8").strip()
+    if STAGED_DUCKDB_VERSION_PATTERN.fullmatch(version) is None:
+        raise ValueError(
+            f"invalid staged DuckDB version for {duckdb_commit}: {version!r}"
+        )
+    return version
+
+
+def tags_at_commit(remote_tags: str, duckdb_commit: str) -> list[str]:
+    tags: set[str] = set()
+    for line in remote_tags.splitlines():
+        fields = line.split(maxsplit=1)
+        if len(fields) != 2 or fields[0] != duckdb_commit:
+            continue
+        ref = fields[1]
+        if not ref.startswith("refs/tags/"):
+            continue
+        tag = ref.removeprefix("refs/tags/").removesuffix("^{}")
+        tags.add(tag)
+    return sorted(tags)
+
+
+def fetch_duckdb_tags(
+    duckdb_repository: str,
+    duckdb_commit: str,
+) -> list[str]:
+    repository = duckdb_repository or DEFAULT_DUCKDB_REPOSITORY
+    if "://" not in repository and not repository.startswith("git@"):
+        repository = f"https://github.com/{repository.removesuffix('.git')}.git"
+    remote_tags = subprocess.run(
+        ["git", "ls-remote", "--tags", repository],
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    ).stdout
+    return tags_at_commit(remote_tags, duckdb_commit)
+
+
+def resolve_duckdb_version(
+    duckdb_version: str,
+    duckdb_commit: str,
+    duckdb_tags: Sequence[str] = (),
+    base_url: str = DEFAULT_PREBUILT_DUCKDB_BASE_URL,
+    open_url=None,
+) -> str:
+    if duckdb_version:
+        return duckdb_version
+
+    fallback = duckdb_commit
+    version_tag = highest_duckdb_version_tag(duckdb_tags)
+    if version_tag:
+        print(f"Selected DuckDB version tag: {version_tag}", flush=True)
+        return version_tag
+    if re.fullmatch(r"[a-f0-9]{10,64}", duckdb_commit) is None:
+        return fallback
+
+    open_url = open_url or open_prebuilt_url
+    try:
+        return staged_duckdb_version(duckdb_commit, base_url, open_url)
+    except (OSError, urllib.error.URLError) as error:
+        print(
+            f"Could not resolve staged DuckDB version for {duckdb_commit}; "
+            f"using {fallback}: {error}",
+            flush=True,
+        )
+        return fallback
+
+
+def highest_duckdb_version_tag(tags: Sequence[str]) -> str:
+    versions: list[tuple[tuple[int, int, int, int, int], str]] = []
+    for tag in tags:
+        match = STAGED_DUCKDB_VERSION_PATTERN.fullmatch(tag)
+        if match is None:
+            continue
+        major, minor, patch, stage, stage_number = match.groups()
+        versions.append(
+            (
+                (
+                    int(major),
+                    int(minor),
+                    int(patch),
+                    DUCKDB_VERSION_STAGE_RANK[stage],
+                    int(stage_number or 0),
+                ),
+                tag,
+            )
+        )
+    if not versions:
+        return ""
+    return max(versions)[1]
 
 
 def test_environment(config: str) -> dict[str, str]:
@@ -205,13 +319,36 @@ class PhaseRunner:
             self.run(["git", "-C", "duckdb", "fetch", "origin", duckdb_ref])
             self.run(["git", "-C", "duckdb", "checkout", duckdb_ref])
 
-        duckdb_version = self.value("DUCKDB_VERSION") or self.value(
-            "DUCKDB_COMMIT"
-        )
+        duckdb_version = self.value("DUCKDB_VERSION")
         if not duckdb_version:
-            duckdb_version = self.capture(
-                ["git", "-C", "duckdb", "rev-parse", "HEAD"]
+            self.run(["git", "-C", "duckdb", "fetch", "origin", "--tags", "--force"])
+            tags = sorted(
+                filter(
+                    None,
+                    self.capture(
+                        ["git", "-C", "duckdb", "tag", "--points-at", "HEAD"]
+                    ).splitlines(),
+                )
             )
+            print(
+                "DuckDB tags pointing at HEAD: "
+                + (", ".join(tags) if tags else "(none)"),
+                flush=True,
+            )
+            duckdb_version = highest_duckdb_version_tag(tags)
+            if duckdb_version:
+                print(
+                    f"Selected DuckDB version tag: {duckdb_version}",
+                    flush=True,
+                )
+            else:
+                duckdb_version = self.capture(
+                    ["git", "-C", "duckdb", "rev-parse", "HEAD"]
+                )
+                print(
+                    f"No supported DuckDB version tag found; using commit: {duckdb_version}",
+                    flush=True,
+                )
             if not duckdb_version:
                 raise ValueError("could not resolve the DuckDB checkout version")
         self.set_environment("DUCKDB_VERSION", duckdb_version)
@@ -229,10 +366,7 @@ class PhaseRunner:
             self.prebuilt()
 
     def _open_prebuilt_url(self, url: str):
-        request = urllib.request.Request(
-            url, headers={"User-Agent": PREBUILT_DUCKDB_USER_AGENT}
-        )
-        return urllib.request.urlopen(request, timeout=60)
+        return open_prebuilt_url(url)
 
     def _prebuilt_cache_miss(self, url: str, error: Exception) -> None:
         print(
@@ -271,18 +405,16 @@ class PhaseRunner:
         base_url = self.value(
             "CI_PREBUILT_DUCKDB_BASE_URL", DEFAULT_PREBUILT_DUCKDB_BASE_URL
         ).rstrip("/")
-        version_url = f"{base_url}/{short_commit}/latest_alpha_version.txt"
-        try:
-            with self._open_prebuilt_url(version_url) as response:
-                staged_version = response.read().decode("utf-8").strip()
-        except (OSError, urllib.error.URLError) as error:
-            self._prebuilt_cache_miss(version_url, error)
-            return False
-
+        staged_version = self.value("DUCKDB_VERSION")
         if STAGED_DUCKDB_VERSION_PATTERN.fullmatch(staged_version) is None:
-            raise ValueError(
-                f"invalid staged DuckDB version for {duckdb_commit}: {staged_version!r}"
-            )
+            try:
+                staged_version = staged_duckdb_version(
+                    duckdb_commit, base_url, self._open_prebuilt_url
+                )
+            except (OSError, urllib.error.URLError) as error:
+                version_url = f"{base_url}/{short_commit}/latest_alpha_version.txt"
+                self._prebuilt_cache_miss(version_url, error)
+                return False
 
         artifact_url = (
             f"{base_url}/{short_commit}/{staged_version}/duckdb/duckdb/"
@@ -992,6 +1124,7 @@ def main() -> None:
     parser.add_argument(
         "phase",
         choices=(
+            "resolve-version",
             "checkout",
             "setup",
             "build",
@@ -1000,6 +1133,43 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+    if args.phase == "resolve-version":
+        duckdb_version = os.environ.get("DUCKDB_VERSION", "")
+        duckdb_commit = os.environ.get("DUCKDB_COMMIT", "")
+        duckdb_tags: list[str] = []
+        if not duckdb_version:
+            duckdb_repository = os.environ.get(
+                "CI_DUCKDB_GIT_REPOSITORY", DEFAULT_DUCKDB_REPOSITORY
+            )
+            try:
+                duckdb_tags = fetch_duckdb_tags(duckdb_repository, duckdb_commit)
+            except (OSError, subprocess.CalledProcessError) as error:
+                print(
+                    f"Could not fetch DuckDB tags from {duckdb_repository}: {error}",
+                    flush=True,
+                )
+            print(
+                f"DuckDB tags pointing at {duckdb_commit}: "
+                + (", ".join(duckdb_tags) if duckdb_tags else "(none)"),
+                flush=True,
+            )
+        resolved = resolve_duckdb_version(
+            duckdb_version,
+            duckdb_commit,
+            duckdb_tags,
+            os.environ.get(
+                "CI_PREBUILT_DUCKDB_BASE_URL", DEFAULT_PREBUILT_DUCKDB_BASE_URL
+            ),
+        )
+        if not resolved:
+            raise ValueError("could not resolve the DuckDB version")
+        print(f"Resolved DuckDB version: {resolved}", flush=True)
+        output = os.environ.get("GITHUB_OUTPUT")
+        if output:
+            with Path(output).open("a", encoding="utf-8") as handle:
+                handle.write(f"version={resolved}\n")
+        return
+
     runner = PhaseRunner()
     try:
         getattr(runner, args.phase)()
