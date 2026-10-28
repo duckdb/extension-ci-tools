@@ -647,7 +647,7 @@ class PhaseRunner:
 
     def build_environment(self) -> dict[str, str]:
         is_rtools = self.architecture in {"windows_amd64_rtools", "windows_amd64_mingw"}
-        return {
+        environment = {
             "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
@@ -660,6 +660,13 @@ class PhaseRunner:
             "DUCKDB_PREBUILT_LIBRARY": self.value("DUCKDB_PREBUILT_LIBRARY"),
             "DUCKDB_PREBUILT_EXTENSIONS": self.value("DUCKDB_PREBUILT_EXTENSIONS"),
         }
+        if self.enabled("CI_LINUX_NATIVE_CONTAINER") and self.value("CI_CUDA_VERSION"):
+            environment["VCPKG_CUDA_VERSION"] = self.value("CI_CUDA_VERSION")
+            architectures = self.value("CI_CUDA_ARCHS").strip()
+            if architectures:
+                environment["CUDAARCHS"] = architectures
+                environment["VCPKG_CUDA_ARCHITECTURES"] = architectures
+        return environment
 
     def prepare_prebuilt_duckdb(self) -> None:
         artifact_name = self.value("CI_PREBUILT_DUCKDB_ARTIFACT")

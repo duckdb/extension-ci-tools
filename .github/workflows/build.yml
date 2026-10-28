@@ -196,7 +196,7 @@ jobs:
         run: python3 extension-ci-tools/scripts/ci_phase.py resolve-version
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@46370d44f2162edd523c8e0d35902967c2817152 # main
+        uses: duckdb/duckdb-ci/matrix@b7223fb8befe12562ac635024bf3f8fd0e35e348 # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
@@ -225,6 +225,8 @@ jobs:
       DUCKDB_COMMIT: ${{ needs.matrix.outputs.duckdb_commit }}
       CI_PLATFORM: linux
       CI_LINUX_NATIVE_CONTAINER: true
+      CI_CUDA_VERSION: ${{ matrix.cuda_version }}
+      CI_CUDA_ARCHS: ${{ matrix.cuda_archs }}
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CI_EXTENSION_NAME: ${{ matrix.artifact_prefix }}
       CI_ARTIFACT_NAME: ${{ matrix.artifact_name }}
@@ -242,7 +244,7 @@ jobs:
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
     steps:
       - name: Prepare sources
-        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@46370d44f2162edd523c8e0d35902967c2817152 # main
+        uses: &duckdb-ci-prepare-extension duckdb/duckdb-ci/prepare-extension@b7223fb8befe12562ac635024bf3f8fd0e35e348 # main
         with:
           extension-repository: ${{ inputs.extension_repository != '' && inputs.extension_repository || github.repository }}
           extension-ref: ${{ inputs.extension_ref }}
@@ -273,10 +275,14 @@ jobs:
             build-${{ matrix.artifact_name }}-
             ccache-build-${{ matrix.artifact_name }}-
           save: ${{ inputs.save_cache }}
+      # Sirius scan verification requires exported host symbols.
+      - name: Configure Sirius host exports
+        if: ${{ matrix.cuda_version != '' }}
+        run: echo "EXT_FLAGS=${EXT_FLAGS:-} -DEXPORT_DYNAMIC_SYMBOLS=ON" >> "$GITHUB_ENV"
       - name: Configure
         run: python3 extension-ci-tools/scripts/ci_phase.py setup
       - name: Build
-        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@46370d44f2162edd523c8e0d35902967c2817152 # main
+        uses: &duckdb-ci-build-duckdb duckdb/duckdb-ci/build-duckdb@b7223fb8befe12562ac635024bf3f8fd0e35e348 # main
         with:
           build: python3 extension-ci-tools/scripts/ci_phase.py build
           test: python3 extension-ci-tools/scripts/ci_phase.py test
