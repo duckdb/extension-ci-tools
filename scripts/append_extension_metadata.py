@@ -1,10 +1,10 @@
 import argparse
 import shutil
 
-# Metadata block is always 256 bytes; only the trailing signature slot varies (RSA-2048 -> 256, RSA-3072 -> 384).
+# Metadata block is always 256 bytes; only the trailing signature slot varies (RSA-2048/3072/4096 -> 256/384/512).
 METADATA_SIZE = 256
 SIGNATURE_SIZE_RSA2048 = 256
-SIGNATURE_SIZE_RSA3072 = 384
+SUPPORTED_SIGNATURE_SIZES = [256, 384, 512]
 
 def unsigned_leb128(value):
     # Minimal unsigned LEB128 encoding, as used by the WebAssembly binary format.
@@ -23,13 +23,13 @@ def start_signature(signature_size):
     encoded_string = ''.encode('ascii')
     # 0 for custom section
     encoded_string += int(0).to_bytes(1, byteorder='big')
-    # Outer section length: 1 + 16 + 2 + 8x32 metadata + signature_size (531 -> [147,4] for 256, 659 -> [147,5] for 384)
+    # Outer section length: 1 + 16 + 2 + 8x32 metadata + signature_size (531/659/787 -> [147,4]/[147,5]/[147,6])
     encoded_string += unsigned_leb128(1 + 16 + 2 + METADATA_SIZE + signature_size)
     # 10 in hex = 16 in decimal, lenght of name, 1 byte
     encoded_string += int(16).to_bytes(1, byteorder='big')
     # the name of the WebAssembly custom section, 16 bytes
     encoded_string += b'duckdb_signature'
-    # Inner footer size: 8x32 metadata + signature_size (512 -> [128,4] for 256, 640 -> [128,5] for 384)
+    # Inner footer size: 8x32 metadata + signature_size (512/640/768 -> [128,4]/[128,5]/[128,6])
     encoded_string += unsigned_leb128(METADATA_SIZE + signature_size)
     return encoded_string
 
@@ -57,16 +57,15 @@ def main():
 
     arg_parser.add_argument('--abi-type', type=str, help='The ABI type to encode, set to C_STRUCT by default', default='C_STRUCT')
 
-    arg_parser.add_argument('--signature-size', type=int, choices=[SIGNATURE_SIZE_RSA2048, SIGNATURE_SIZE_RSA3072],
+    arg_parser.add_argument('--signature-size', type=int, choices=SUPPORTED_SIGNATURE_SIZES,
                             default=SIGNATURE_SIZE_RSA2048,
                             help='Size in bytes of the trailing signature slot: 256 for RSA-2048 (default), '
-                                 '384 for RSA-3072. For 384 a "384" marker is written into reserved field 6 so the '
-                                 'verifier can locate the larger signature.')
+                                 '384 for RSA-3072, 512 for RSA-4096. For non-default sizes the size is written as a '
+                                 'marker into reserved field 6 so the verifier can locate the larger signature.')
 
     args = arg_parser.parse_args()
 
-    # Marker in reserved field index 6 (reader numbering = FIELD7 slot) advertises the signature size to the verifier;
-    # empty/"256" keeps the legacy RSA-2048 output byte-for-byte identical, "384" selects RSA-3072.
+    # FIELD7 (reader field 6) marker: empty keeps legacy RSA-2048 output byte-identical, else the size in decimal.
     SIGNATURE_SIZE = args.signature_size
     SIGNATURE_MARKER = "" if SIGNATURE_SIZE == SIGNATURE_SIZE_RSA2048 else str(SIGNATURE_SIZE)
 
