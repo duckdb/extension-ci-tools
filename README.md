@@ -96,3 +96,17 @@ jobs:
 ```
 
 The shared makefiles provide common targets such as `make debug`, `make test_debug` and `make release`.
+
+## C API version
+
+C API extension projects can select the v2 Wasm entrypoint by setting `CAPI_VERSION=2` before including the base makefile:
+
+```makefile
+EXTENSION_NAME=my_extension
+CAPI_VERSION=2
+include extension-ci-tools/makefiles/c_api_extensions/base.Makefile
+```
+
+For both debug and release Wasm builds, this adds `_v2` to the linker's entrypoint symbol:
+`_my_extension_init_c_api_v2`. Leaving `CAPI_VERSION` unset or setting it to `1` keeps
+`_my_extension_init_c_api`. Native linking is unchanged. This setting does not change `USE_UNSTABLE_C_API`.
