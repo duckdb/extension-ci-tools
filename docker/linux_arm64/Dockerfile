@@ -125,20 +125,11 @@ RUN case "$extra_toolchains" in \
 esac
 
 # Install CUDA toolkit (nvcc, dev headers, runtime)
+COPY install_cuda.sh /tmp/install_cuda.sh
 ARG cuda_version=13
 RUN case "$extra_toolchains" in \
   *\;cuda\;*) \
-    yum install -y yum-utils && \
-    yum-config-manager --add-repo \
-      https://developer.download.nvidia.com/compute/cuda/repos/rhel8/sbsa/cuda-rhel8.repo && \
-    yum install -y \
-      cuda-nvcc-${cuda_version}-* \
-      cuda-cudart-devel-${cuda_version}-* \
-      cuda-driver-devel-${cuda_version}-* \
-      cuda-nvml-devel-${cuda_version}-* \
-      libcurand-devel-${cuda_version}-* \
-      libnvjitlink-devel-${cuda_version}-* \
-      cuda-nvrtc-devel-${cuda_version}-* \
+    bash /tmp/install_cuda.sh "${cuda_version}" linux-sbsa \
   ;; \
 esac
 ENV PATH="/usr/local/cuda/bin:${PATH}"
