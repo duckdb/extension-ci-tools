@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ci_phase import (  # noqa: E402
     PhaseRunner,
+    duckdb_release_line,
     extra_dependencies,
     fetch_duckdb_tags,
     format_windows_command,
@@ -100,6 +101,20 @@ class CIPhaseTest(unittest.TestCase):
         self.assertEqual(
             highest_duckdb_version_tag(["release-v2.0.0", "v2.0"]),
             "",
+        )
+
+    def test_duckdb_release_line(self):
+        for version in (
+            "v2.1.0",
+            "v2.1.0-alpha51401",
+            "v2.1.0-rc1",
+            "v2.1.0-dev42",
+        ):
+            with self.subTest(version=version):
+                self.assertEqual(duckdb_release_line(version), "2.1")
+        self.assertEqual(
+            duckdb_release_line("5bf940c1318234d360aa98d476fbcd7762997c2f"),
+            "unversioned",
         )
 
     def test_staged_duckdb_version(self):
@@ -224,7 +239,7 @@ class CIPhaseTest(unittest.TestCase):
 
             self.assertEqual(
                 github_output.read_text(encoding="utf-8"),
-                "version=v2.0.0-alpha48877\n",
+                "version=v2.0.0-alpha48877\nrelease_line=2.0\n",
             )
 
     def test_resolve_version_phase_prefers_tag_over_staged_version(self):
@@ -249,7 +264,7 @@ class CIPhaseTest(unittest.TestCase):
 
             self.assertEqual(
                 github_output.read_text(encoding="utf-8"),
-                "version=v2.0.0\n",
+                "version=v2.0.0\nrelease_line=2.0\n",
             )
             open_url.assert_not_called()
 
