@@ -161,6 +161,14 @@ def resolve_duckdb_version(
         return fallback
 
 
+def duckdb_release_line(duckdb_version: str) -> str:
+    match = STAGED_DUCKDB_VERSION_PATTERN.fullmatch(duckdb_version)
+    if match is None:
+        return "unversioned"
+    major, minor, _, _, _ = match.groups()
+    return f"{major}.{minor}"
+
+
 def highest_duckdb_version_tag(tags: Sequence[str]) -> str:
     versions: list[tuple[tuple[int, int, int, int, int], str]] = []
     for tag in tags:
@@ -1175,6 +1183,7 @@ def main() -> None:
         if output:
             with Path(output).open("a", encoding="utf-8") as handle:
                 handle.write(f"version={resolved}\n")
+                handle.write(f"release_line={duckdb_release_line(resolved)}\n")
         return
 
     runner = PhaseRunner()
