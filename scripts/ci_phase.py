@@ -43,6 +43,13 @@ STAGED_DUCKDB_VERSION_PATTERN = re.compile(
     r"^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(alpha|rc|dev)([0-9]+))?$"
 )
 DUCKDB_VERSION_STAGE_RANK = {"dev": 0, "alpha": 1, "rc": 2, None: 3}
+SIRIUS_CUDA_EXTENSION_PATTERN = re.compile(r"sirius_cuda[0-9]+")
+SIRIUS_CUDA_VCPKG_OVERRIDES_JQ = (
+    '.overrides = (((.overrides // []) | '
+    'map(select(.name != "openssl" and .name != "dlpack" and .name != "flatbuffers"))) + '
+    '[{"name": "dlpack", "version": "0.8"}, '
+    '{"name": "flatbuffers", "version": "24.3.25"}])'
+)
 
 # Intel Homebrew is deprecated; keep this installer pin only while osx_amd64 is
 # supported. See https://github.com/Homebrew/brew/blob/main/docs/Support-Tiers.md#future-macos-support
@@ -846,11 +853,43 @@ class PhaseRunner:
                     raise ValueError(f"Docker environment value {key} contains a newline")
                 handle.write(f"{key}={value}\n")
 
+    def patch_sirius_cuda_vcpkg_manifest(
+        self,
+        command_prefix: Sequence[str] = (),
+        *,
+        extra_env: Mapping[str, str] | None = None,
+    ) -> None:
+        extension = self.required("CI_EXTENSION_NAME")
+        if (
+            SIRIUS_CUDA_EXTENSION_PATTERN.fullmatch(extension) is None
+            or not self.enabled("USE_MERGED_VCPKG_MANIFEST")
+        ):
+            return
+
+        manifest = "build/extension_configuration/vcpkg.json"
+        temporary = f"{manifest}.tmp"
+        self.run_with_retry(
+            [*command_prefix, "make", "extension_configuration"],
+            extra_env=extra_env,
+        )
+        self.run(
+            [
+                *command_prefix,
+                "sh",
+                "-c",
+                f"jq {shlex.quote(SIRIUS_CUDA_VCPKG_OVERRIDES_JQ)} {manifest} > {temporary}",
+            ],
+            extra_env=extra_env,
+        )
+        self.run([*command_prefix, "mv", temporary, manifest], extra_env=extra_env)
+
     def build_linux(self) -> None:
         if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
+            environment = self.build_environment()
+            self.patch_sirius_cuda_vcpkg_manifest(extra_env=environment)
             self.run_with_retry(
                 ["make", self.required("CI_BUILD_TYPE")],
-                extra_env=self.build_environment(),
+                extra_env=environment,
             )
             return
         self.run(
@@ -874,6 +913,7 @@ class PhaseRunner:
         self.install_extra_vcpkg_dependencies(docker=True)
         docker = self.docker_arguments()
         self.run_with_retry([*docker, "make", "configure_ci"])
+        self.patch_sirius_cuda_vcpkg_manifest(docker)
         self.run_with_retry([*docker, "make", self.required("CI_BUILD_TYPE")])
         post_build = self.value("CI_POST_BUILD_COMMAND")
         if post_build:
