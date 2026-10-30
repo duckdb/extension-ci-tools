@@ -72,5 +72,6 @@ for component in "${components[@]}"; do
 	rm "${archive}"
 done
 
+ln -sfn lib "${install_dir}/lib64"
 ln -sfn "${install_dir}" /usr/local/cuda
 /usr/local/cuda/bin/nvcc --version
