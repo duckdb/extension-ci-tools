@@ -67,6 +67,11 @@ class CIPhaseTest(unittest.TestCase):
             "CI_EXTENSIONS_TEST_SELECTION": "regular",
         }
 
+    def windows_lock_error(self, winerror=32):
+        error = PermissionError(winerror, "file is in use")
+        error.winerror = winerror
+        return error
+
     def test_boolean_and_toolchain_parsing(self):
         self.assertTrue(is_true("true"))
         self.assertTrue(is_true("1"))
@@ -1445,13 +1450,115 @@ class CIPhaseTest(unittest.TestCase):
 
             env["CI_EXTENSION_ARTIFACT_DIR"] = str(downloaded)
             restored = RecordingRunner(env)
-            restored.test()
+            remove_tree_with_retries = restored._remove_tree_with_retries
+            restored_build = build.resolve()
+            build_removals = 0
+
+            def simulate_persistent_lock(path):
+                nonlocal build_removals
+                if path.name.startswith(".quarantine-"):
+                    return False
+                if path == restored_build:
+                    build_removals += 1
+                    if build_removals == 2:
+                        return False
+                return remove_tree_with_retries(path)
+
+            output = io.StringIO()
+            with (
+                mock.patch.object(
+                    restored,
+                    "_remove_tree_with_retries",
+                    side_effect=simulate_persistent_lock,
+                ),
+                redirect_stdout(output),
+            ):
+                restored.test()
+
             self.assertTrue(
                 (build / "repository" / "v1" / "linux_amd64" / "quack.duckdb_extension").is_file()
             )
             self.assertFalse((build / "repository" / "test-support").exists())
+            self.assertIn(
+                "warning: moved locked test build directory to quarantine:",
+                output.getvalue(),
+            )
+            self.assertIn(
+                "warning: leaving locked test build directory in quarantine:",
+                output.getvalue(),
+            )
+            self.assertEqual(len(list(build.parent.glob(".quarantine-*"))), 1)
             self.assertEqual(restored.commands[0][0][-2:], ["make", "test_release"])
             self.assertEqual(len(restored.commands), 4)
+
+    def test_remove_tree_retries_windows_file_locks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            locked = Path(directory) / "locked"
+            locked.mkdir()
+            runner = RecordingRunner(
+                self.environment(directory, "windows", "windows_arm64")
+            )
+            remove_tree = shutil.rmtree
+            attempts = 0
+
+            def fail_twice(path):
+                nonlocal attempts
+                attempts += 1
+                if attempts <= 2:
+                    raise self.windows_lock_error()
+                remove_tree(path)
+
+            output = io.StringIO()
+            with (
+                mock.patch("ci_phase.shutil.rmtree", side_effect=fail_twice),
+                mock.patch("ci_phase.time.sleep") as sleep,
+                redirect_stdout(output),
+            ):
+                self.assertTrue(runner._remove_tree_with_retries(locked))
+
+            self.assertFalse(locked.exists())
+            self.assertEqual(sleep.call_args_list, [mock.call(0.1), mock.call(0.2)])
+            self.assertIn("warning: Windows still has files open", output.getvalue())
+
+    def test_remove_tree_does_not_retry_non_windows_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            locked = Path(directory) / "locked"
+            locked.mkdir()
+            runner = RecordingRunner(self.environment(directory))
+
+            with (
+                mock.patch(
+                    "ci_phase.shutil.rmtree",
+                    side_effect=self.windows_lock_error(),
+                ),
+                mock.patch("ci_phase.time.sleep") as sleep,
+                self.assertRaises(PermissionError),
+            ):
+                runner._remove_tree_with_retries(locked)
+
+            sleep.assert_not_called()
+
+    def test_remove_test_build_dir_reports_failed_quarantine(self):
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory) / "build" / "release"
+            build.mkdir(parents=True)
+            runner = RecordingRunner(
+                self.environment(directory, "windows", "windows_arm64")
+            )
+
+            with (
+                mock.patch.object(
+                    runner,
+                    "_remove_tree_with_retries",
+                    return_value=False,
+                ),
+                mock.patch("ci_phase.Path.rename", side_effect=OSError("locked")),
+                self.assertRaisesRegex(
+                    RuntimeError,
+                    "could not isolate locked test build directory",
+                ),
+            ):
+                runner._remove_test_build_dir(build)
 
     def test_support_is_enabled_only_for_testable_platforms(self):
         with tempfile.TemporaryDirectory() as directory:

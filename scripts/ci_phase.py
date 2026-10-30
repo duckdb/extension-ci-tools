@@ -19,9 +19,11 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 from typing import Mapping, Sequence
 import urllib.error
 import urllib.request
+import uuid
 
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -43,6 +45,8 @@ STAGED_DUCKDB_VERSION_PATTERN = re.compile(
     r"^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(alpha|rc|dev)([0-9]+))?$"
 )
 DUCKDB_VERSION_STAGE_RANK = {"dev": 0, "alpha": 1, "rc": 2, None: 3}
+WINDOWS_REMOVE_RETRY_DELAYS = (0.1, 0.2, 0.4, 0.8)
+WINDOWS_REMOVE_ERRORS = {5, 32}
 
 # Intel Homebrew is deprecated; keep this installer pin only while osx_amd64 is
 # supported. See https://github.com/Homebrew/brew/blob/main/docs/Support-Tiers.md#future-macos-support
@@ -1112,9 +1116,12 @@ class PhaseRunner:
         build_type = self.required("CI_BUILD_TYPE")
         build_root = self.workspace / "build"
         build_dir = build_root / build_type
+        quarantined_builds = []
         for archive in archives:
             if build_dir.exists():
-                shutil.rmtree(build_dir)
+                quarantined = self._remove_test_build_dir(build_dir)
+                if quarantined is not None:
+                    quarantined_builds.append(quarantined)
             with tarfile.open(archive, "r:gz") as bundle:
                 members = bundle.getmembers()
                 for member in members:
@@ -1132,6 +1139,51 @@ class PhaseRunner:
             )
             print(f"Testing support bundle from {archive}")
             self._run_tests()
+
+        for quarantined in quarantined_builds:
+            if quarantined.exists() and not self._remove_tree_with_retries(quarantined):
+                print(
+                    f"warning: leaving locked test build directory in quarantine: {quarantined}",
+                    flush=True,
+                )
+
+    def _remove_tree_with_retries(self, directory: Path) -> bool:
+        for attempt in range(len(WINDOWS_REMOVE_RETRY_DELAYS) + 1):
+            try:
+                shutil.rmtree(directory)
+                return True
+            except PermissionError as error:
+                if (
+                    self.platform != "windows"
+                    or getattr(error, "winerror", None) not in WINDOWS_REMOVE_ERRORS
+                ):
+                    raise
+                if attempt == 0:
+                    print(
+                        f"warning: Windows still has files open below {directory}; retrying cleanup",
+                        flush=True,
+                    )
+                if attempt == len(WINDOWS_REMOVE_RETRY_DELAYS):
+                    return False
+                time.sleep(WINDOWS_REMOVE_RETRY_DELAYS[attempt])
+        return False
+
+    def _remove_test_build_dir(self, build_dir: Path) -> Path | None:
+        if self._remove_tree_with_retries(build_dir):
+            return None
+
+        quarantine = build_dir.with_name(f".quarantine-{build_dir.name}-{uuid.uuid4().hex}")
+        try:
+            build_dir.rename(quarantine)
+        except OSError as error:
+            raise RuntimeError(
+                f"could not isolate locked test build directory {build_dir}"
+            ) from error
+        print(
+            f"warning: moved locked test build directory to quarantine: {quarantine}",
+            flush=True,
+        )
+        return quarantine
 
 
 def main() -> None:
