@@ -6,6 +6,7 @@
 #   EXTENSION_LIB_FILENAME       : the library name that is produced by the build
 # 	USE_UNSTABLE_C_API           : if set to 1, will allow usage of the unstable C API. (This pins the produced binaries to the exact DuckDB version)
 #   TARGET_DUCKDB_VERSION        : the target version of DuckDB that the extension targets
+#   OSX_BUILD_ARCH               : target macOS architecture (e.g. x86_64 or arm64), defined explicitly because we use cross-compilation.
 #	CMAKE_EXTRA_BUILD_FLAGS      : additional CMake flags to pass
 #	VCPKG_TOOLCHAIN_PATH         : path to vcpkg toolchain
 #	VCPKG_TARGET_TRIPLET         : vcpkg triplet to override
@@ -50,6 +51,14 @@ ifeq ($(USE_UNSTABLE_C_API),1)
 endif
 
 CMAKE_BUILD_FLAGS = $(CMAKE_VERSION_PARAMS) $(CMAKE_EXTRA_BUILD_FLAGS)
+
+#############################################
+### macOS
+#############################################
+
+ifneq ($(strip $(OSX_BUILD_ARCH)),)
+	CMAKE_BUILD_FLAGS += -DCMAKE_OSX_ARCHITECTURES='$(strip $(OSX_BUILD_ARCH))'
+endif
 
 #############################################
 ### Vcpkg
