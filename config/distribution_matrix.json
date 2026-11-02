@@ -106,7 +106,7 @@
       {
         "duckdb_arch": "wasm_threads",
         "runner": "ubuntu-latest",
-        "vcpkg_target_triplet": "wasm32-emscripten",
+        "vcpkg_target_triplet": "wasm32-emscripten-threads",
         "vcpkg_host_triplet": "x64-linux",
         "run_in_reduced_ci_mode": false,
         "opt_in": false
