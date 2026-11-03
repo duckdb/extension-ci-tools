@@ -858,13 +858,13 @@ class PhaseRunner:
         command_prefix: Sequence[str] = (),
         *,
         extra_env: Mapping[str, str] | None = None,
-    ) -> None:
+    ) -> bool:
         extension = self.required("CI_EXTENSION_NAME")
         if (
             SIRIUS_CUDA_EXTENSION_PATTERN.fullmatch(extension) is None
             or not self.enabled("USE_MERGED_VCPKG_MANIFEST")
         ):
-            return
+            return False
 
         manifest = "build/extension_configuration/vcpkg.json"
         temporary = f"{manifest}.tmp"
@@ -882,13 +882,19 @@ class PhaseRunner:
             extra_env=extra_env,
         )
         self.run([*command_prefix, "mv", temporary, manifest], extra_env=extra_env)
+        return True
 
     def build_linux(self) -> None:
         if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
             environment = self.build_environment()
-            self.patch_sirius_cuda_vcpkg_manifest(extra_env=environment)
+            manifest_patched = self.patch_sirius_cuda_vcpkg_manifest(
+                extra_env=environment
+            )
+            build_command = ["make", self.required("CI_BUILD_TYPE")]
+            if manifest_patched:
+                build_command.append("EXTENSION_CONFIG_STEP=")
             self.run_with_retry(
-                ["make", self.required("CI_BUILD_TYPE")],
+                build_command,
                 extra_env=environment,
             )
             return
@@ -913,8 +919,11 @@ class PhaseRunner:
         self.install_extra_vcpkg_dependencies(docker=True)
         docker = self.docker_arguments()
         self.run_with_retry([*docker, "make", "configure_ci"])
-        self.patch_sirius_cuda_vcpkg_manifest(docker)
-        self.run_with_retry([*docker, "make", self.required("CI_BUILD_TYPE")])
+        manifest_patched = self.patch_sirius_cuda_vcpkg_manifest(docker)
+        build_command = [*docker, "make", self.required("CI_BUILD_TYPE")]
+        if manifest_patched:
+            build_command.append("EXTENSION_CONFIG_STEP=")
+        self.run_with_retry(build_command)
         post_build = self.value("CI_POST_BUILD_COMMAND")
         if post_build:
             self.run(post_build, shell=True, extra_env={"MATRIX_RUNNER": self.value("CI_MATRIX_RUNNER")})

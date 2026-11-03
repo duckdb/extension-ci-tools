@@ -1189,7 +1189,10 @@ class CIPhaseTest(unittest.TestCase):
                         "build/extension_configuration/vcpkg.json",
                     ],
                 )
-                self.assertEqual(runner.commands[3][0], ["make", "release"])
+                self.assertEqual(
+                    runner.commands[3][0],
+                    ["make", "release", "EXTENSION_CONFIG_STEP="],
+                )
 
     def test_sirius_cuda_manifest_patch_requires_merged_manifest(self):
         for extension, merged in (
@@ -1246,7 +1249,9 @@ class CIPhaseTest(unittest.TestCase):
                     "build/extension_configuration/vcpkg.json",
                 ]
             )
-            build_index = commands.index([*docker, "make", "release"])
+            build_index = commands.index(
+                [*docker, "make", "release", "EXTENSION_CONFIG_STEP="]
+            )
             self.assertLess(configure_index, generate_index)
             self.assertLess(generate_index, patch_index)
             self.assertLess(patch_index, move_index)
