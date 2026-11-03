@@ -1161,6 +1161,97 @@ class CIPhaseTest(unittest.TestCase):
                 self.assertNotIn("VCPKG_CUDA_ARCHITECTURES", forwarded)
                 self.assertEqual(forwarded.get("VCPKG_CUDA_VERSION", ""), version)
 
+    def test_sirius_cuda_native_build_patches_merged_vcpkg_manifest(self):
+        for extension in ("sirius_cuda12", "sirius_cuda13", "sirius_cuda99"):
+            with self.subTest(extension=extension), tempfile.TemporaryDirectory() as directory:
+                env = self.environment(directory)
+                env.update(
+                    {
+                        "CI_EXTENSION_NAME": extension,
+                        "CI_LINUX_NATIVE_CONTAINER": "true",
+                        "USE_MERGED_VCPKG_MANIFEST": "1",
+                    }
+                )
+                runner = RecordingRunner(env)
+                runner.build_linux()
+
+                self.assertEqual(runner.commands[0][0], ["make", "extension_configuration"])
+                jq_command = runner.commands[1][0]
+                self.assertEqual(jq_command[:2], ["sh", "-c"])
+                self.assertIn('"name": "dlpack", "version": "0.8"', jq_command[2])
+                self.assertIn('"name": "flatbuffers", "version": "24.3.25"', jq_command[2])
+                self.assertIn('.name != "openssl"', jq_command[2])
+                self.assertEqual(
+                    runner.commands[2][0],
+                    [
+                        "mv",
+                        "build/extension_configuration/vcpkg.json.tmp",
+                        "build/extension_configuration/vcpkg.json",
+                    ],
+                )
+                self.assertEqual(runner.commands[3][0], ["make", "release"])
+
+    def test_sirius_cuda_manifest_patch_requires_merged_manifest(self):
+        for extension, merged in (
+            ("sirius", "1"),
+            ("sirius_cuda", "1"),
+            ("sirius_cuda12_test", "1"),
+            ("sirius_cuda12", ""),
+        ):
+            with self.subTest(extension=extension, merged=merged), tempfile.TemporaryDirectory() as directory:
+                env = self.environment(directory)
+                env.update(
+                    {
+                        "CI_EXTENSION_NAME": extension,
+                        "CI_LINUX_NATIVE_CONTAINER": "true",
+                        "USE_MERGED_VCPKG_MANIFEST": merged,
+                    }
+                )
+                runner = RecordingRunner(env)
+                runner.build_linux()
+
+                self.assertEqual(len(runner.commands), 1)
+                self.assertEqual(runner.commands[0][0], ["make", "release"])
+
+    def test_sirius_cuda_docker_build_patches_manifest_inside_container(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env.update(
+                {
+                    "CI_EXTENSION_NAME": "sirius_cuda12",
+                    "USE_MERGED_VCPKG_MANIFEST": "1",
+                    "CI_VCPKG_URL": "https://github.com/microsoft/vcpkg.git",
+                    "CI_VCPKG_COMMIT": "abc123",
+                    "CI_VCPKG_OVERLAY_PORTS": "extension-ci-tools/vcpkg_ports",
+                    "CI_VCPKG_OVERLAY_TRIPLETS": "extension-ci-tools/toolchains",
+                }
+            )
+            runner = RecordingRunner(env)
+            runner.build_linux()
+
+            docker = runner.docker_arguments()
+            commands = [command for command, _ in runner.commands]
+            configure_index = commands.index([*docker, "make", "configure_ci"])
+            generate_index = commands.index([*docker, "make", "extension_configuration"])
+            patch_index = next(
+                index
+                for index, command in enumerate(commands)
+                if command[: len(docker) + 2] == [*docker, "sh", "-c"]
+            )
+            move_index = commands.index(
+                [
+                    *docker,
+                    "mv",
+                    "build/extension_configuration/vcpkg.json.tmp",
+                    "build/extension_configuration/vcpkg.json",
+                ]
+            )
+            build_index = commands.index([*docker, "make", "release"])
+            self.assertLess(configure_index, generate_index)
+            self.assertLess(generate_index, patch_index)
+            self.assertLess(patch_index, move_index)
+            self.assertLess(move_index, build_index)
+
     def test_extension_config_paths_are_resolved_from_workspace(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
