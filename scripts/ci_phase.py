@@ -227,7 +227,21 @@ class PhaseRunner:
         self.env = dict(os.environ if environ is None else environ)
         self.platform = self.required("CI_PLATFORM")
         self.architecture = self.required("DUCKDB_PLATFORM")
-        self.workspace = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
+        repository_root = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
+        build_directory = Path(self.value("CI_BUILD_DIRECTORY", "."))
+        if build_directory.is_absolute():
+            raise ValueError("CI_BUILD_DIRECTORY must be relative to GITHUB_WORKSPACE")
+        self.workspace = (repository_root / build_directory).resolve()
+        try:
+            self.workspace.relative_to(repository_root)
+        except ValueError as error:
+            raise ValueError(
+                "CI_BUILD_DIRECTORY must stay within GITHUB_WORKSPACE"
+            ) from error
+        if not self.workspace.is_dir():
+            raise ValueError(
+                f"CI_BUILD_DIRECTORY does not exist: {build_directory}"
+            )
 
     def value(self, name: str, default: str = "") -> str:
         return self.env.get(name, default)
