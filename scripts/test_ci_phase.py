@@ -74,6 +74,31 @@ class CIPhaseTest(unittest.TestCase):
         self.assertTrue(tool_enabled("rust;go", "go"))
         self.assertFalse(tool_enabled("fortran", "go"))
 
+    def test_build_directory_selects_nested_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            build_directory = workspace / "nested" / "extension"
+            build_directory.mkdir(parents=True)
+            environment = self.environment(workspace)
+            environment["CI_BUILD_DIRECTORY"] = "nested/extension"
+
+            runner = RecordingRunner(environment)
+
+            self.assertEqual(runner.workspace, build_directory.resolve())
+
+    def test_build_directory_must_stay_in_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            environment = self.environment(workspace)
+
+            environment["CI_BUILD_DIRECTORY"] = str(workspace)
+            with self.assertRaisesRegex(ValueError, "must be relative"):
+                RecordingRunner(environment)
+
+            environment["CI_BUILD_DIRECTORY"] = "../outside"
+            with self.assertRaisesRegex(ValueError, "must stay within"):
+                RecordingRunner(environment)
+
     def test_highest_duckdb_version_tag(self):
         self.assertEqual(
             highest_duckdb_version_tag(
