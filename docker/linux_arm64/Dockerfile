@@ -92,6 +92,7 @@ esac
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN set -o pipefail && case "$extra_toolchains" in \
   *\;rust\;*) \
+    yum install -y clang-devel && \
     curl https://sh.rustup.rs -sSf | bash -s -- -y; \
   ;; \
 esac
