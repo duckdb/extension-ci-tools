@@ -213,9 +213,9 @@ on:
         default: '13'
 
 env:
+  DETECT_RUNNER_EXTENSION_ALLOWLIST: '["sirius_cuda12", "sirius_cuda13"]'
   VCPKG_BINARY_SOURCES: ${{inputs.vcpkg_binary_sources == '' && 'clear;http,https://vcpkg-cache.duckdb.org,read' || inputs.vcpkg_binary_sources }}
   USE_MERGED_VCPKG_MANIFEST: ${{ inputs.use_merged_vcpkg_manifest }}
-  USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
   CI_EXTENSION_NAME: ${{ inputs.extension_name }}
   CI_EXTENSION_CANONICAL: ${{ inputs.extension_canonical }}
   DUCKDB_VERSION: ${{ inputs.duckdb_version }}
@@ -243,7 +243,6 @@ env:
   CI_ARTIFACT_POSTFIX: ${{ inputs.artifact_postfix }}
   CI_RUST_LOGS: ${{ inputs.rust_logs }}
   CI_RUN_DISK_CLEAN_STEP: ${{ inputs.run_disk_clean_step }}
-  CI_USE_DEFAULT_RUNNERS: ${{ inputs.runners == '{}' }}
   CI_FETCH_PREBUILT_DUCKDB: true
 
 jobs:
@@ -255,6 +254,7 @@ jobs:
       windows_matrix: ${{ steps.compute-matrix.outputs.windows_matrix }}
       osx_matrix: ${{ steps.compute-matrix.outputs.osx_matrix }}
       wasm_matrix: ${{ steps.compute-matrix.outputs.wasm_matrix }}
+      use_default_runners: ${{ inputs.runners == '{}' && steps.detect-runners.outputs.runners == '' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         name: Checkout Extension CI tools
@@ -262,6 +262,25 @@ jobs:
           path: 'extension-ci-tools'
           ref: ${{ inputs.ci_tools_version }}
           repository: ${{ inputs.override_ci_tools_repository }}
+
+      - id: check-runner-allowlist
+        name: Check runner detection allowlist
+        if: ${{ inputs.runners == '{}' }}
+        shell: bash
+        env:
+          EXTENSION_NAME: ${{ inputs.extension_name }}
+        run: |
+          if jq -e --arg extension_name "$EXTENSION_NAME" 'index($extension_name) != null' \
+            <<< "$DETECT_RUNNER_EXTENSION_ALLOWLIST" > /dev/null; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: detect-runners
+        name: Detect runners
+        if: ${{ inputs.runners == '{}' && steps.check-runner-allowlist.outputs.allowed == 'true' }}
+        uses: duckdb/duckdb-ci/detect-runners@8302ae16ba47cc90bc9ba77b3cf825beab371b4d # main
 
       - name: Setup Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -277,13 +296,15 @@ jobs:
 
       - id: compute-matrix
         name: Compute extension build matrix
+        env:
+          RUNNERS: ${{ steps.detect-runners.outputs.runners || inputs.runners }}
         run: |
           make -C extension-ci-tools/scripts/extbuild test build -sj4
           extension-ci-tools/scripts/extbuild/build/extbuild matrix \
             --input extension-ci-tools/config/distribution_matrix.json \
             --exclude "${{ inputs.exclude_archs }}" \
             --opt-in "${{ inputs.opt_in_archs }}" \
-            --runners '${{ inputs.runners }}' \
+            --runners "$RUNNERS" \
             --reduced-ci-mode "${{ inputs.reduced_ci_mode }}" \
             --out "$GITHUB_OUTPUT"
           echo "extbuild matrix output:"
@@ -312,6 +333,7 @@ jobs:
       DUCKDB_PLATFORM: ${{ matrix.duckdb_arch }}
       CI_PLATFORM: linux
       CI_MATRIX_RUNNER: ${{ matrix.runner }}
+      CI_USE_DEFAULT_RUNNERS: ${{ needs.generate_matrix.outputs.use_default_runners }}
 
     steps:
       - name: Checkout / Extension repository
@@ -339,7 +361,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup / Free disk space
-        if: ${{ inputs.run_disk_clean_step && env.USE_DEFAULT_RUNNERS == 'true' }}
+        if: ${{ inputs.run_disk_clean_step && env.CI_USE_DEFAULT_RUNNERS == 'true' }}
         uses: endersonmenezes/free-disk-space@7901478139cff6e9d44df5972fd8ab8fcade4db1 # v3.2.2
         continue-on-error: true
         with:
