@@ -82,7 +82,14 @@ jobs:
 
       - name: Install
         shell: bash
-        run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build clang-format-11 && sudo pip3 install cmake-format 'black==24.*' cxxheaderparser pcpp 'clang_format==11.0.1'
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt-get install -y -qq ninja-build python3-venv
+          # Keep Python and its formatters together: DuckDB's format.py prepends
+          # the interpreter's directory to PATH before locating the tools.
+          python3 -m venv "$RUNNER_TEMP/format-venv"
+          "$RUNNER_TEMP/format-venv/bin/python3" -m pip install cmake-format 'black==24.*' cxxheaderparser pcpp 'clang_format==11.0.1'
+          echo "$RUNNER_TEMP/format-venv/bin" >> "$GITHUB_PATH"
 
       - name: List Installed Packages
         shell: bash
