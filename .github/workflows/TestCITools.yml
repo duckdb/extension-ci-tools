@@ -19,7 +19,7 @@ jobs:
     with:
       extension_name: quack
       override_repository: duckdb/extension-template
-      override_ref: main
+      override_ref: 04949de122a8ed551a6545f54879793333c5a43c # Template pinned to DuckDB v1.5.6
       duckdb_version: v1.5.6
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
@@ -49,7 +49,7 @@ jobs:
     with:
       extension_name: quack
       override_repository: duckdb/extension-template
-      override_ref: main
+      override_ref: 04949de122a8ed551a6545f54879793333c5a43c # Template pinned to DuckDB v1.5.6
       duckdb_version: v1.5.6
       override_ci_tools_repository: ${{ github.repository }}
       ci_tools_version: ${{ github.sha }}
