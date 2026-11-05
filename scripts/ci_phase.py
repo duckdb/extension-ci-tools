@@ -12,7 +12,7 @@ import glob
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shlex
 import shutil
@@ -227,13 +227,13 @@ class PhaseRunner:
         self.env = dict(os.environ if environ is None else environ)
         self.platform = self.required("CI_PLATFORM")
         self.architecture = self.required("DUCKDB_PLATFORM")
-        repository_root = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
+        self.repository_root = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
         build_directory = Path(self.value("CI_BUILD_DIRECTORY", "."))
         if build_directory.is_absolute():
             raise ValueError("CI_BUILD_DIRECTORY must be relative to GITHUB_WORKSPACE")
-        self.workspace = (repository_root / build_directory).resolve()
+        self.workspace = (self.repository_root / build_directory).resolve()
         try:
-            self.workspace.relative_to(repository_root)
+            self.workspace.relative_to(self.repository_root)
         except ValueError as error:
             raise ValueError(
                 "CI_BUILD_DIRECTORY must stay within GITHUB_WORKSPACE"
@@ -539,12 +539,7 @@ class PhaseRunner:
             if docker:
                 self.run(
                     [
-                        "docker",
-                        "run",
-                        "--env-file=docker_env.txt",
-                        "-v",
-                        f"{self.workspace}:/duckdb_build_dir",
-                        f"duckdb/{self.architecture}",
+                        *self.docker_arguments(),
                         "vcpkg",
                         "install",
                         dependency,
@@ -805,17 +800,27 @@ class PhaseRunner:
             "DUCKDB_PREBUILT_EXTENSIONS", ";".join(sorted(prebuilt_extensions))
         )
 
+    def docker_workspace(self) -> str:
+        build_directory = self.workspace.relative_to(self.repository_root)
+        return str(PurePosixPath("/duckdb_build_dir") / build_directory.as_posix())
+
+    def docker_path(self, path: str) -> str:
+        return str(PurePosixPath(self.docker_workspace()) / PurePosixPath(path))
+
     def docker_arguments(self) -> list[str]:
-        return [
+        arguments = [
             "docker",
             "run",
             "--env-file=docker_env.txt",
             "-v",
-            f"{self.workspace}:/duckdb_build_dir",
+            f"{self.repository_root}:/duckdb_build_dir",
             "-v",
             f"{self.workspace / '.ccache'}:/ccache_dir",
-            f"duckdb/{self.architecture}",
         ]
+        if self.workspace != self.repository_root:
+            arguments.extend(["--workdir", self.docker_workspace()])
+        arguments.append(f"duckdb/{self.architecture}")
+        return arguments
 
     def create_docker_environment(self) -> None:
         values = {
@@ -827,13 +832,21 @@ class PhaseRunner:
             "AWS_DEFAULT_REGION": self.value("AWS_DEFAULT_REGION"),
             "AWS_REQUEST_CHECKSUM_CALCULATION": "when_required",
             "VCPKG_TARGET_TRIPLET": self.value("VCPKG_TARGET_TRIPLET"),
-            "VCPKG_OVERLAY_TRIPLETS": f"/duckdb_build_dir/{self.value('CI_VCPKG_OVERLAY_TRIPLETS')}",
-            "VCPKG_OVERLAY_PORTS": f"/duckdb_build_dir/{self.value('CI_VCPKG_OVERLAY_PORTS')}",
+            "VCPKG_OVERLAY_TRIPLETS": self.docker_path(
+                self.value("CI_VCPKG_OVERLAY_TRIPLETS")
+            ),
+            "VCPKG_OVERLAY_PORTS": self.docker_path(
+                self.value("CI_VCPKG_OVERLAY_PORTS")
+            ),
             "CUDAARCHS": self.value("CI_CUDA_ARCHS"),
             "VCPKG_CUDA_VERSION": self.value("CI_CUDA_VERSION"),
             "BUILD_SHELL": "1" if self.enabled("CI_BUILD_DUCKDB_SHELL") else "0",
-            "OPENSSL_ROOT_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
-            "OPENSSL_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
+            "OPENSSL_ROOT_DIR": self.docker_path(
+                f"build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}"
+            ),
+            "OPENSSL_DIR": self.docker_path(
+                f"build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}"
+            ),
             "OPENSSL_USE_STATIC_LIBS": "true",
             "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
@@ -856,7 +869,9 @@ class PhaseRunner:
             relative_library = Path(prebuilt_library).resolve().relative_to(
                 self.workspace
             )
-            values["DUCKDB_PREBUILT_LIBRARY"] = f"/duckdb_build_dir/{relative_library.as_posix()}"
+            values["DUCKDB_PREBUILT_LIBRARY"] = self.docker_path(
+                relative_library.as_posix()
+            )
         with (self.workspace / "docker_env.txt").open("w", encoding="utf-8") as handle:
             for key, value in values.items():
                 value = value.rstrip("\r\n")
