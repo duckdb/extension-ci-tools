@@ -86,6 +86,36 @@ class CIPhaseTest(unittest.TestCase):
 
             self.assertEqual(runner.workspace, build_directory.resolve())
 
+    def test_nested_build_directory_preserves_repository_root_in_docker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository_root = Path(directory)
+            build_directory = repository_root / "nested" / "extension"
+            build_directory.mkdir(parents=True)
+            environment = self.environment(repository_root)
+            environment["CI_BUILD_DIRECTORY"] = "nested/extension"
+
+            runner = RecordingRunner(environment)
+
+            self.assertEqual(
+                runner.docker_arguments(),
+                [
+                    "docker",
+                    "run",
+                    "--env-file=docker_env.txt",
+                    "-v",
+                    f"{repository_root.resolve()}:/duckdb_build_dir",
+                    "-v",
+                    f"{build_directory.resolve() / '.ccache'}:/ccache_dir",
+                    "--workdir",
+                    "/duckdb_build_dir/nested/extension",
+                    "duckdb/linux_amd64",
+                ],
+            )
+            self.assertEqual(
+                runner.docker_path("extension-ci-tools/vcpkg_ports"),
+                "/duckdb_build_dir/nested/extension/extension-ci-tools/vcpkg_ports",
+            )
+
     def test_build_directory_must_stay_in_workspace(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)

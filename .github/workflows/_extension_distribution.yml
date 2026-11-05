@@ -196,7 +196,7 @@ on:
         required: false
         type: string
         default: ""
-      # Override vcpkg overlay ports directory (relative to repo root, mounted at /duckdb_build_dir in Docker)
+      # Override vcpkg overlay ports directory (relative to the extension build directory)
       vcpkg_overlay_ports:
         required: false
         type: string
