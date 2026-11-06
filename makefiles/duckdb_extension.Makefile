@@ -6,6 +6,10 @@
 #   EXT_FLAGS         : Extra CMake flags to pass to the build
 #   EXT_RELEASE_FLAGS : Extra CMake flags to pass to the release build
 #   EXT_DEBUG_FLAGS   : Extra CMake flags to pass to the debug build
+#   BUILD_EXTENSIONS  : Additional named extensions to build (DUCKDB_EXTENSIONS is an alias)
+#   CORE_EXTENSIONS   : Legacy list of additional named extensions
+#   EXTENSION_CONFIGS : Complete config list (defaults to EXTRA_EXTENSION_CONFIGS followed by EXT_CONFIG)
+#   EXTENSION_CONFIG_BASE_DIR : Optional directory of named extension configs, shared by sync and CMake
 #   SKIP_TESTS        : Replaces all test targets with a NOP step
 #
 # 	BUILD_EXTENSION_TEST_DEPS   : Can be set to either `default`, `full`, or `none`. Toggles which extension dependencies are built
@@ -19,6 +23,7 @@ all: release
 TEST_PATH=test/unittest
 
 DUCKDB_SRCDIR ?= ./duckdb
+PYTHON ?= python3
 
 TESTS_BASE_DIRECTORY ?= test/
 
@@ -31,24 +36,34 @@ ifeq (${BUILD_EXTENSION_TEST_DEPS},)
 	BUILD_EXTENSION_TEST_DEPS:=default
 endif
 
+EXTENSION_TEST_DEPS :=
 ifeq (${BUILD_EXTENSION_TEST_DEPS},default)
 	ifneq (${DEFAULT_TEST_EXTENSION_DEPS},)
-		CORE_EXTENSIONS:=${CORE_EXTENSIONS};${DEFAULT_TEST_EXTENSION_DEPS}
+		EXTENSION_TEST_DEPS:=${DEFAULT_TEST_EXTENSION_DEPS}
 	endif
 else ifeq (${BUILD_EXTENSION_TEST_DEPS},full)
 	ifneq (${DEFAULT_TEST_EXTENSION_DEPS},)
-		CORE_EXTENSIONS:=${CORE_EXTENSIONS};${DEFAULT_TEST_EXTENSION_DEPS}
+		EXTENSION_TEST_DEPS:=${DEFAULT_TEST_EXTENSION_DEPS}
 	endif
 	ifneq (${FULL_TEST_EXTENSION_DEPS},)
-		CORE_EXTENSIONS:=${CORE_EXTENSIONS};${FULL_TEST_EXTENSION_DEPS}
+		EXTENSION_TEST_DEPS:=${EXTENSION_TEST_DEPS};${FULL_TEST_EXTENSION_DEPS}
 	endif
 else ifneq (${BUILD_EXTENSION_TEST_DEPS}, none)
 $(error Unknown option passed to BUILD_EXTENSION_TEST_DEPS variable: ${BUILD_EXTENSION_TEST_DEPS})
 endif
 
-#### Core extensions, allows easily building one of the core extensions
+#### Resolve named extensions once for both sync and CMake.
+EXTENSION_BUILD_EXTENSIONS := $(if $(DUCKDB_EXTENSIONS),$(DUCKDB_EXTENSIONS),$(BUILD_EXTENSIONS))
 ifneq ($(CORE_EXTENSIONS),)
-	CORE_EXTENSION_VAR:=-DCORE_EXTENSIONS="$(CORE_EXTENSIONS)"
+	EXTENSION_BUILD_EXTENSIONS := $(if $(EXTENSION_BUILD_EXTENSIONS),$(EXTENSION_BUILD_EXTENSIONS);)$(CORE_EXTENSIONS)
+endif
+ifneq ($(EXTENSION_TEST_DEPS),)
+	EXTENSION_BUILD_EXTENSIONS := $(if $(EXTENSION_BUILD_EXTENSIONS),$(EXTENSION_BUILD_EXTENSIONS);)$(EXTENSION_TEST_DEPS)
+endif
+# Older extension Makefiles wrap semicolon-separated names in shell quotes.
+EXTENSION_BUILD_EXTENSIONS := $(subst ",,$(subst ',,$(EXTENSION_BUILD_EXTENSIONS)))
+ifneq ($(EXTENSION_BUILD_EXTENSIONS),)
+	BUILD_EXTENSION_FLAGS := -DBUILD_EXTENSIONS="$(EXTENSION_BUILD_EXTENSIONS)"
 endif
 
 #### OSX config
@@ -82,10 +97,12 @@ endif
 
 # Add the extension config step which ensures the vcpkg dependencies of all extensions get merged properly
 ifdef DUCKDB_NEW_EXTENSION_BUILD
+	export DUCKDB_NEW_EXTENSION_BUILD
 	# New-style build: out-of-tree extensions are pre-cloned into duckdb/extension/external
 	# and their merged vcpkg manifest (including this extension's own vcpkg.json) is written
 	# to build/ before cmake configures, so vcpkg picks it up at project() time.
 	EXTENSION_CONFIG_STEP= sync_oot_extensions
+	EXTENSION_CONFIG_STEP_WASM= sync_oot_extensions
 	VCPKG_MANIFEST_FLAGS:=-DVCPKG_MANIFEST_DIR='${PROJ_DIR}build'
 else ifeq (${USE_MERGED_VCPKG_MANIFEST}, 1)
 	EXTENSION_CONFIG_STEP= build/extension_configuration/vcpkg.json
@@ -109,11 +126,14 @@ endif
 
 ### Extension configs
 ifneq ("${EXTRA_EXTENSION_CONFIGS}", "")
-	EXTENSION_CONFIGS:=${EXTRA_EXTENSION_CONFIGS};${EXT_CONFIG}
+	EXTENSION_CONFIGS?=${EXTRA_EXTENSION_CONFIGS};${EXT_CONFIG}
 else
-	EXTENSION_CONFIGS:=${EXT_CONFIG}
+	EXTENSION_CONFIGS?=${EXT_CONFIG}
 endif
 EXTENSION_CONFIG_FLAG=-DDUCKDB_EXTENSION_CONFIGS='${EXTENSION_CONFIGS}'
+ifneq ($(EXTENSION_CONFIG_BASE_DIR),)
+	EXTENSION_CONFIG_FLAG += -DEXTENSION_CONFIG_BASE_DIR='$(EXTENSION_CONFIG_BASE_DIR)'
+endif
 
 #### Configuration for this extension
 
@@ -123,7 +143,7 @@ EXTENSION_STATIC_BUILD ?= 1
 ENABLE_EXTENSION_AUTOLOADING ?= 0
 ENABLE_EXTENSION_AUTOINSTALL ?= 0
 
-BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=$(EXTENSION_STATIC_BUILD) $(EXTENSION_FLAGS) $(EXTENSION_CONFIG_FLAG) ${EXT_FLAGS} $(CORE_EXTENSION_VAR) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}" -DUNITTEST_ROOT_DIRECTORY="$(PROJ_DIR)" -DBENCHMARK_ROOT_DIRECTORY="$(PROJ_DIR)" -DENABLE_UNITTEST_CPP_TESTS=FALSE -DENABLE_EXTENSION_AUTOLOADING=$(ENABLE_EXTENSION_AUTOLOADING) -DENABLE_EXTENSION_AUTOINSTALL=$(ENABLE_EXTENSION_AUTOINSTALL)
+BUILD_FLAGS=-DEXTENSION_STATIC_BUILD=$(EXTENSION_STATIC_BUILD) $(EXTENSION_FLAGS) $(EXTENSION_CONFIG_FLAG) ${EXT_FLAGS} $(BUILD_EXTENSION_FLAGS) $(OSX_BUILD_FLAG) $(RUST_FLAGS) $(TOOLCHAIN_FLAGS) -DDUCKDB_EXPLICIT_PLATFORM='${DUCKDB_PLATFORM}' -DCUSTOM_LINKER=${CUSTOM_LINKER} -DOVERRIDE_GIT_DESCRIBE="${OVERRIDE_GIT_DESCRIBE}" -DUNITTEST_ROOT_DIRECTORY="$(PROJ_DIR)" -DBENCHMARK_ROOT_DIRECTORY="$(PROJ_DIR)" -DENABLE_UNITTEST_CPP_TESTS=FALSE -DENABLE_EXTENSION_AUTOLOADING=$(ENABLE_EXTENSION_AUTOLOADING) -DENABLE_EXTENSION_AUTOINSTALL=$(ENABLE_EXTENSION_AUTOINSTALL)
 ifneq ("${DUCKDB_PREBUILT_LIBRARY}", "")
 	BUILD_FLAGS += -DPREBUILT_BINARY='${DUCKDB_PREBUILT_LIBRARY}'
 endif
@@ -277,7 +297,7 @@ build/extension_configuration/vcpkg.json: ${EXTENSION_CONFIG_TARGET}
 # duckdb/extension/external and write the merged vcpkg manifest into build/.
 sync_oot_extensions:
 	mkdir -p '${PROJ_DIR}build'
-	python3 $(DUCKDB_SRCDIR)/scripts/sync_out_of_tree_extensions.py --extension-configs '$(EXTENSION_CONFIGS)' --output-dir '${PROJ_DIR}build'
+	$(PYTHON) "$(DUCKDB_SRCDIR)/scripts/sync_out_of_tree_extensions.py" $(if $(EXTENSION_BUILD_EXTENSIONS),--build-extensions "$(EXTENSION_BUILD_EXTENSIONS)") --extension-configs '$(EXTENSION_CONFIGS)' $(if $(EXTENSION_CONFIG_BASE_DIR),--extension-config-base-dir '$(EXTENSION_CONFIG_BASE_DIR)') --output-dir '${PROJ_DIR}build'
 
 #### Misc
 format-check:
