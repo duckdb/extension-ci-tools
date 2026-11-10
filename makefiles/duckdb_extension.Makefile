@@ -211,6 +211,12 @@ endif
 define RUN_TEST
 	@if [ "$(SKIP_TESTS)" = "1" ]; then \
 		echo "Tests are skipped in this run..."; \
+	elif [ -f "./build/$1/test/run.py" ]; then \
+		echo python3 ./build/$1/test/run.py $(T); \
+		python3 ./build/$1/test/run.py $(T); \
+	elif [ -x "./build/$1/test/run" ]; then \
+		echo ./build/$1/test/run $(T); \
+		./build/$1/test/run $(T); \
 	else \
 		echo $(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
 		$(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
