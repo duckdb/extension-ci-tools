@@ -397,6 +397,13 @@ class PhaseRunner:
     def _open_prebuilt_url(self, url: str):
         return open_prebuilt_url(url)
 
+    def prebuilt_artifact(self) -> None:
+        self.set_environment(
+            "CI_PREBUILT_DUCKDB_ARTIFACT",
+            self.value("CI_PREBUILT_DUCKDB_ARTIFACT")
+            or prebuilt_duckdb_artifact_name(self.architecture),
+        )
+
     def _prebuilt_cache_miss(self, url: str, error: Exception) -> None:
         print(
             f"Prebuilt DuckDB archive is unavailable; building DuckDB from source "
@@ -702,6 +709,13 @@ class PhaseRunner:
             "DUCKDB_PREBUILT_LIBRARY": self.value("DUCKDB_PREBUILT_LIBRARY"),
             "DUCKDB_PREBUILT_EXTENSIONS": self.value("DUCKDB_PREBUILT_EXTENSIONS"),
         }
+        if self.value("CI_EXTENSION_ARTIFACT_DIR"):
+            # Only core_functions is linked; other extensions supply their test sources.
+            environment["DUCKDB_PREBUILT_EXTENSIONS"] = ";".join(
+                name
+                for name in environment["DUCKDB_PREBUILT_EXTENSIONS"].split(";")
+                if name == "core_functions"
+            )
         if self.enabled("CI_LINUX_NATIVE_CONTAINER") and self.value("CI_CUDA_VERSION"):
             environment["VCPKG_CUDA_VERSION"] = self.value("CI_CUDA_VERSION")
             architectures = self.value("CI_CUDA_ARCHS").strip()
@@ -971,10 +985,14 @@ class PhaseRunner:
 
     def build_windows(self) -> None:
         environment = self.build_environment()
-        extension_flags = [
-            "-DCMAKE_C_COMPILER_LAUNCHER=ccache "
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-        ]
+        extension_flags = (
+            []
+            if self.value("CI_EXTENSION_ARTIFACT_DIR")
+            else [
+                "-DCMAKE_C_COMPILER_LAUNCHER=ccache "
+                "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+            ]
+        )
         if (
             self.architecture == "windows_arm64"
             and self.value("CC", "cl") == "clang-cl"
@@ -1135,90 +1153,35 @@ class PhaseRunner:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
 
-        if self._test_support_enabled():
-            archive = staging / "test-support" / artifact_id / "test-support.tar.gz"
-            self._bundle_test_support(archive)
-
         self.append_github_file("GITHUB_OUTPUT", "artifact_path", str(staging))
         self.append_github_file("GITHUB_OUTPUT", "artifact_name", name)
         self.print_rust_logs()
 
-    def _test_support_enabled(self) -> bool:
-        if self.enabled("CI_SKIP_TESTS") or self.platform == "wasm":
-            return False
-        if self.platform == "linux":
-            return self.architecture != "linux_arm64"
-        if self.platform == "macos":
-            return self.value("CI_OSX_BUILD_ARCH") == "arm64"
-        return self.platform == "windows"
-
-    def _bundle_test_support(self, archive: Path) -> None:
-        build_type = self.required("CI_BUILD_TYPE")
-        build_dir = self.workspace / "build" / build_type
-        if not build_dir.is_dir():
-            raise FileNotFoundError(f"build directory does not exist: {build_dir}")
-
-        artifact_root = self.workspace / ".ci" / "test-support" / build_type
-        if artifact_root.exists():
-            shutil.rmtree(artifact_root)
-        artifact_root.mkdir(parents=True)
-
-        candidates = [
-            build_dir / "duckdb",
-            build_dir / "duckdb.exe",
-            build_dir / "test" / "run",
-            build_dir / "test" / "run.exe",
-            build_dir / "test" / "unittest",
-            build_dir / "test" / "unittest.exe",
-        ]
-        for source in candidates:
-            if source.is_file():
-                destination = artifact_root / source.relative_to(build_dir)
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
-
-        for pattern in (
-            "src/libduckdb.*",
-            "test/extension/*.duckdb_extension",
-            "test/extension/*.duckdb_extension.wasm",
-        ):
-            for source in build_dir.glob(pattern):
-                destination = artifact_root / source.relative_to(build_dir)
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
-
-        archive.parent.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(archive, "w:gz", compresslevel=4) as bundle:
-            bundle.add(artifact_root, arcname=build_type)
-
     def _test_artifacts(self, repository_root: Path) -> None:
-        archives = sorted((repository_root / "test-support").glob("**/test-support.tar.gz"))
-        if not archives:
-            raise FileNotFoundError(f"no test-support archives found below {repository_root}")
-
-        build_type = self.required("CI_BUILD_TYPE")
-        build_root = self.workspace / "build"
-        build_dir = build_root / build_type
-        for archive in archives:
-            if build_dir.exists():
-                shutil.rmtree(build_dir)
-            with tarfile.open(archive, "r:gz") as bundle:
-                members = bundle.getmembers()
-                for member in members:
-                    destination = (build_root / member.name).resolve()
-                    if build_root.resolve() not in destination.parents and destination != build_root.resolve():
-                        raise ValueError(f"unsafe path in test-support archive: {member.name}")
-                bundle.extractall(build_root)
-            destination_repository = build_dir / "repository"
-            destination_repository.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(
-                repository_root,
-                destination_repository,
-                dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns("test-support"),
+        test_extensions = sorted(repository_root.rglob("test.duckdb_extension"))
+        if len(test_extensions) != 1:
+            raise FileNotFoundError(
+                f"expected one test.duckdb_extension below {repository_root}, found {len(test_extensions)}; "
+                "include the test extension in the core group"
             )
-            print(f"Testing support bundle from {archive}")
-            self._run_tests()
+
+        self.inject_extension_config()
+        self.env["EXT_RELEASE_FLAGS"] = " ".join(
+            [
+                self.value("EXT_RELEASE_FLAGS"),
+                "-DEXTENSION_TESTS_ONLY=ON",
+                "-DSTATICALLY_LINK_EXTENSIONS=core_functions",
+                "-DBUILD_UNITTESTS=ON",
+                "-DENABLE_UNITTEST_CPP_TESTS=OFF",
+            ]
+        )
+        self.build()
+
+        build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
+        destination_repository = build_dir / "repository"
+        shutil.copytree(repository_root, destination_repository, dirs_exist_ok=True)
+        print(f"Testing all extensions from {destination_repository}", flush=True)
+        self._run_tests()
 
 
 def main() -> None:
@@ -1227,6 +1190,7 @@ def main() -> None:
         "phase",
         choices=(
             "resolve-version",
+            "prebuilt-artifact",
             "checkout",
             "setup",
             "build",
@@ -1275,7 +1239,7 @@ def main() -> None:
 
     runner = PhaseRunner()
     try:
-        getattr(runner, args.phase)()
+        getattr(runner, args.phase.replace("-", "_"))()
     except subprocess.CalledProcessError as error:
         print(
             f"error: command failed with exit code {error.returncode}: "
