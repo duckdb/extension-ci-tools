@@ -722,6 +722,7 @@ class CIPhaseTest(unittest.TestCase):
                 [
                     f"CI_PREBUILT_DUCKDB_ARTIFACT={artifact_name}",
                     f"CI_PREBUILT_DUCKDB_PATH={artifact_root.resolve()}",
+                    "DUCKDB_PREBUILT_VERSION=v1.2.3",
                 ],
             )
             self.assertEqual(
@@ -739,6 +740,8 @@ class CIPhaseTest(unittest.TestCase):
             env["DUCKDB_VERSION"] = (
                 "b15358c371daf10dad799a43b6167f6ccdce84d8"
             )
+            github_env = Path(directory, "github-env")
+            env["GITHUB_ENV"] = str(github_env)
             runner = RecordingRunner(env)
             runner.captured_output = env["DUCKDB_VERSION"]
 
@@ -763,6 +766,56 @@ class CIPhaseTest(unittest.TestCase):
                     "duckdb-static-libs-linux-amd64.tar.gz",
                 ],
             )
+
+            # The build runs in another Actions step. Preserve the checkout and
+            # artifact identity, but build extensions for the downloaded runtime.
+            build_env = {
+                **env,
+                **dict(
+                    line.split("=", 1)
+                    for line in github_env.read_text(encoding="utf-8").splitlines()
+                ),
+            }
+            build_runner = RecordingRunner(build_env)
+            self.assertEqual(build_runner.env["DUCKDB_VERSION"], env["DUCKDB_VERSION"])
+            self.assertEqual(build_runner.duckdb_ref(), env["DUCKDB_VERSION"])
+            self.assertEqual(
+                build_runner.build_environment()["DUCKDB_VERSION"],
+                "v2.0.0-alpha46057",
+            )
+            self.assertEqual(
+                build_runner.build_environment()["DUCKDB_GIT_VERSION"],
+                env["DUCKDB_VERSION"],
+            )
+            build_runner.create_docker_environment()
+            docker_env = Path(directory, "docker_env.txt").read_text(encoding="utf-8")
+            self.assertIn("DUCKDB_VERSION=v2.0.0-alpha46057\n", docker_env)
+            self.assertIn(f"DUCKDB_GIT_VERSION={env['DUCKDB_VERSION']}\n", docker_env)
+
+    def test_missing_prebuilt_archive_preserves_source_build_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = self.environment(directory)
+            env["DUCKDB_VERSION"] = "b15358c371daf10dad799a43b6167f6ccdce84d8"
+            runner = RecordingRunner(env)
+            runner.captured_output = env["DUCKDB_VERSION"]
+            missing = urllib.error.HTTPError(
+                "https://staging.example/archive", 404, "Not Found", {}, None
+            )
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=[io.BytesIO(b"v2.0.0-alpha46057\n"), missing],
+            ):
+                self.assertFalse(runner.prebuilt())
+            missing.close()
+
+            self.assertNotIn("DUCKDB_PREBUILT_VERSION", runner.env)
+            self.assertEqual(
+                runner.build_environment()["DUCKDB_VERSION"], env["DUCKDB_VERSION"]
+            )
+            runner.create_docker_environment()
+            docker_env = Path(directory, "docker_env.txt").read_text(encoding="utf-8")
+            self.assertIn(f"DUCKDB_VERSION={env['DUCKDB_VERSION']}\n", docker_env)
 
     def test_fetch_prebuilt_duckdb_uses_explicit_alpha_version(self):
         with tempfile.TemporaryDirectory() as directory:

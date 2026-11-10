@@ -471,6 +471,9 @@ class PhaseRunner:
         print(f"Using prebuilt DuckDB archive: {artifact_url}", flush=True)
         self.set_environment("CI_PREBUILT_DUCKDB_ARTIFACT", artifact_name)
         self.set_environment("CI_PREBUILT_DUCKDB_PATH", str(artifact_root.resolve()))
+        # Keep DUCKDB_VERSION as the checkout/artifact identity. CMake must use
+        # the downloaded runtime's version for extension metadata and paths.
+        self.set_environment("DUCKDB_PREBUILT_VERSION", staged_version)
         return True
 
     def extension_config(self) -> str:
@@ -690,7 +693,9 @@ class PhaseRunner:
     def build_environment(self) -> dict[str, str]:
         is_rtools = self.architecture in {"windows_amd64_rtools", "windows_amd64_mingw"}
         environment = {
-            "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
+            "DUCKDB_VERSION": (
+                self.value("DUCKDB_PREBUILT_VERSION") or self.value("DUCKDB_VERSION")
+            ),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_PLATFORM_RTOOLS": "1" if is_rtools else "0",
@@ -851,7 +856,9 @@ class PhaseRunner:
                 f"build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}"
             ),
             "OPENSSL_USE_STATIC_LIBS": "true",
-            "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
+            "DUCKDB_VERSION": (
+                self.value("DUCKDB_PREBUILT_VERSION") or self.value("DUCKDB_VERSION")
+            ),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
             "DUCKDB_PLATFORM": self.architecture,
             "DUCKDB_GIT_VERSION": self.duckdb_ref(),
