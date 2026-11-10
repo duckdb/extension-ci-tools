@@ -67,11 +67,6 @@ class CIPhaseTest(unittest.TestCase):
             "CI_EXTENSIONS_TEST_SELECTION": "regular",
         }
 
-    def windows_lock_error(self, winerror=32):
-        error = PermissionError(winerror, "file is in use")
-        error.winerror = winerror
-        return error
-
     def test_boolean_and_toolchain_parsing(self):
         self.assertTrue(is_true("true"))
         self.assertTrue(is_true("1"))
@@ -1532,208 +1527,137 @@ class CIPhaseTest(unittest.TestCase):
             ):
                 RecordingRunner(env).upload()
 
-    def test_upload_allows_missing_unittest_binary(self):
+    def test_upload_contains_only_extension_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
-            artifact = workspace / "build/release/extension/quack/quack.duckdb_extension"
-            artifact.parent.mkdir(parents=True)
-            artifact.touch()
+            build = workspace / "build/release"
+            extension = build / "repository/v1/linux_amd64/test.duckdb_extension"
+            extension.parent.mkdir(parents=True)
+            extension.write_text("test extension", encoding="utf-8")
+            (build / "duckdb").write_text("shell", encoding="utf-8")
             output = workspace / "github-output"
             env = self.environment(workspace)
-            env["GITHUB_OUTPUT"] = str(output)
+            env.update(CI_UPLOAD_ALL_EXTENSIONS="true", GITHUB_OUTPUT=str(output))
             RecordingRunner(env).upload()
-
-            values = output.read_text(encoding="utf-8")
             artifact_path = Path(
                 next(
                     line.removeprefix("artifact_path=")
-                    for line in values.splitlines()
+                    for line in output.read_text().splitlines()
                     if line.startswith("artifact_path=")
                 )
             )
-            archives = list(artifact_path.glob("test-support/**/test-support.tar.gz"))
-            self.assertEqual(len(archives), 1)
-            with tarfile.open(archives[0], "r:gz") as bundle:
+            self.assertEqual(
+                [
+                    path.relative_to(artifact_path).as_posix()
+                    for path in artifact_path.rglob("*")
+                    if path.is_file()
+                ],
+                ["v1/linux_amd64/test.duckdb_extension"],
+            )
+
+    def test_merged_artifacts_build_and_run_once(self):
+        for platform, architecture in (
+            ("linux", "linux_amd64"),
+            ("windows", "windows_amd64"),
+        ):
+            with (
+                self.subTest(platform=platform),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                downloaded = workspace / "downloaded-repository"
+                extensions = downloaded / "v1" / architecture
+                extensions.mkdir(parents=True)
+                for name in ("test", "quack", "spatial"):
+                    (extensions / f"{name}.duckdb_extension").write_text(
+                        name, encoding="utf-8"
+                    )
+                config = workspace / "group.cmake"
+                config.write_text(
+                    "duckdb_extension_load(quack LOAD_TESTS)\n", encoding="utf-8"
+                )
+                env = self.environment(workspace, platform, architecture)
+                env.update(
+                    CI_EXTENSION_ARTIFACT_DIR=str(downloaded),
+                    CI_EXTENSION_CONFIG_PATHS='["group.cmake"]',
+                    CI_LINUX_NATIVE_CONTAINER="true",
+                )
+                runner = RecordingRunner(env)
+                with mock.patch.object(runner, "build") as build:
+                    runner.test()
+                build.assert_called_once_with()
+                build_dir = workspace / "build/release"
                 self.assertFalse(
-                    any(Path(name).name.startswith("unittest") for name in bundle.getnames())
+                    (build_dir / "extension/test/test.duckdb_extension").exists()
+                )
+                self.assertEqual(
+                    {
+                        path.name
+                        for path in (build_dir / "repository").rglob(
+                            "*.duckdb_extension"
+                        )
+                    },
+                    {
+                        "test.duckdb_extension",
+                        "quack.duckdb_extension",
+                        "spatial.duckdb_extension",
+                    },
+                )
+                self.assertIn(
+                    "LOAD_TESTS", (workspace / "extension_config.cmake").read_text()
+                )
+                self.assertIn(
+                    "-DEXTENSION_TESTS_ONLY=ON", runner.env["EXT_RELEASE_FLAGS"]
+                )
+                self.assertIn(
+                    "-DENABLE_UNITTEST_CPP_TESTS=OFF", runner.env["EXT_RELEASE_FLAGS"]
+                )
+                self.assertEqual(
+                    [command for command, kwargs in runner.commands],
+                    [["make", "test_release"]],
                 )
 
-    def test_upload_and_test_restore_embedded_group_support(self):
+    def test_merged_artifacts_require_the_test_extension(self):
         with tempfile.TemporaryDirectory() as directory:
-            workspace = Path(directory)
-            build = workspace / "build" / "release"
-            unittest_binary = build / "test" / ("unittest.exe" if os.name == "nt" else "unittest")
-            unittest_binary.parent.mkdir(parents=True)
-            unittest_binary.write_text("runner", encoding="utf-8")
-            unittest_binary.chmod(0o755)
-            repository = build / "repository" / "v1" / "linux_amd64"
-            repository.mkdir(parents=True)
-            (repository / "quack.duckdb_extension").write_text("extension", encoding="utf-8")
-
-            env = self.environment(workspace)
-            env["CI_UPLOAD_ALL_EXTENSIONS"] = "true"
-            downloaded = workspace / "downloaded-repository"
-            for group in ("group-one", "group-two"):
-                output = workspace / f"github-output-{group}"
-                env["CI_ARTIFACT_NAME"] = group
-                env["GITHUB_OUTPUT"] = str(output)
-                PhaseRunner(env).upload()
-                values = output.read_text(encoding="utf-8")
-                artifact_path = Path(
-                    next(
-                        line.removeprefix("artifact_path=")
-                        for line in values.splitlines()
-                        if line.startswith("artifact_path=")
-                    )
-                )
-                shutil.copytree(artifact_path, downloaded, dirs_exist_ok=True)
-
-            archives = sorted(downloaded.glob("test-support/**/test-support.tar.gz"))
-            self.assertEqual(len(archives), 2)
-            archive = archives[0]
-            with tarfile.open(archive, "r:gz") as bundle:
-                names = bundle.getnames()
-                unittest_member = bundle.getmember(f"release/test/{unittest_binary.name}")
-            self.assertIn(f"release/test/{unittest_binary.name}", names)
-            self.assertFalse(any("repository" in name for name in names))
-            if os.name != "nt":
-                self.assertNotEqual(unittest_member.mode & 0o111, 0)
-
-            env["CI_EXTENSION_ARTIFACT_DIR"] = str(downloaded)
-            restored = RecordingRunner(env)
-            remove_tree_with_retries = restored._remove_tree_with_retries
-            restored_build = build.resolve()
-            build_removals = 0
-
-            def simulate_persistent_lock(path):
-                nonlocal build_removals
-                if path.name.startswith(".quarantine-"):
-                    return False
-                if path == restored_build:
-                    build_removals += 1
-                    if build_removals == 2:
-                        return False
-                return remove_tree_with_retries(path)
-
-            output = io.StringIO()
-            with (
-                mock.patch.object(
-                    restored,
-                    "_remove_tree_with_retries",
-                    side_effect=simulate_persistent_lock,
-                ),
-                redirect_stdout(output),
+            env = self.environment(directory)
+            env["CI_EXTENSION_ARTIFACT_DIR"] = str(Path(directory) / "repository")
+            runner = RecordingRunner(env)
+            with self.assertRaisesRegex(
+                FileNotFoundError, "include the test extension in the core group"
             ):
-                restored.test()
+                runner.test()
+            self.assertEqual(runner.commands, [])
 
-            self.assertTrue(
-                (build / "repository" / "v1" / "linux_amd64" / "quack.duckdb_extension").is_file()
-            )
-            self.assertFalse((build / "repository" / "test-support").exists())
-            self.assertIn(
-                "warning: moved locked test build directory to quarantine:",
-                output.getvalue(),
-            )
-            self.assertIn(
-                "warning: leaving locked test build directory in quarantine:",
-                output.getvalue(),
-            )
-            self.assertEqual(len(list(build.parent.glob(".quarantine-*"))), 1)
-            self.assertEqual(restored.commands[0][0][-2:], ["make", "test_release"])
-            self.assertEqual(len(restored.commands), 4)
+    def test_merged_artifacts_preserve_extension_test_registration(self):
+        env = self.environment(".")
+        env.update(
+            CI_EXTENSION_ARTIFACT_DIR="repository",
+            DUCKDB_PREBUILT_EXTENSIONS="core_functions;httpfs;icu;json;parquet;tpch",
+        )
+        self.assertEqual(
+            RecordingRunner(env).build_environment()["DUCKDB_PREBUILT_EXTENSIONS"],
+            "core_functions",
+        )
 
-    def test_remove_tree_retries_windows_file_locks(self):
+    def test_windows_merged_artifact_build_does_not_require_ccache(self):
+        env = self.environment(".", "windows", "windows_amd64")
+        env["CI_EXTENSION_ARTIFACT_DIR"] = "repository"
+        runner = RecordingRunner(env)
+        runner.build_windows()
+        self.assertNotIn("ccache", runner.commands[-1][1]["extra_env"]["EXT_FLAGS"])
+        self.assertIn("vcvars64.bat", runner.commands[-1][0])
+
+    def test_prebuilt_artifact_name_is_exported_for_download(self):
         with tempfile.TemporaryDirectory() as directory:
-            locked = Path(directory) / "locked"
-            locked.mkdir()
-            runner = RecordingRunner(
-                self.environment(directory, "windows", "windows_arm64")
+            output = Path(directory) / "github-env"
+            env = self.environment(directory, "windows", "windows_amd64")
+            env["GITHUB_ENV"] = str(output)
+            runner = RecordingRunner(env)
+            runner.prebuilt_artifact()
+            self.assertEqual(
+                output.read_text(),
+                "CI_PREBUILT_DUCKDB_ARTIFACT=duckdb-static-libs-windows-amd64.tar.gz\n",
             )
-            remove_tree = shutil.rmtree
-            attempts = 0
-
-            def fail_twice(path):
-                nonlocal attempts
-                attempts += 1
-                if attempts <= 2:
-                    raise self.windows_lock_error()
-                remove_tree(path)
-
-            output = io.StringIO()
-            with (
-                mock.patch("ci_phase.shutil.rmtree", side_effect=fail_twice),
-                mock.patch("ci_phase.time.sleep") as sleep,
-                redirect_stdout(output),
-            ):
-                self.assertTrue(runner._remove_tree_with_retries(locked))
-
-            self.assertFalse(locked.exists())
-            self.assertEqual(sleep.call_args_list, [mock.call(0.1), mock.call(0.2)])
-            self.assertIn("warning: Windows still has files open", output.getvalue())
-
-    def test_remove_tree_does_not_retry_non_windows_errors(self):
-        with tempfile.TemporaryDirectory() as directory:
-            locked = Path(directory) / "locked"
-            locked.mkdir()
-            runner = RecordingRunner(self.environment(directory))
-
-            with (
-                mock.patch(
-                    "ci_phase.shutil.rmtree",
-                    side_effect=self.windows_lock_error(),
-                ),
-                mock.patch("ci_phase.time.sleep") as sleep,
-                self.assertRaises(PermissionError),
-            ):
-                runner._remove_tree_with_retries(locked)
-
-            sleep.assert_not_called()
-
-    def test_remove_test_build_dir_reports_failed_quarantine(self):
-        with tempfile.TemporaryDirectory() as directory:
-            build = Path(directory) / "build" / "release"
-            build.mkdir(parents=True)
-            runner = RecordingRunner(
-                self.environment(directory, "windows", "windows_arm64")
-            )
-
-            with (
-                mock.patch.object(
-                    runner,
-                    "_remove_tree_with_retries",
-                    return_value=False,
-                ),
-                mock.patch("ci_phase.Path.rename", side_effect=OSError("locked")),
-                self.assertRaisesRegex(
-                    RuntimeError,
-                    "could not isolate locked test build directory",
-                ),
-            ):
-                runner._remove_test_build_dir(build)
-
-    def test_support_is_enabled_only_for_testable_platforms(self):
-        with tempfile.TemporaryDirectory() as directory:
-            cases = (
-                (self.environment(directory), True),
-                (self.environment(directory, "linux", "linux_arm64"), False),
-                (self.environment(directory, "wasm", "wasm_eh"), False),
-                (self.environment(directory, "windows", "windows_amd64"), True),
-            )
-            macos_env = self.environment(directory, "macos", "osx_amd64")
-            macos_env["CI_OSX_BUILD_ARCH"] = "x86_64"
-            cases += ((macos_env, False),)
-            native_macos_env = self.environment(directory, "macos", "osx_arm64")
-            native_macos_env["CI_OSX_BUILD_ARCH"] = "arm64"
-            cases += ((native_macos_env, True),)
-
-            for env, expected in cases:
-                with self.subTest(
-                    platform=env["CI_PLATFORM"],
-                    architecture=env["DUCKDB_PLATFORM"],
-                ):
-                    self.assertEqual(
-                        RecordingRunner(env)._test_support_enabled(), expected
-                    )
 
 
 if __name__ == "__main__":
