@@ -109,13 +109,20 @@ ifneq ($(DUCKDB_WASM_PLATFORM),)
 	CMAKE_WRAPPER=emcmake
 	CMAKE_BUILD_FLAGS += -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 	EXTRA_CMAKE_FLAGS += -DDUCKDB_WASM_EXTENSION=1
-	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_mvp')
-	endif
-	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_eh')
+	ifeq ($(DUCKDB_WASM_PLATFORM),wasm_eh)
 		CMAKE_CXX_FLAGS += -fwasm-exceptions
 	endif
-	ifeq ($(DUCKDB_WASM_PLATFORM), 'wasm_threads')
+	ifeq ($(DUCKDB_WASM_PLATFORM),wasm_threads)
+		CMAKE_C_FLAGS += -pthread
 		CMAKE_CXX_FLAGS += -fwasm-exceptions -DWITH_WASM_THREADS=1 -DWITH_WASM_SIMD=1 -DWITH_WASM_BULK_MEMORY=1 -pthread
+		# Import a shared memory, as the threaded DuckDB-Wasm runtime exports one
+		WASM_LINK_FLAGS += -pthread -sSHARED_MEMORY=1
+	endif
+	ifneq ($(strip $(CMAKE_C_FLAGS)),)
+		EXTRA_CMAKE_FLAGS += -DCMAKE_C_FLAGS="$(strip $(CMAKE_C_FLAGS))"
+	endif
+	ifneq ($(strip $(CMAKE_CXX_FLAGS)),)
+		EXTRA_CMAKE_FLAGS += -DCMAKE_CXX_FLAGS="$(strip $(CMAKE_CXX_FLAGS))"
 	endif
 endif
 
