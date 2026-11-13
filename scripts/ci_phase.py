@@ -80,6 +80,12 @@ def prebuilt_duckdb_artifact_name(architecture: str) -> str:
     return PREBUILT_DUCKDB_ARTIFACTS.get(architecture, "")
 
 
+def duckdb_cli_artifact_name(architecture: str) -> str:
+    return prebuilt_duckdb_artifact_name(architecture).replace(
+        "duckdb-static-libs-", "duckdb-cli-", 1
+    )
+
+
 def open_prebuilt_url(url: str):
     request = urllib.request.Request(
         url, headers={"User-Agent": PREBUILT_DUCKDB_USER_AGENT}
@@ -404,6 +410,16 @@ class PhaseRunner:
             or prebuilt_duckdb_artifact_name(self.architecture),
         )
 
+    def cli_artifact(self) -> None:
+        artifact_name = duckdb_cli_artifact_name(self.architecture)
+        if not artifact_name:
+            raise ValueError(f"no DuckDB CLI artifact defined for {self.architecture}")
+        self.set_environment("CI_DUCKDB_CLI_ARTIFACT", artifact_name)
+        self.set_environment(
+            "CI_DUCKDB_CLI_PATH",
+            str(self.workspace / ".ci" / "duckdb-cli" / self.architecture),
+        )
+
     def _prebuilt_cache_miss(self, url: str, error: Exception) -> None:
         print(
             f"Prebuilt DuckDB archive is unavailable; building DuckDB from source "
@@ -710,12 +726,9 @@ class PhaseRunner:
             "DUCKDB_PREBUILT_EXTENSIONS": self.value("DUCKDB_PREBUILT_EXTENSIONS"),
         }
         if self.value("CI_EXTENSION_ARTIFACT_DIR"):
-            # Only core_functions is linked; other extensions supply their test sources.
-            environment["DUCKDB_PREBUILT_EXTENSIONS"] = ";".join(
-                name
-                for name in environment["DUCKDB_PREBUILT_EXTENSIONS"].split(";")
-                if name == "core_functions"
-            )
+            environment["DUCKDB_PREBUILT_LIBRARY"] = ""
+            environment["DUCKDB_PREBUILT_EXTENSIONS"] = ""
+            environment["TEST_BUILD_TYPE"] = self.required("CI_BUILD_TYPE")
         if self.enabled("CI_LINUX_NATIVE_CONTAINER") and self.value("CI_CUDA_VERSION"):
             environment["VCPKG_CUDA_VERSION"] = self.value("CI_CUDA_VERSION")
             architectures = self.value("CI_CUDA_ARCHS").strip()
@@ -983,7 +996,7 @@ class PhaseRunner:
     def build_macos(self) -> None:
         self.run(["make", self.required("CI_BUILD_TYPE")], extra_env=self.build_environment())
 
-    def build_windows(self) -> None:
+    def build_windows(self, build_target: str | None = None) -> None:
         environment = self.build_environment()
         extension_flags = (
             []
@@ -1010,7 +1023,10 @@ class PhaseRunner:
         rtools = environment["DUCKDB_PLATFORM_RTOOLS"] == "1"
         commands = ["setlocal EnableDelayedExpansion"]
         if not rtools:
-            target = {"windows_amd64": "vcvars64.bat", "windows_arm64": "vcvarsarm64.bat"}.get(self.architecture)
+            target = {
+                "windows_amd64": "vcvars64.bat",
+                "windows_arm64": "vcvarsarm64.bat",
+            }.get(self.architecture)
             if target:
                 vs18_vcvars = (
                     "C:\\Program Files\\Microsoft Visual Studio\\18\\Enterprise"
@@ -1035,7 +1051,11 @@ class PhaseRunner:
                 extra_env=environment,
             )
         build_command = format_windows_command(
-            [*self.retry_prefix(), "make", self.required("CI_BUILD_TYPE")]
+            [
+                *self.retry_prefix(),
+                "make",
+                build_target or self.required("CI_BUILD_TYPE"),
+            ]
         )
         commands.append(build_command)
         self.run(" && ".join(commands), shell=True, extra_env=environment)
@@ -1165,23 +1185,124 @@ class PhaseRunner:
                 "include the test extension in the core group"
             )
 
+        self.prepare_test_cli()
         self.inject_extension_config()
-        self.env["EXT_RELEASE_FLAGS"] = " ".join(
-            [
-                self.value("EXT_RELEASE_FLAGS"),
-                "-DEXTENSION_TESTS_ONLY=ON",
-                "-DSTATICALLY_LINK_EXTENSIONS=core_functions",
-                "-DBUILD_UNITTESTS=ON",
-                "-DENABLE_UNITTEST_CPP_TESTS=OFF",
-            ]
-        )
-        self.build()
+        if self.platform == "windows":
+            self.build_windows("configure_test_runner")
+        else:
+            self.run(
+                ["make", "configure_test_runner"],
+                extra_env=self.build_environment(),
+            )
 
         build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
         destination_repository = build_dir / "repository"
         shutil.copytree(repository_root, destination_repository, dirs_exist_ok=True)
         print(f"Testing all extensions from {destination_repository}", flush=True)
         self._run_tests()
+
+    def prepare_test_cli(self) -> None:
+        artifact_name = self.value(
+            "CI_DUCKDB_CLI_ARTIFACT"
+        ) or duckdb_cli_artifact_name(self.architecture)
+        if not artifact_name:
+            raise ValueError(f"no DuckDB CLI artifact defined for {self.architecture}")
+        artifact_root = Path(
+            self.value(
+                "CI_DUCKDB_CLI_PATH",
+                str(self.workspace / ".ci" / "duckdb-cli" / self.architecture),
+            )
+        )
+        commit = self.capture(["git", "-C", "duckdb", "rev-parse", "HEAD"]).lower()
+        if re.fullmatch(r"[a-f0-9]{40,64}", commit) is None:
+            raise ValueError(f"invalid checked-out DuckDB commit: {commit}")
+
+        if self.value("CI_PREBUILT_DUCKDB_SOURCE") != "workflow":
+            base_url = self.value(
+                "CI_PREBUILT_DUCKDB_BASE_URL", DEFAULT_PREBUILT_DUCKDB_BASE_URL
+            ).rstrip("/")
+            version = self.value("DUCKDB_VERSION")
+            if STAGED_DUCKDB_VERSION_PATTERN.fullmatch(version) is None:
+                version = staged_duckdb_version(
+                    commit, base_url, self._open_prebuilt_url
+                )
+            url = (
+                f"{base_url}/{commit[:10]}/{version}/duckdb/duckdb/"
+                f"github_release/{artifact_name}"
+            )
+            artifact_root.mkdir(parents=True, exist_ok=True)
+            destination = artifact_root / artifact_name
+            temporary = destination.with_name(f".{destination.name}.part")
+            try:
+                with self._open_prebuilt_url(url) as response, temporary.open(
+                    "wb"
+                ) as target:
+                    shutil.copyfileobj(response, target)
+                temporary.replace(destination)
+            except (OSError, urllib.error.URLError) as error:
+                temporary.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"could not download DuckDB CLI from {url}: {error}"
+                ) from error
+
+        archives = [
+            path for path in artifact_root.rglob(artifact_name) if path.is_file()
+        ]
+        if len(archives) != 1:
+            raise FileNotFoundError(
+                f"expected one DuckDB CLI artifact named {artifact_name} below {artifact_root}, "
+                f"found {len(archives)}"
+            )
+        build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
+        build_dir.mkdir(parents=True, exist_ok=True)
+        executable_name = "duckdb.exe" if self.platform == "windows" else "duckdb"
+        executable = build_dir / executable_name
+        with tarfile.open(archives[0], "r:gz") as archive:
+            members = [
+                member
+                for member in archive.getmembers()
+                if member.name == executable_name and member.isfile()
+            ]
+            if len(members) != 1:
+                raise ValueError(
+                    f"expected one {executable_name} in DuckDB CLI artifact {archives[0]}, "
+                    f"found {len(members)}"
+                )
+            source = archive.extractfile(members[0])
+            if source is None:
+                raise ValueError(f"could not read {executable_name} from {archives[0]}")
+            with source, executable.open("wb") as target:
+                shutil.copyfileobj(source, target)
+            executable.chmod(members[0].mode | 0o111)
+
+        output = self.capture(
+            [
+                str(executable),
+                "-unsigned",
+                "-no-agent",
+                "-batch",
+                "-jsonlines",
+                "-c",
+                "PRAGMA version; PRAGMA platform;",
+            ]
+        )
+        try:
+            version, platform = [json.loads(line) for line in output.splitlines()]
+        except (ValueError, TypeError) as error:
+            raise ValueError(
+                f"invalid DuckDB CLI version/platform output: {output}"
+            ) from error
+        if (
+            not isinstance(version, dict)
+            or not isinstance(platform, dict)
+            or version.get("source_id") != commit[:10]
+            or platform.get("platform") != self.architecture
+        ):
+            raise ValueError(
+                f"DuckDB CLI does not match commit {commit[:10]} and platform {self.architecture}: "
+                f"{output}"
+            )
+        print(f"Using DuckDB CLI from {archives[0]}", flush=True)
 
 
 def main() -> None:
@@ -1191,6 +1312,7 @@ def main() -> None:
         choices=(
             "resolve-version",
             "prebuilt-artifact",
+            "cli-artifact",
             "checkout",
             "setup",
             "build",

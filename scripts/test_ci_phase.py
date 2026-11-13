@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ci_phase import (  # noqa: E402
     PhaseRunner,
+    duckdb_cli_artifact_name,
     duckdb_release_line,
     extra_dependencies,
     fetch_duckdb_tags,
@@ -669,6 +670,145 @@ class CIPhaseTest(unittest.TestCase):
                     prebuilt_duckdb_artifact_name(architecture), artifact_name
                 )
         self.assertEqual(prebuilt_duckdb_artifact_name("wasm_eh"), "")
+
+    def test_duckdb_cli_artifact_names_cover_native_matrix(self):
+        for architecture, suffix in (
+            ("linux_amd64", "linux-amd64"),
+            ("linux_arm64_musl", "linux-arm64-musl"),
+            ("osx_arm64", "osx-arm64"),
+            ("windows_amd64", "windows-amd64"),
+            ("windows_arm64", "windows-arm64"),
+            ("windows_amd64_mingw", "windows-mingw"),
+        ):
+            with self.subTest(architecture=architecture):
+                self.assertEqual(
+                    duckdb_cli_artifact_name(architecture),
+                    f"duckdb-cli-{suffix}.tar.gz",
+                )
+        self.assertEqual(duckdb_cli_artifact_name("wasm_eh"), "")
+
+    def cli_runner(self, workspace, platform="linux", architecture="linux_amd64"):
+        env = self.environment(workspace, platform, architecture)
+        env["CI_PREBUILT_DUCKDB_SOURCE"] = "workflow"
+        runner = RecordingRunner(env)
+        runner.captured_outputs = [
+            "a" * 40,
+            '{"source_id":"aaaaaaaaaa"}\n' f'{{"platform":"{architecture}"}}',
+        ]
+        return runner
+
+    def test_downloaded_cli_is_extracted_and_checked_for_each_test_platform(self):
+        for platform, architecture in (
+            ("linux", "linux_amd64"),
+            ("linux", "linux_arm64_musl"),
+            ("macos", "osx_arm64"),
+            ("windows", "windows_amd64"),
+            ("windows", "windows_arm64"),
+            ("windows", "windows_amd64_mingw"),
+        ):
+            with (
+                self.subTest(architecture=architecture),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                runner = self.cli_runner(workspace, platform, architecture)
+                executable_name = "duckdb.exe" if platform == "windows" else "duckdb"
+                self.create_prebuilt_archive(
+                    workspace / ".ci/duckdb-cli" / architecture,
+                    duckdb_cli_artifact_name(architecture),
+                    [(executable_name, b"shell")],
+                )
+                runner.prepare_test_cli()
+                executable = workspace / "build/release" / executable_name
+                self.assertEqual(executable.read_bytes(), b"shell")
+                self.assertTrue(executable.stat().st_mode & 0o111)
+                self.assertEqual(runner.commands[-1][0][0], str(executable.resolve()))
+                self.assertFalse((workspace / ".ci/prebuilt-duckdb").exists())
+
+    def test_cli_commit_and_platform_must_match(self):
+        for output in (
+            '{"source_id":"bbbbbbbbbb"}\n{"platform":"linux_amd64"}',
+            '{"source_id":"aaaaaaaaaa"}\n{"platform":"windows_amd64"}',
+            "not JSON",
+        ):
+            with (
+                self.subTest(output=output),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                runner = self.cli_runner(workspace)
+                runner.captured_outputs[-1] = output
+                self.create_prebuilt_archive(
+                    workspace / ".ci/duckdb-cli/linux_amd64",
+                    duckdb_cli_artifact_name("linux_amd64"),
+                    [("duckdb", b"shell")],
+                )
+                with self.assertRaisesRegex(ValueError, "DuckDB CLI"):
+                    runner.prepare_test_cli()
+
+    def test_cli_archive_must_contain_exactly_one_regular_shell(self):
+        for members in (
+            [],
+            [("duckdb.exe", b"wrong platform")],
+            [("duckdb", b"1"), ("duckdb", b"2")],
+        ):
+            with (
+                self.subTest(members=members),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                runner = self.cli_runner(workspace)
+                self.create_prebuilt_archive(
+                    workspace / ".ci/duckdb-cli/linux_amd64",
+                    duckdb_cli_artifact_name("linux_amd64"),
+                    members,
+                )
+                with self.assertRaisesRegex(ValueError, "expected one duckdb"):
+                    runner.prepare_test_cli()
+
+    def test_missing_cli_archive_reports_the_expected_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(
+                FileNotFoundError, "duckdb-cli-linux-amd64.tar.gz"
+            ):
+                self.cli_runner(Path(directory)).prepare_test_cli()
+
+    def test_staged_cli_download_uses_the_checked_out_commit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            archive = self.create_prebuilt_archive(
+                workspace / "staged",
+                duckdb_cli_artifact_name("linux_amd64"),
+                [("duckdb", b"shell")],
+            )
+            runner = self.cli_runner(workspace)
+            runner.env["CI_PREBUILT_DUCKDB_SOURCE"] = "staged"
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                return_value=io.BytesIO(archive.read_bytes()),
+            ) as open_url:
+                runner.prepare_test_cli()
+            self.assertIn(
+                "/aaaaaaaaaa/v1.2.3/duckdb/duckdb/github_release/duckdb-cli-linux-amd64.tar.gz",
+                open_url.call_args.args[0],
+            )
+
+    def test_cli_download_failure_does_not_fall_back_to_building(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = self.cli_runner(Path(directory))
+            runner.env["CI_PREBUILT_DUCKDB_SOURCE"] = "staged"
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=urllib.error.URLError("missing"),
+            ):
+                with self.assertRaisesRegex(
+                    RuntimeError, "could not download DuckDB CLI"
+                ):
+                    runner.prepare_test_cli()
+            self.assertEqual(len(runner.commands), 1)
+            self.assertFalse(list(Path(directory).rglob("*.part")))
 
     def test_fetch_prebuilt_duckdb_skips_non_release_builds(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1634,7 +1774,7 @@ class CIPhaseTest(unittest.TestCase):
                 ["v1/linux_amd64/test.duckdb_extension"],
             )
 
-    def test_merged_artifacts_build_and_run_once(self):
+    def test_merged_artifacts_configure_and_run_once(self):
         for platform, architecture in (
             ("linux", "linux_amd64"),
             ("windows", "windows_amd64"),
@@ -1662,9 +1802,9 @@ class CIPhaseTest(unittest.TestCase):
                     CI_LINUX_NATIVE_CONTAINER="true",
                 )
                 runner = RecordingRunner(env)
-                with mock.patch.object(runner, "build") as build:
+                with mock.patch.object(runner, "prepare_test_cli") as prepare_cli:
                     runner.test()
-                build.assert_called_once_with()
+                prepare_cli.assert_called_once_with()
                 build_dir = workspace / "build/release"
                 self.assertFalse(
                     (build_dir / "extension/test/test.duckdb_extension").exists()
@@ -1685,16 +1825,12 @@ class CIPhaseTest(unittest.TestCase):
                 self.assertIn(
                     "LOAD_TESTS", (workspace / "extension_config.cmake").read_text()
                 )
-                self.assertIn(
-                    "-DEXTENSION_TESTS_ONLY=ON", runner.env["EXT_RELEASE_FLAGS"]
-                )
-                self.assertIn(
-                    "-DENABLE_UNITTEST_CPP_TESTS=OFF", runner.env["EXT_RELEASE_FLAGS"]
-                )
-                self.assertEqual(
-                    [command for command, kwargs in runner.commands],
-                    [["make", "test_release"]],
-                )
+                commands = [command for command, kwargs in runner.commands]
+                self.assertEqual(commands[-1], ["make", "test_release"])
+                if platform == "windows":
+                    self.assertIn("make configure_test_runner", commands[-2])
+                else:
+                    self.assertEqual(commands[0], ["make", "configure_test_runner"])
 
     def test_merged_artifacts_require_the_test_extension(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1713,10 +1849,9 @@ class CIPhaseTest(unittest.TestCase):
             CI_EXTENSION_ARTIFACT_DIR="repository",
             DUCKDB_PREBUILT_EXTENSIONS="core_functions;httpfs;icu;json;parquet;tpch",
         )
-        self.assertEqual(
-            RecordingRunner(env).build_environment()["DUCKDB_PREBUILT_EXTENSIONS"],
-            "core_functions",
-        )
+        environment = RecordingRunner(env).build_environment()
+        self.assertEqual(environment["DUCKDB_PREBUILT_EXTENSIONS"], "")
+        self.assertEqual(environment["DUCKDB_PREBUILT_LIBRARY"], "")
 
     def test_windows_merged_artifact_build_does_not_require_ccache(self):
         env = self.environment(".", "windows", "windows_amd64")
