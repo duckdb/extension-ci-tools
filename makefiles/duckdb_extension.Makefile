@@ -170,6 +170,7 @@ endif
 
 clangd: ${EXTENSION_CONFIG_STEP}
 	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B .cache/clangd/debug
+	cp .cache/clangd/debug/compile_commands.json .cache/clangd/compile_commands.json
 
 debug: ${EXTENSION_CONFIG_STEP}
 	mkdir -p build/debug
