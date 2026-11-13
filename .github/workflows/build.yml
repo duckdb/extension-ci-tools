@@ -648,7 +648,7 @@ jobs:
           path: ${{ github.workspace }}/.ci/repository
           merge-multiple: true
       - name: Test all extensions
-        if: ${{ !inputs.skip_tests && matrix.duckdb_arch != 'linux_arm64' }}
+        if: ${{ !inputs.skip_tests }}
         run: python3 extension-ci-tools/scripts/ci_phase.py test
 
   test_macos:

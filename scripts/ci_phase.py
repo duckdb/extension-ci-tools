@@ -1087,9 +1087,6 @@ class PhaseRunner:
         if self.enabled("CI_SKIP_TESTS"):
             print("Tests skipped by workflow input.")
             return
-        if self.platform == "linux" and self.architecture == "linux_arm64":
-            print("Tests are not supported for linux_arm64.")
-            return
         if self.platform == "macos" and self.value("CI_OSX_BUILD_ARCH") != "arm64":
             print("Tests run only on the native macOS arm64 build.")
             return
