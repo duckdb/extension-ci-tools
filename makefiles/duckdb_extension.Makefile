@@ -13,6 +13,7 @@
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
 .PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix sync_oot_extensions
+.PHONY: configure_test_runner
 
 all: release
 
@@ -193,6 +194,10 @@ reldebug: ${EXTENSION_CONFIG_STEP}
 
 # Main tests
 test: test_release
+
+TEST_BUILD_TYPE ?= release
+configure_test_runner:
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=Release -DEXTENSION_TESTS_ONLY=ON -DBUILD_UNITTESTS=ON -DENABLE_UNITTEST_CPP_TESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -S $(DUCKDB_SRCDIR) -B build/$(TEST_BUILD_TYPE)
 
 # Detect test runner. If missing, use the unittest binary directly.
 TEST_RUNNER_SCRIPT ?= ${DUCKDB_SRCDIR}/scripts/ci/run_tests.py

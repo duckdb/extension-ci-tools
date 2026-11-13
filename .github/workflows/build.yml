@@ -613,8 +613,7 @@ jobs:
       CI_EXTENSION_NAME: all-extensions
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
       CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
-      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
-      CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
+      CI_DUCKDB_CLI_PATH: ${{ github.workspace }}/.ci/duckdb-cli/${{ matrix.duckdb_arch }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
@@ -633,15 +632,15 @@ jobs:
           path: extension-ci-tools
           repository: ${{ inputs.ci_tools_repository }}
           ref: ${{ inputs.ci_tools_version }}
-      - name: Resolve prebuilt DuckDB artifact
+      - name: Resolve DuckDB CLI artifact
         if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' }}
-        run: python3 extension-ci-tools/scripts/ci_phase.py prebuilt-artifact
-      - name: Download prebuilt DuckDB
-        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py cli-artifact
+      - name: Download DuckDB CLI
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_DUCKDB_CLI_ARTIFACT != '' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
-          path: ${{ env.CI_PREBUILT_DUCKDB_PATH }}
+          name: ${{ env.CI_DUCKDB_CLI_ARTIFACT }}
+          path: ${{ env.CI_DUCKDB_CLI_PATH }}
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -671,8 +670,7 @@ jobs:
       CI_EXTENSION_NAME: all-extensions
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
       CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
-      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
-      CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
+      CI_DUCKDB_CLI_PATH: ${{ github.workspace }}/.ci/duckdb-cli/${{ matrix.duckdb_arch }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
@@ -697,15 +695,15 @@ jobs:
           python-version: "3.11"
       - name: Install build prerequisites
         run: brew install ninja
-      - name: Resolve prebuilt DuckDB artifact
+      - name: Resolve DuckDB CLI artifact
         if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' }}
-        run: python3 extension-ci-tools/scripts/ci_phase.py prebuilt-artifact
-      - name: Download prebuilt DuckDB
-        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py cli-artifact
+      - name: Download DuckDB CLI
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_DUCKDB_CLI_ARTIFACT != '' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
-          path: ${{ env.CI_PREBUILT_DUCKDB_PATH }}
+          name: ${{ env.CI_DUCKDB_CLI_ARTIFACT }}
+          path: ${{ env.CI_DUCKDB_CLI_PATH }}
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -733,8 +731,7 @@ jobs:
       CI_EXTENSION_NAME: all-extensions
       CI_EXTENSION_CONFIG_PATHS: ${{ toJSON(matrix.extension_config_paths) }}
       CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
-      CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] }}
-      CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
+      CI_DUCKDB_CLI_PATH: ${{ github.workspace }}/.ci/duckdb-cli/${{ matrix.duckdb_arch }}
       VCPKG_TARGET_TRIPLET: ${{ matrix.vcpkg_target_triplet }}
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
@@ -774,15 +771,15 @@ jobs:
           rtools-version: "42"
       - name: Install build prerequisites
         run: choco install ninja -y
-      - name: Resolve prebuilt DuckDB artifact
+      - name: Resolve DuckDB CLI artifact
         if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' }}
-        run: python3 extension-ci-tools/scripts/ci_phase.py prebuilt-artifact
-      - name: Download prebuilt DuckDB
-        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_PREBUILT_DUCKDB_ARTIFACT != '' }}
+        run: python3 extension-ci-tools/scripts/ci_phase.py cli-artifact
+      - name: Download DuckDB CLI
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' && env.CI_DUCKDB_CLI_ARTIFACT != '' }}
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
-          path: ${{ env.CI_PREBUILT_DUCKDB_PATH }}
+          name: ${{ env.CI_DUCKDB_CLI_ARTIFACT }}
+          path: ${{ env.CI_DUCKDB_CLI_PATH }}
       - name: Download extension artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
