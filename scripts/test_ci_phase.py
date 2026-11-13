@@ -1777,6 +1777,7 @@ class CIPhaseTest(unittest.TestCase):
     def test_merged_artifacts_configure_and_run_once(self):
         for platform, architecture in (
             ("linux", "linux_amd64"),
+            ("linux", "linux_arm64"),
             ("windows", "windows_amd64"),
         ):
             with (
