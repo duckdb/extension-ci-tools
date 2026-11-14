@@ -1577,6 +1577,13 @@ class CIPhaseTest(unittest.TestCase):
                     None,
                 ),
                 (
+                    "windows_amd64",
+                    "x64-windows-static-release",
+                    "clang-cl",
+                    True,
+                    None,
+                ),
+                (
                     "windows_arm64",
                     "arm64-windows-static-release-clangcl",
                     "clang-cl",
@@ -1589,6 +1596,13 @@ class CIPhaseTest(unittest.TestCase):
                     "cl",
                     True,
                     None,
+                ),
+                (
+                    "windows_arm64",
+                    "arm64-windows-static-release",
+                    "clang-cl",
+                    True,
+                    "arm64-pc-windows-msvc",
                 ),
                 ("windows_amd64_mingw", "x64-mingw-static", "cl", True, None),
                 ("windows_amd64", "x64-windows", "cl", False, None),

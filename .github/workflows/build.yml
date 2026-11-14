@@ -103,10 +103,15 @@ on:
         type: string
         default: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3 # Release 2026.06.24
       windows_vcpkg_toolchain:
-        description: Windows compiler and matching vcpkg toolchain (cl or clang-cl)
+        description: Compiler for Windows vcpkg dependencies (cl or clang-cl)
         required: false
         type: string
         default: cl
+      windows_compiler:
+        description: Compiler for DuckDB and extension sources; defaults to windows_vcpkg_toolchain
+        required: false
+        type: string
+        default: ""
     secrets:
       VCPKG_CACHING_AWS_ACCESS_KEY_ID:
         required: false
@@ -416,8 +421,8 @@ jobs:
       CI_PREBUILT_DUCKDB_SOURCE: ${{ inputs.prebuilt_source || (fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] && 'workflow') || 'staged' }}
       CI_PREBUILT_DUCKDB_ARTIFACT: ${{ fromJSON(inputs.prebuilt_duckdb)[matrix.duckdb_arch] || matrix.prebuilt_duckdb_artifact }}
       CI_PREBUILT_DUCKDB_PATH: ${{ github.workspace }}/.ci/prebuilt-duckdb/${{ matrix.duckdb_arch }}
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_vcpkg_toolchain }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_vcpkg_toolchain }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_compiler || inputs.windows_vcpkg_toolchain }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_compiler || inputs.windows_vcpkg_toolchain }}
     steps:
       - name: Configure line endings
         shell: bash
@@ -736,8 +741,8 @@ jobs:
       VCPKG_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}/extension-ci-tools/toolchains
       CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/.ci/repository
-      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_vcpkg_toolchain }}
-      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_vcpkg_toolchain }}
+      CC: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'gcc' || inputs.windows_compiler || inputs.windows_vcpkg_toolchain }}
+      CXX: ${{ (matrix.duckdb_arch == 'windows_amd64_rtools' || matrix.duckdb_arch == 'windows_amd64_mingw') && 'g++' || inputs.windows_compiler || inputs.windows_vcpkg_toolchain }}
     steps:
       - name: Configure line endings
         shell: bash
