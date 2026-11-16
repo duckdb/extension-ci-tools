@@ -19,7 +19,7 @@ case "${cuda_major}" in
 	)
 	;;
 13)
-	cuda_release=13.3.0
+	cuda_release=13.5.0
 	components=(
 		cccl
 		cuda_crt
