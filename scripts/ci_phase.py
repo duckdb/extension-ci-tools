@@ -12,7 +12,7 @@ import glob
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shlex
 import shutil
@@ -45,6 +45,13 @@ STAGED_DUCKDB_VERSION_PATTERN = re.compile(
     r"^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(alpha|rc|dev)([0-9]+))?$"
 )
 DUCKDB_VERSION_STAGE_RANK = {"dev": 0, "alpha": 1, "rc": 2, None: 3}
+SIRIUS_CUDA_EXTENSION_PATTERN = re.compile(r"sirius_cuda[0-9]+")
+SIRIUS_CUDA_VCPKG_OVERRIDES_JQ = (
+    '.overrides = (((.overrides // []) | '
+    'map(select(.name != "openssl" and .name != "dlpack" and .name != "flatbuffers"))) + '
+    '[{"name": "dlpack", "version": "0.8"}, '
+    '{"name": "flatbuffers", "version": "24.3.25"}])'
+)
 WINDOWS_REMOVE_RETRY_DELAYS = (0.1, 0.2, 0.4, 0.8)
 WINDOWS_REMOVE_ERRORS = {5, 32}
 
@@ -227,7 +234,21 @@ class PhaseRunner:
         self.env = dict(os.environ if environ is None else environ)
         self.platform = self.required("CI_PLATFORM")
         self.architecture = self.required("DUCKDB_PLATFORM")
-        self.workspace = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
+        self.repository_root = Path(self.env.get("GITHUB_WORKSPACE", ".")).resolve()
+        build_directory = Path(self.value("CI_BUILD_DIRECTORY", "."))
+        if build_directory.is_absolute():
+            raise ValueError("CI_BUILD_DIRECTORY must be relative to GITHUB_WORKSPACE")
+        self.workspace = (self.repository_root / build_directory).resolve()
+        try:
+            self.workspace.relative_to(self.repository_root)
+        except ValueError as error:
+            raise ValueError(
+                "CI_BUILD_DIRECTORY must stay within GITHUB_WORKSPACE"
+            ) from error
+        if not self.workspace.is_dir():
+            raise ValueError(
+                f"CI_BUILD_DIRECTORY does not exist: {build_directory}"
+            )
 
     def value(self, name: str, default: str = "") -> str:
         return self.env.get(name, default)
@@ -525,12 +546,7 @@ class PhaseRunner:
             if docker:
                 self.run(
                     [
-                        "docker",
-                        "run",
-                        "--env-file=docker_env.txt",
-                        "-v",
-                        f"{self.workspace}:/duckdb_build_dir",
-                        f"duckdb/{self.architecture}",
+                        *self.docker_arguments(),
                         "vcpkg",
                         "install",
                         dependency,
@@ -791,17 +807,27 @@ class PhaseRunner:
             "DUCKDB_PREBUILT_EXTENSIONS", ";".join(sorted(prebuilt_extensions))
         )
 
+    def docker_workspace(self) -> str:
+        build_directory = self.workspace.relative_to(self.repository_root)
+        return str(PurePosixPath("/duckdb_build_dir") / build_directory.as_posix())
+
+    def docker_path(self, path: str) -> str:
+        return str(PurePosixPath(self.docker_workspace()) / PurePosixPath(path))
+
     def docker_arguments(self) -> list[str]:
-        return [
+        arguments = [
             "docker",
             "run",
             "--env-file=docker_env.txt",
             "-v",
-            f"{self.workspace}:/duckdb_build_dir",
+            f"{self.repository_root}:/duckdb_build_dir",
             "-v",
             f"{self.workspace / '.ccache'}:/ccache_dir",
-            f"duckdb/{self.architecture}",
         ]
+        if self.workspace != self.repository_root:
+            arguments.extend(["--workdir", self.docker_workspace()])
+        arguments.append(f"duckdb/{self.architecture}")
+        return arguments
 
     def create_docker_environment(self) -> None:
         values = {
@@ -813,13 +839,21 @@ class PhaseRunner:
             "AWS_DEFAULT_REGION": self.value("AWS_DEFAULT_REGION"),
             "AWS_REQUEST_CHECKSUM_CALCULATION": "when_required",
             "VCPKG_TARGET_TRIPLET": self.value("VCPKG_TARGET_TRIPLET"),
-            "VCPKG_OVERLAY_TRIPLETS": f"/duckdb_build_dir/{self.value('CI_VCPKG_OVERLAY_TRIPLETS')}",
-            "VCPKG_OVERLAY_PORTS": f"/duckdb_build_dir/{self.value('CI_VCPKG_OVERLAY_PORTS')}",
+            "VCPKG_OVERLAY_TRIPLETS": self.docker_path(
+                self.value("CI_VCPKG_OVERLAY_TRIPLETS")
+            ),
+            "VCPKG_OVERLAY_PORTS": self.docker_path(
+                self.value("CI_VCPKG_OVERLAY_PORTS")
+            ),
             "CUDAARCHS": self.value("CI_CUDA_ARCHS"),
             "VCPKG_CUDA_VERSION": self.value("CI_CUDA_VERSION"),
             "BUILD_SHELL": "1" if self.enabled("CI_BUILD_DUCKDB_SHELL") else "0",
-            "OPENSSL_ROOT_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
-            "OPENSSL_DIR": f"/duckdb_build_dir/build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}",
+            "OPENSSL_ROOT_DIR": self.docker_path(
+                f"build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}"
+            ),
+            "OPENSSL_DIR": self.docker_path(
+                f"build/{self.value('CI_BUILD_TYPE')}/vcpkg_installed/{self.value('VCPKG_TARGET_TRIPLET')}"
+            ),
             "OPENSSL_USE_STATIC_LIBS": "true",
             "DUCKDB_VERSION": self.value("DUCKDB_VERSION"),
             "DUCKDB_COMMIT": self.value("DUCKDB_COMMIT"),
@@ -842,7 +876,9 @@ class PhaseRunner:
             relative_library = Path(prebuilt_library).resolve().relative_to(
                 self.workspace
             )
-            values["DUCKDB_PREBUILT_LIBRARY"] = f"/duckdb_build_dir/{relative_library.as_posix()}"
+            values["DUCKDB_PREBUILT_LIBRARY"] = self.docker_path(
+                relative_library.as_posix()
+            )
         with (self.workspace / "docker_env.txt").open("w", encoding="utf-8") as handle:
             for key, value in values.items():
                 value = value.rstrip("\r\n")
@@ -850,11 +886,49 @@ class PhaseRunner:
                     raise ValueError(f"Docker environment value {key} contains a newline")
                 handle.write(f"{key}={value}\n")
 
+    def patch_sirius_cuda_vcpkg_manifest(
+        self,
+        command_prefix: Sequence[str] = (),
+        *,
+        extra_env: Mapping[str, str] | None = None,
+    ) -> bool:
+        extension = self.required("CI_EXTENSION_NAME")
+        if (
+            SIRIUS_CUDA_EXTENSION_PATTERN.fullmatch(extension) is None
+            or not self.enabled("USE_MERGED_VCPKG_MANIFEST")
+        ):
+            return False
+
+        manifest = "build/extension_configuration/vcpkg.json"
+        temporary = f"{manifest}.tmp"
+        self.run_with_retry(
+            [*command_prefix, "make", "extension_configuration"],
+            extra_env=extra_env,
+        )
+        self.run(
+            [
+                *command_prefix,
+                "sh",
+                "-c",
+                f"jq {shlex.quote(SIRIUS_CUDA_VCPKG_OVERRIDES_JQ)} {manifest} > {temporary}",
+            ],
+            extra_env=extra_env,
+        )
+        self.run([*command_prefix, "mv", temporary, manifest], extra_env=extra_env)
+        return True
+
     def build_linux(self) -> None:
         if self.enabled("CI_LINUX_NATIVE_CONTAINER"):
+            environment = self.build_environment()
+            manifest_patched = self.patch_sirius_cuda_vcpkg_manifest(
+                extra_env=environment
+            )
+            build_command = ["make", self.required("CI_BUILD_TYPE")]
+            if manifest_patched:
+                build_command.append("EXTENSION_CONFIG_STEP=")
             self.run_with_retry(
-                ["make", self.required("CI_BUILD_TYPE")],
-                extra_env=self.build_environment(),
+                build_command,
+                extra_env=environment,
             )
             return
         self.run(
@@ -878,7 +952,11 @@ class PhaseRunner:
         self.install_extra_vcpkg_dependencies(docker=True)
         docker = self.docker_arguments()
         self.run_with_retry([*docker, "make", "configure_ci"])
-        self.run_with_retry([*docker, "make", self.required("CI_BUILD_TYPE")])
+        manifest_patched = self.patch_sirius_cuda_vcpkg_manifest(docker)
+        build_command = [*docker, "make", self.required("CI_BUILD_TYPE")]
+        if manifest_patched:
+            build_command.append("EXTENSION_CONFIG_STEP=")
+        self.run_with_retry(build_command)
         post_build = self.value("CI_POST_BUILD_COMMAND")
         if post_build:
             self.run(post_build, shell=True, extra_env={"MATRIX_RUNNER": self.value("CI_MATRIX_RUNNER")})
