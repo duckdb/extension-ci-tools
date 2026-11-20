@@ -211,6 +211,12 @@ endif
 define RUN_TEST
 	@if [ "$(SKIP_TESTS)" = "1" ]; then \
 		echo "Tests are skipped in this run..."; \
+	elif [ -f "./build/$1/test/run.py" ]; then \
+		echo python3 ./build/$1/test/run.py $(T); \
+		python3 ./build/$1/test/run.py $(T); \
+	elif [ -x "./build/$1/test/run" ]; then \
+		echo ./build/$1/test/run $(T); \
+		./build/$1/test/run $(T); \
 	else \
 		echo $(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
 		$(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
@@ -231,7 +237,7 @@ VCPKG_EMSDK_FLAGS=-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(EMSDK)/upstream/emscripten/
 WASM_COMPILE_TIME_COMMON_FLAGS=-DWASM_LOADABLE_EXTENSIONS=1 -DBUILD_EXTENSIONS_ONLY=1 $(TOOLCHAIN_FLAGS) $(VCPKG_EMSDK_FLAGS)
 WASM_CXX_MVP_FLAGS=
 WASM_CXX_EH_FLAGS=$(WASM_CXX_MVP_FLAGS) -fwasm-exceptions -DWEBDB_FAST_EXCEPTIONS=1
-WASM_CXX_THREADS_FLAGS=$(WASM_COMPILE_TIME_EH_FLAGS) -DWITH_WASM_THREADS=1 -DWITH_WASM_SIMD=1 -DWITH_WASM_BULK_MEMORY=1 -pthread
+WASM_CXX_THREADS_FLAGS=$(WASM_CXX_EH_FLAGS) -DWITH_WASM_THREADS=1 -DWITH_WASM_SIMD=1 -DWITH_WASM_BULK_MEMORY=1 -pthread
 
 wasm_pre_build_step:
 
