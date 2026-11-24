@@ -426,22 +426,6 @@ class PhaseRunner:
             str(self.workspace / ".ci" / "duckdb-cli" / self.architecture),
         )
 
-    def test_artifact(self) -> None:
-        if not self.supports_test_bundle():
-            self.set_environment("CI_DUCKDB_TEST_ARTIFACT", "")
-            print(
-                "DuckDB checkout uses the legacy test runner; no test bundle requested."
-            )
-            return
-        artifact_name = duckdb_test_artifact_name(self.architecture)
-        if not artifact_name:
-            raise ValueError(f"no DuckDB test artifact defined for {self.architecture}")
-        self.set_environment("CI_DUCKDB_TEST_ARTIFACT", artifact_name)
-        self.set_environment(
-            "CI_DUCKDB_TEST_PATH",
-            str(self.workspace / ".ci" / "duckdb-test" / self.architecture),
-        )
-
     def _prebuilt_cache_miss(self, url: str, error: Exception) -> None:
         print(
             f"Prebuilt DuckDB archive is unavailable; building DuckDB from source "
@@ -1425,7 +1409,6 @@ def main() -> None:
             "resolve-version",
             "prebuilt-artifact",
             "cli-artifact",
-            "test-artifact",
             "checkout",
             "setup",
             "build",
