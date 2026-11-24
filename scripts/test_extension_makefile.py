@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -125,3 +126,33 @@ class ExtensionMakefileTest(unittest.TestCase):
         result = self.run_target(SKIP_TESTS=1)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(self.record.exists())
+
+    def test_configure_test_runner_does_not_build(self):
+        commands = self.root / "configure.json"
+        tools = self.root / "tools"
+        tools.mkdir()
+        cmake = tools / "cmake"
+        cmake.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, sys\n"
+            "from pathlib import Path\n"
+            f"Path({str(commands)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+            "if '--build' in sys.argv: raise SystemExit(99)\n",
+            encoding="utf8",
+        )
+        cmake.chmod(0o755)
+        environment = os.environ.copy()
+        environment["PATH"] = str(tools) + os.pathsep + environment["PATH"]
+        result = subprocess.run(
+            ["make", "-f", str(MAKEFILE), "configure_test_runner", "GEN=ninja"],
+            cwd=self.root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        arguments = json.loads(commands.read_text())
+        self.assertIn("-DEXTENSION_TESTS_ONLY=ON", arguments)
+        self.assertIn("-DENABLE_UNITTEST_CPP_TESTS=OFF", arguments)
+        self.assertEqual(arguments[-1], "build/release")
