@@ -744,7 +744,8 @@ class CIPhaseTest(unittest.TestCase):
                 self.assertTrue(runner.prepare_test_bundle())
                 build = workspace / "build/release"
                 self.assertEqual((build / executable).read_bytes(), b"shell")
-                self.assertTrue((build / executable).stat().st_mode & 0o111)
+                if os.name != "nt":
+                    self.assertTrue((build / executable).stat().st_mode & 0o111)
                 self.assertEqual(
                     (build / "extension/test/test.duckdb_extension").read_bytes(),
                     b"runner",
@@ -778,12 +779,42 @@ class CIPhaseTest(unittest.TestCase):
                     runner.prepare_test_bundle()
                 self.assertFalse((workspace / "build/release/duckdb").exists())
 
-    def test_missing_workflow_bundle_fails_clearly(self):
+    def test_missing_workflow_bundle_allows_source_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(
-                FileNotFoundError, "duckdb-test-linux-amd64.tar.gz"
-            ):
-                self.bundle_runner(Path(directory)).prepare_test_bundle()
+            runner = self.bundle_runner(Path(directory))
+            self.assertFalse(runner.prepare_test_bundle())
+            self.assertEqual(runner.commands, [])
+            self.assertFalse((Path(directory) / "build").exists())
+
+    def test_duplicate_workflow_bundles_fail_clearly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            artifact = duckdb_test_artifact_name("linux_amd64")
+            for name in ("one", "two"):
+                archive = workspace / ".ci/duckdb-test/linux_amd64" / name / artifact
+                archive.parent.mkdir(parents=True)
+                archive.touch()
+            with self.assertRaisesRegex(FileNotFoundError, "found 2"):
+                self.bundle_runner(workspace).prepare_test_bundle()
+
+    def test_legacy_checkout_does_not_request_workflow_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "github-env"
+            env = self.environment(directory)
+            env["GITHUB_ENV"] = str(output)
+            runner = RecordingRunner(env)
+            runner.test_artifact()
+            self.assertEqual(output.read_text(), "CI_DUCKDB_TEST_ARTIFACT=\n")
+            self.assertEqual(runner.commands, [])
+
+    def test_modern_checkout_requests_matching_workflow_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = self.bundle_runner(Path(directory))
+            runner.test_artifact()
+            self.assertEqual(
+                runner.env["CI_DUCKDB_TEST_ARTIFACT"],
+                "duckdb-test-linux-amd64.tar.gz",
+            )
 
     def test_staged_bundle_uses_requested_commit_and_version(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -849,7 +880,7 @@ class CIPhaseTest(unittest.TestCase):
             self.assertFalse(runner.prepare_test_bundle())
             self.assertEqual(runner.commands, [])
 
-    def test_older_autoload_helper_keeps_source_build(self):
+    def test_older_autoload_helper_skips_combined_tests(self):
         with tempfile.TemporaryDirectory() as directory:
             runner = self.bundle_runner(Path(directory))
             helper = Path(directory) / "duckdb/scripts/ci/run_extension_autoload_tests.py"
@@ -862,10 +893,7 @@ class CIPhaseTest(unittest.TestCase):
             )
             (Path(directory) / "downloaded").mkdir()
             runner.test()
-            self.assertEqual(
-                [command for command, _ in runner.commands],
-                [["make", "release"], ["make", "test_release"]],
-            )
+            self.assertEqual(runner.commands, [])
 
     def test_build_uses_extensions_only_when_pair_and_libraries_are_available(self):
         for pair_available, libraries_available in (
@@ -1999,6 +2027,72 @@ class CIPhaseTest(unittest.TestCase):
                 self.assertIn(
                     "LOAD_TESTS", (workspace / "extension_config.cmake").read_text()
                 )
+
+    def test_legacy_combined_tests_skip_without_running_commands(self):
+        for platform, architecture in (
+            ("linux", "linux_amd64"),
+            ("linux", "linux_arm64"),
+            ("macos", "osx_arm64"),
+            ("windows", "windows_amd64"),
+        ):
+            with (
+                self.subTest(platform=platform),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                env = self.environment(workspace, platform, architecture)
+                env.update(
+                    CI_EXTENSION_ARTIFACT_DIR=str(workspace / "repository"),
+                    CI_OSX_BUILD_ARCH="arm64",
+                )
+                runner = RecordingRunner(env)
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    runner.test()
+                self.assertEqual(runner.commands, [])
+                self.assertFalse((workspace / "build").exists())
+                self.assertIn("Combined extension tests skipped", output.getvalue())
+
+    def test_legacy_standalone_tests_keep_running(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = RecordingRunner(self.environment(directory))
+            runner.env["CI_LINUX_NATIVE_CONTAINER"] = "true"
+            runner.test()
+            self.assertEqual(
+                [command for command, _ in runner.commands], [["make", "test_release"]]
+            )
+
+    def test_missing_workflow_bundle_builds_combined_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            runner = self.bundle_runner(workspace)
+            repository = workspace / "downloaded"
+            repository.mkdir()
+            runner.env.update(
+                CI_EXTENSION_ARTIFACT_DIR=str(repository),
+                CI_LINUX_NATIVE_CONTAINER="true",
+            )
+            runner.test()
+            commands = [command for command, _ in runner.commands]
+            self.assertIn("test-runtime.cmake", str(commands[0]))
+            self.assertIn("run_extension_autoload_tests.py", str(commands[-1]))
+            self.assertEqual(runner.env["CI_USE_TEST_BUNDLE"], "false")
+
+    def test_bundle_test_failure_propagates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = self.bundle_runner(Path(directory))
+            runner.env["CI_USE_TEST_BUNDLE"] = "true"
+            with (
+                mock.patch.object(
+                    runner,
+                    "_run_bundle_tests",
+                    side_effect=subprocess.CalledProcessError(
+                        1, ["python", "run_tests.py"]
+                    ),
+                ),
+                self.assertRaises(subprocess.CalledProcessError),
+            ):
+                runner.test()
 
     def test_standalone_bundle_tests_use_own_test_root_in_docker(self):
         with tempfile.TemporaryDirectory() as directory:

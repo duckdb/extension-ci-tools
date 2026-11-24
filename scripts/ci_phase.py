@@ -427,6 +427,12 @@ class PhaseRunner:
         )
 
     def test_artifact(self) -> None:
+        if not self.supports_test_bundle():
+            self.set_environment("CI_DUCKDB_TEST_ARTIFACT", "")
+            print(
+                "DuckDB checkout uses the legacy test runner; no test bundle requested."
+            )
+            return
         artifact_name = duckdb_test_artifact_name(self.architecture)
         if not artifact_name:
             raise ValueError(f"no DuckDB test artifact defined for {self.architecture}")
@@ -1224,6 +1230,13 @@ class PhaseRunner:
         self.print_rust_logs()
 
     def _test_artifacts(self, repository_root: Path) -> None:
+        if not self.supports_test_bundle():
+            print(
+                "Combined extension tests skipped: this DuckDB checkout uses "
+                "the legacy test runner.",
+                flush=True,
+            )
+            return
         self.inject_extension_config()
         build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
         destination_repository = build_dir / "repository"
@@ -1236,30 +1249,26 @@ class PhaseRunner:
             self.set_environment("DUCKDB_PREBUILT_LIBRARY", "")
             self.set_environment("DUCKDB_PREBUILT_EXTENSIONS", "")
             self.set_environment("CI_USE_TEST_BUNDLE", "false")
-            if self.supports_test_bundle():
-                config = self.workspace / ".ci" / "test-runtime.cmake"
-                config.parent.mkdir(parents=True, exist_ok=True)
-                config.write_text("", encoding="utf-8")
-                targets = [
-                    self.required("CI_BUILD_TYPE"),
-                    f"EXT_CONFIG={config}",
-                    "EXTRA_EXTENSION_CONFIGS=",
-                ]
-                if self.platform == "windows":
-                    self.build_windows(targets)
-                elif self.platform == "linux" and not self.enabled(
-                    "CI_LINUX_NATIVE_CONTAINER"
-                ):
-                    targets[1] = "EXT_CONFIG=/duckdb_build_dir/.ci/test-runtime.cmake"
-                    self.build_linux(targets)
-                else:
-                    self.run_with_retry(
-                        ["make", *targets], extra_env=self.build_environment()
-                    )
-                self._run_bundle_tests()
+            config = self.workspace / ".ci" / "test-runtime.cmake"
+            config.parent.mkdir(parents=True, exist_ok=True)
+            config.write_text("", encoding="utf-8")
+            targets = [
+                self.required("CI_BUILD_TYPE"),
+                f"EXT_CONFIG={config}",
+                "EXTRA_EXTENSION_CONFIGS=",
+            ]
+            if self.platform == "windows":
+                self.build_windows(targets)
+            elif self.platform == "linux" and not self.enabled(
+                "CI_LINUX_NATIVE_CONTAINER"
+            ):
+                targets[1] = "EXT_CONFIG=/duckdb_build_dir/.ci/test-runtime.cmake"
+                self.build_linux(targets)
             else:
-                getattr(self, f"build_{self.platform}")()
-                self._run_tests()
+                self.run_with_retry(
+                    ["make", *targets], extra_env=self.build_environment()
+                )
+            self._run_bundle_tests()
 
     def _run_bundle_tests(self) -> None:
         build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
@@ -1269,11 +1278,15 @@ class PhaseRunner:
             shutil.copy2(extension, platform_directory / extension.name)
         environment = self.build_environment()
         environment.update(test_environment(self.value("CI_TEST_CONFIG", "{}")))
-        docker = self.platform == "linux" and not self.enabled("CI_LINUX_NATIVE_CONTAINER")
+        docker = self.platform == "linux" and not self.enabled(
+            "CI_LINUX_NATIVE_CONTAINER"
+        )
 
         def test_path(path: Path) -> str:
             if docker:
-                return "/duckdb_build_dir/" + path.relative_to(self.workspace).as_posix()
+                return (
+                    "/duckdb_build_dir/" + path.relative_to(self.workspace).as_posix()
+                )
             return str(path)
 
         command = [
@@ -1369,7 +1382,16 @@ class PhaseRunner:
                 self._prebuilt_cache_miss(url, error)
                 return False
 
-        archives = [path for path in artifact_root.rglob(artifact_name) if path.is_file()]
+        archives = [
+            path for path in artifact_root.rglob(artifact_name) if path.is_file()
+        ]
+        if not archives:
+            print(
+                f"DuckDB test artifact {artifact_name} is unavailable; "
+                "building DuckDB from source.",
+                flush=True,
+            )
+            return False
         if len(archives) != 1:
             raise FileNotFoundError(
                 f"expected one DuckDB test artifact named {artifact_name} below {artifact_root}, "

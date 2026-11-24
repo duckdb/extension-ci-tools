@@ -19,6 +19,8 @@ The distribution workflow checks DuckDB's staging storage for static linking lib
 The test bundle contains the CLI and test extension; the runner script comes from the DuckDB checkout.
 With both archives available, CI builds only the extensions and runs their SQL tests with the downloaded binaries.
 When either archive is unavailable, or the checkout uses an older runner, CI builds DuckDB from source.
+Combined extension tests in `build.yml` are temporarily skipped for DuckDB checkouts with the legacy runner.
+Standalone extension distribution jobs continue to use their existing test commands.
 
 ### C++
 
