@@ -36,7 +36,7 @@ PREBUILT_DUCKDB_ARTIFACTS = {
     "osx_arm64": "duckdb-static-libs-osx-arm64.tar.gz",
     "windows_amd64": "duckdb-static-libs-windows-amd64.tar.gz",
     "windows_arm64": "duckdb-static-libs-windows-arm64.tar.gz",
-    "windows_amd64_mingw": "duckdb-static-libs-windows-mingw.tar.gz",
+    "windows_amd64_mingw": "duckdb-static-libs-windows-amd64-mingw.tar.gz",
 }
 PREBUILT_DUCKDB_USER_AGENT = "duckdb-extension-ci-tools/prebuilt-duckdb"
 STAGED_DUCKDB_VERSION_PATTERN = re.compile(
@@ -409,6 +409,36 @@ class PhaseRunner:
     def _open_prebuilt_url(self, url: str):
         return open_prebuilt_url(url)
 
+    def download_staged_archive(self, url: str, destination: Path) -> None:
+        temporary = destination.with_name(f".{destination.name}.part")
+        legacy_name = ""
+        if self.architecture == "windows_amd64_mingw":
+            canonical_names = {
+                prebuilt_duckdb_artifact_name(self.architecture),
+                duckdb_cli_artifact_name(self.architecture),
+                duckdb_test_artifact_name(self.architecture),
+            }
+            if destination.name in canonical_names:
+                legacy_name = destination.name.replace(
+                    "windows-amd64-mingw", "windows-mingw"
+                )
+        try:
+            try:
+                response = self._open_prebuilt_url(url)
+            except urllib.error.HTTPError as error:
+                if error.code != 404 or not legacy_name:
+                    raise
+                error.close()
+                url = url.rsplit("/", 1)[0] + "/" + legacy_name
+                print(f"Trying legacy MinGW archive: {url}", flush=True)
+                response = self._open_prebuilt_url(url)
+            with response, temporary.open("wb") as target:
+                shutil.copyfileobj(response, target)
+            temporary.replace(destination)
+        except (OSError, urllib.error.URLError):
+            temporary.unlink(missing_ok=True)
+            raise
+
     def prebuilt_artifact(self) -> None:
         self.set_environment(
             "CI_PREBUILT_DUCKDB_ARTIFACT",
@@ -486,14 +516,9 @@ class PhaseRunner:
         )
         artifact_root.mkdir(parents=True, exist_ok=True)
         destination = artifact_root / artifact_name
-        temporary = destination.with_name(f".{destination.name}.part")
         try:
-            with self._open_prebuilt_url(artifact_url) as response:
-                with temporary.open("wb") as target:
-                    shutil.copyfileobj(response, target)
-            temporary.replace(destination)
+            self.download_staged_archive(artifact_url, destination)
         except (OSError, urllib.error.URLError) as error:
-            temporary.unlink(missing_ok=True)
             self._prebuilt_cache_miss(artifact_url, error)
             return False
 
@@ -1126,7 +1151,10 @@ class PhaseRunner:
         if repository:
             self._test_artifacts(Path(repository))
             return
-        if self.enabled("CI_USE_TEST_BUNDLE"):
+        downloaded = self.workspace / ".ci" / "repository"
+        if self.enabled("CI_USE_TEST_BUNDLE") or (
+            downloaded.is_dir() and self.supports_test_bundle()
+        ):
             self._run_bundle_tests()
             return
         self._run_tests()
@@ -1215,10 +1243,7 @@ class PhaseRunner:
             )
             return
         self.inject_extension_config()
-        build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
-        destination_repository = build_dir / "repository"
-        shutil.copytree(repository_root, destination_repository, dirs_exist_ok=True)
-        print(f"Testing all extensions from {destination_repository}", flush=True)
+        self.set_environment("CI_EXTENSION_ARTIFACT_DIR", str(repository_root))
         if self.prepare_test_bundle():
             self.set_environment("CI_USE_TEST_BUNDLE", "true")
             self._run_bundle_tests()
@@ -1247,10 +1272,48 @@ class PhaseRunner:
                 )
             self._run_bundle_tests()
 
+    def prepare_test_repository(self) -> Path:
+        build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
+        downloaded = Path(
+            self.value(
+                "CI_EXTENSION_ARTIFACT_DIR", str(self.workspace / ".ci" / "repository")
+            )
+        )
+        if not downloaded.is_dir():
+            return build_dir / "repository"
+        repository = self.workspace / ".ci" / "test-repository"
+        if repository.exists():
+            shutil.rmtree(repository)
+        repository.mkdir(parents=True)
+        artifacts = sorted(
+            downloaded.iterdir(),
+            key=lambda path: (
+                not path.name.startswith("release-core-extensions-"),
+                path.name,
+            ),
+        )
+        for artifact in artifacts:
+            if not artifact.is_dir():
+                continue
+            for platform_dir in sorted(artifact.glob(f"*/{self.architecture}")):
+                destination = repository / platform_dir.parent.name / self.architecture
+                shutil.copytree(platform_dir, destination, dirs_exist_ok=True)
+        # Accept repositories supplied directly by older callers as well.
+        for platform_dir in sorted(downloaded.glob(f"*/{self.architecture}")):
+            destination = repository / platform_dir.parent.name / self.architecture
+            shutil.copytree(platform_dir, destination, dirs_exist_ok=True)
+        for platform_dir in sorted(
+            (build_dir / "repository").glob(f"*/{self.architecture}")
+        ):
+            destination = repository / platform_dir.parent.name / self.architecture
+            shutil.copytree(platform_dir, destination, dirs_exist_ok=True)
+        print(f"Testing extensions from {repository}", flush=True)
+        return repository
+
     def _run_bundle_tests(self) -> None:
         build_dir = self.workspace / "build" / self.required("CI_BUILD_TYPE")
         extension = build_dir / "extension" / "test" / "test.duckdb_extension"
-        repository = build_dir / "repository"
+        repository = self.prepare_test_repository()
         for platform_directory in repository.glob(f"*/{self.architecture}"):
             shutil.copy2(extension, platform_directory / extension.name)
         environment = self.build_environment()
@@ -1345,15 +1408,9 @@ class PhaseRunner:
             )
             artifact_root.mkdir(parents=True, exist_ok=True)
             destination = artifact_root / artifact_name
-            temporary = destination.with_name(f".{destination.name}.part")
             try:
-                with self._open_prebuilt_url(url) as response, temporary.open(
-                    "wb"
-                ) as target:
-                    shutil.copyfileobj(response, target)
-                temporary.replace(destination)
+                self.download_staged_archive(url, destination)
             except (OSError, urllib.error.URLError) as error:
-                temporary.unlink(missing_ok=True)
                 self._prebuilt_cache_miss(url, error)
                 return False
 

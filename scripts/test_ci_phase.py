@@ -666,7 +666,7 @@ class CIPhaseTest(unittest.TestCase):
             "osx_arm64": "duckdb-static-libs-osx-arm64.tar.gz",
             "windows_amd64": "duckdb-static-libs-windows-amd64.tar.gz",
             "windows_arm64": "duckdb-static-libs-windows-arm64.tar.gz",
-            "windows_amd64_mingw": "duckdb-static-libs-windows-mingw.tar.gz",
+            "windows_amd64_mingw": "duckdb-static-libs-windows-amd64-mingw.tar.gz",
         }
         for architecture, artifact_name in expected.items():
             with self.subTest(architecture=architecture):
@@ -682,7 +682,7 @@ class CIPhaseTest(unittest.TestCase):
             ("osx_arm64", "osx-arm64"),
             ("windows_amd64", "windows-amd64"),
             ("windows_arm64", "windows-arm64"),
-            ("windows_amd64_mingw", "windows-mingw"),
+            ("windows_amd64_mingw", "windows-amd64-mingw"),
         ):
             with self.subTest(architecture=architecture):
                 self.assertEqual(
@@ -1106,6 +1106,143 @@ class CIPhaseTest(unittest.TestCase):
 
             self.assertFalse(fetched)
             self.assertNotIn("CI_PREBUILT_DUCKDB_ARTIFACT", runner.env)
+
+    def test_staged_mingw_archives_retry_legacy_names_and_save_canonical_names(self):
+        for kind in ("cli", "test", "static-libs"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                workspace = Path(directory)
+                runner = RecordingRunner(
+                    self.environment(workspace, "windows", "windows_amd64_mingw")
+                )
+                name = f"duckdb-{kind}-windows-amd64-mingw.tar.gz"
+                destination = workspace / name
+                url = f"https://staging.example/v1/{name}"
+                missing = urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+                with mock.patch.object(
+                    runner,
+                    "_open_prebuilt_url",
+                    side_effect=[missing, io.BytesIO(b"legacy archive")],
+                ) as open_url:
+                    runner.download_staged_archive(url, destination)
+                self.assertEqual(
+                    open_url.call_args_list,
+                    [
+                        mock.call(url),
+                        mock.call(url.replace("windows-amd64-mingw", "windows-mingw")),
+                    ],
+                )
+                self.assertEqual(destination.read_bytes(), b"legacy archive")
+                self.assertFalse(list(workspace.glob("*.part")))
+                self.assertFalse(
+                    (
+                        workspace / name.replace("windows-amd64-mingw", "windows-mingw")
+                    ).exists()
+                )
+
+    def test_staged_mingw_legacy_bundle_is_extracted_without_building(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            runner = self.bundle_runner(workspace, "windows", "windows_amd64_mingw")
+            runner.env["CI_PREBUILT_DUCKDB_SOURCE"] = "staged"
+            archive = self.create_prebuilt_archive(
+                workspace / "fixture",
+                "legacy.tar.gz",
+                [
+                    ("duckdb.exe", b"shell"),
+                    ("extension/test/test.duckdb_extension", b"runner"),
+                ],
+            )
+            missing = urllib.error.HTTPError(
+                "https://staging.example/new", 404, "Not Found", {}, None
+            )
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=[missing, io.BytesIO(archive.read_bytes())],
+            ):
+                self.assertTrue(runner.prepare_test_bundle())
+            self.assertEqual(
+                (workspace / "build/release/duckdb.exe").read_bytes(), b"shell"
+            )
+            self.assertEqual(
+                (
+                    workspace
+                    / ".ci/duckdb-test/windows_amd64_mingw/duckdb-test-windows-amd64-mingw.tar.gz"
+                ).read_bytes(),
+                archive.read_bytes(),
+            )
+            self.assertFalse(any("make" in command for command, _ in runner.commands))
+
+    def test_staged_mingw_prebuilt_archive_uses_legacy_file_without_changing_metadata(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            runner = RecordingRunner(
+                self.environment(workspace, "windows", "windows_amd64_mingw")
+            )
+            runner.captured_output = "a" * 40
+            missing = urllib.error.HTTPError(
+                "https://staging.example/new", 404, "Not Found", {}, None
+            )
+            with mock.patch.object(
+                runner,
+                "_open_prebuilt_url",
+                side_effect=[missing, io.BytesIO(b"static archive")],
+            ):
+                self.assertTrue(runner.prebuilt())
+            self.assertEqual(
+                runner.env["CI_PREBUILT_DUCKDB_ARTIFACT"],
+                "duckdb-static-libs-windows-amd64-mingw.tar.gz",
+            )
+
+    def test_staged_archive_does_not_retry_custom_names_or_other_errors(self):
+        for name, code in (
+            ("custom-windows-amd64-mingw.tar.gz", 404),
+            ("duckdb-test-windows-amd64-mingw.tar.gz", 403),
+        ):
+            with (
+                self.subTest(name=name, code=code),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                runner = RecordingRunner(
+                    self.environment(workspace, "windows", "windows_amd64_mingw")
+                )
+                missing = urllib.error.HTTPError(
+                    "https://staging.example/archive", code, "Unavailable", {}, None
+                )
+                with mock.patch.object(
+                    runner, "_open_prebuilt_url", side_effect=missing
+                ) as open_url:
+                    with self.assertRaises(urllib.error.HTTPError):
+                        runner.download_staged_archive(
+                            "https://staging.example/" + name, workspace / name
+                        )
+                missing.close()
+                self.assertEqual(open_url.call_count, 1)
+                self.assertEqual(list(workspace.iterdir()), [])
+
+    def test_staged_mingw_bundle_falls_back_to_source_when_both_names_are_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = self.bundle_runner(
+                Path(directory), "windows", "windows_amd64_mingw"
+            )
+            runner.env["CI_PREBUILT_DUCKDB_SOURCE"] = "staged"
+            errors = [
+                urllib.error.HTTPError(
+                    "https://staging.example/archive", 404, "Not Found", {}, None
+                )
+                for _ in range(2)
+            ]
+            with mock.patch.object(
+                runner, "_open_prebuilt_url", side_effect=errors
+            ) as open_url:
+                self.assertFalse(runner.prepare_test_bundle())
+            for error in errors:
+                error.close()
+            self.assertEqual(open_url.call_count, 2)
+            self.assertFalse(list(Path(directory).rglob("*.part")))
 
     def test_build_fetches_staged_prebuilt_duckdb(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1887,16 +2024,16 @@ class CIPhaseTest(unittest.TestCase):
                     ],
                 )
                 runner.test()
-                build = workspace / "build/release"
+                repository = workspace / ".ci/test-repository"
                 self.assertEqual(
                     (
-                        build / "repository/v1" / architecture / "test.duckdb_extension"
+                        repository / "v1" / architecture / "test.duckdb_extension"
                     ).read_bytes(),
                     b"native runner",
                 )
                 self.assertEqual(
                     (
-                        build / "repository/v1" / architecture / "quack.duckdb_extension"
+                        repository / "v1" / architecture / "quack.duckdb_extension"
                     ).read_text(),
                     "quack",
                 )
@@ -1906,11 +2043,103 @@ class CIPhaseTest(unittest.TestCase):
                 self.assertNotIn("--test-root", commands[0])
                 self.assertEqual(
                     runner.commands[0][1]["extra_env"]["LOCAL_EXTENSION_REPO"],
-                    str((build / "repository").resolve()),
+                    str(repository.resolve()),
                 )
                 self.assertIn(
                     "LOAD_TESTS", (workspace / "extension_config.cmake").read_text()
                 )
+
+    def test_downloaded_dependencies_are_merged_in_order_and_not_republished(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            runner = self.bundle_runner(workspace)
+            downloaded = workspace / ".ci/repository"
+            release = downloaded / "release-core-extensions-linux-amd64/v1/linux_amd64"
+            group = downloaded / "core-extensions-linux-amd64/v1/linux_amd64"
+            local = workspace / "build/release/repository/v1/linux_amd64"
+            for path in (release, group, local):
+                path.mkdir(parents=True)
+            (release / "httpfs.duckdb_extension").write_text("dependency")
+            (release / "quack.duckdb_extension").write_text("release")
+            (release / "test.duckdb_extension").write_text("old test runtime")
+            (group / "quack.duckdb_extension").write_text("group")
+            (local / "quack.duckdb_extension").write_text("local")
+            other = downloaded / "core-extensions-windows-amd64/v1/windows_amd64"
+            other.mkdir(parents=True)
+            (other / "windows_only.duckdb_extension").write_text("other platform")
+            extension = workspace / "build/release/extension/test/test.duckdb_extension"
+            extension.parent.mkdir(parents=True)
+            extension.write_text("matching test runtime")
+            runner.env.update(
+                CI_USE_TEST_BUNDLE="true",
+                CI_LINUX_NATIVE_CONTAINER="true",
+                CI_UPLOAD_ALL_EXTENSIONS="true",
+                GITHUB_OUTPUT=str(workspace / "output"),
+            )
+            runner.test()
+            repository = workspace / ".ci/test-repository/v1/linux_amd64"
+            self.assertEqual(
+                (repository / "httpfs.duckdb_extension").read_text(), "dependency"
+            )
+            self.assertEqual(
+                (repository / "quack.duckdb_extension").read_text(), "local"
+            )
+            self.assertEqual(
+                (repository / "test.duckdb_extension").read_text(),
+                "matching test runtime",
+            )
+            self.assertFalse(list(repository.parent.glob("windows_amd64")))
+            (local / "quack.duckdb_extension").unlink()
+            runner.test()
+            self.assertEqual(
+                (repository / "quack.duckdb_extension").read_text(), "group"
+            )
+            (local / "quack.duckdb_extension").write_text("local")
+            runner.upload()
+            artifact = Path(
+                next(
+                    line.removeprefix("artifact_path=")
+                    for line in (workspace / "output").read_text().splitlines()
+                    if line.startswith("artifact_path=")
+                )
+            )
+            self.assertEqual(
+                [
+                    path.relative_to(artifact).as_posix()
+                    for path in artifact.rglob("*.duckdb_extension")
+                ],
+                ["v1/linux_amd64/quack.duckdb_extension"],
+            )
+
+    def test_source_build_uses_downloaded_dependencies_with_modern_runner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            runner = self.bundle_runner(workspace)
+            release = (
+                workspace
+                / ".ci/repository/release-core-extensions-linux-amd64/v1/linux_amd64"
+            )
+            release.mkdir(parents=True)
+            (release / "httpfs.duckdb_extension").write_text("dependency")
+            extension = workspace / "build/release/extension/test/test.duckdb_extension"
+            extension.parent.mkdir(parents=True)
+            extension.write_text("built test runtime")
+            runner.env.update(
+                CI_USE_TEST_BUNDLE="false", CI_LINUX_NATIVE_CONTAINER="true"
+            )
+            runner.test()
+            repository = workspace / ".ci/test-repository/v1/linux_amd64"
+            self.assertEqual(
+                (repository / "httpfs.duckdb_extension").read_text(), "dependency"
+            )
+            self.assertEqual(
+                (repository / "test.duckdb_extension").read_text(), "built test runtime"
+            )
+            self.assertIn("run_extension_autoload_tests.py", runner.commands[0][0][1])
+            self.assertEqual(
+                runner.commands[0][1]["extra_env"]["LOCAL_EXTENSION_REPO"],
+                str(repository.parent.parent.resolve()),
+            )
 
     def test_legacy_combined_tests_skip_without_running_commands(self):
         for platform, architecture in (

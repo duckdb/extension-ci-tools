@@ -142,7 +142,7 @@ env:
       "osx_arm64": "duckdb-test-osx-arm64.tar.gz",
       "windows_amd64": "duckdb-test-windows-amd64.tar.gz",
       "windows_arm64": "duckdb-test-windows-arm64.tar.gz",
-      "windows_amd64_mingw": "duckdb-test-windows-mingw.tar.gz"
+      "windows_amd64_mingw": "duckdb-test-windows-amd64-mingw.tar.gz"
     }
   CI_BUILD_TYPE: release
   CI_BUILD_DUCKDB_SHELL: true
@@ -212,7 +212,7 @@ jobs:
         run: python3 extension-ci-tools/scripts/ci_phase.py resolve-version
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@0b8f8924c5a55711cc1737a764052bd8e0acca80 # main
+        uses: duckdb/duckdb-ci/matrix@376a30ff29c5ebe2e9889b16081d63dc8d866ad7 # duckdb/duckdb-ci#93
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
@@ -287,6 +287,13 @@ jobs:
         with:
           name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
           path: ${{ env.CI_PREBUILT_DUCKDB_PATH }}
+      - name: Download extension artifacts
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' }}
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: ${{ github.workspace }}/.ci/repository
+          merge-multiple: false
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         continue-on-error: true
@@ -379,6 +386,13 @@ jobs:
         with:
           name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
           path: ${{ env.CI_PREBUILT_DUCKDB_PATH }}
+      - name: Download extension artifacts
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' }}
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: ${{ github.workspace }}/.ci/repository
+          merge-multiple: false
       - name: Setup Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -480,6 +494,13 @@ jobs:
         with:
           name: ${{ env.CI_PREBUILT_DUCKDB_ARTIFACT }}
           path: ${{ env.CI_PREBUILT_DUCKDB_PATH }}
+      - name: Download extension artifacts
+        if: ${{ env.CI_PREBUILT_DUCKDB_SOURCE == 'workflow' }}
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: ${{ matrix.artifact_pattern }}
+          path: ${{ github.workspace }}/.ci/repository
+          merge-multiple: false
       - name: Setup Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -680,7 +701,7 @@ jobs:
         with:
           pattern: ${{ matrix.artifact_pattern }}
           path: ${{ github.workspace }}/.ci/repository
-          merge-multiple: true
+          merge-multiple: false
       - name: Test all extensions
         if: ${{ !inputs.skip_tests }}
         run: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -741,7 +762,7 @@ jobs:
         with:
           pattern: ${{ matrix.artifact_pattern }}
           path: ${{ github.workspace }}/.ci/repository
-          merge-multiple: true
+          merge-multiple: false
       - name: Test all extensions
         if: ${{ !inputs.skip_tests && matrix.osx_build_arch == 'arm64' }}
         run: python3 extension-ci-tools/scripts/ci_phase.py test
@@ -815,7 +836,7 @@ jobs:
         with:
           pattern: ${{ matrix.artifact_pattern }}
           path: ${{ github.workspace }}/.ci/repository
-          merge-multiple: true
+          merge-multiple: false
       - name: Test all extensions
         if: ${{ !inputs.skip_tests }}
         run: python extension-ci-tools/scripts/ci_phase.py test
