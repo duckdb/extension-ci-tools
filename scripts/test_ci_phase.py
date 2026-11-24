@@ -2117,6 +2117,65 @@ class CIPhaseTest(unittest.TestCase):
             self.assertIn("BUILD_EXTENSIONS_ONLY=1\n", docker_environment)
             self.assertIn("DUCKDB_TEST_SETTING=value\n", docker_environment)
 
+    def test_nested_bundle_tests_use_the_nested_docker_workspace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workspace = repository / "nested/extension"
+            workspace.mkdir(parents=True)
+            env = self.environment(repository)
+            env.update(
+                CI_BUILD_DIRECTORY="nested/extension",
+                CI_USE_TEST_BUNDLE="true",
+            )
+            runner = RecordingRunner(env)
+            runner.create_docker_environment()
+            runner.test()
+            command = runner.commands[0][0]
+            self.assertIn(
+                "LOCAL_EXTENSION_REPO=/duckdb_build_dir/nested/extension/build/release/repository",
+                command,
+            )
+            self.assertIn(
+                "/duckdb_build_dir/nested/extension/duckdb/scripts/ci/run_extension_autoload_tests.py",
+                command,
+            )
+            self.assertEqual(
+                command[command.index("--test-root-directory") + 1],
+                "/duckdb_build_dir/nested/extension",
+            )
+            self.assertEqual(
+                command[-2:], ["--test-root", "/duckdb_build_dir/nested/extension/test"]
+            )
+
+    def test_nested_combined_runtime_build_uses_the_nested_config_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            workspace = repository / "nested/extension"
+            helper = workspace / "duckdb/scripts/ci/run_extension_autoload_tests.py"
+            helper.parent.mkdir(parents=True)
+            helper.write_text('parser.add_argument("--test-root-directory")\n')
+            downloaded = workspace / "downloaded"
+            downloaded.mkdir()
+            env = self.environment(repository)
+            env.update(
+                CI_BUILD_DIRECTORY="nested/extension",
+                CI_EXTENSION_ARTIFACT_DIR=str(downloaded),
+                CI_PREBUILT_DUCKDB_SOURCE="disabled",
+                CI_VCPKG_URL="url",
+                CI_VCPKG_COMMIT="pin",
+            )
+            runner = RecordingRunner(env)
+            runner.test()
+            build = next(
+                command
+                for command, _ in runner.commands
+                if "EXT_CONFIG=" in str(command)
+            )
+            self.assertIn(
+                "EXT_CONFIG=/duckdb_build_dir/nested/extension/.ci/test-runtime.cmake",
+                build,
+            )
+
     def test_combined_source_fallback_builds_runtime_and_uses_original_test_config(self):
         for platform, architecture, native in (
             ("linux", "linux_amd64", "true"),

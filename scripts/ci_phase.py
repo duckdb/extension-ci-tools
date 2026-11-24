@@ -1262,7 +1262,7 @@ class PhaseRunner:
             elif self.platform == "linux" and not self.enabled(
                 "CI_LINUX_NATIVE_CONTAINER"
             ):
-                targets[1] = "EXT_CONFIG=/duckdb_build_dir/.ci/test-runtime.cmake"
+                targets[1] = f"EXT_CONFIG={self.docker_path('.ci/test-runtime.cmake')}"
                 self.build_linux(targets)
             else:
                 self.run_with_retry(
@@ -1284,14 +1284,14 @@ class PhaseRunner:
 
         def test_path(path: Path) -> str:
             if docker:
-                return (
-                    "/duckdb_build_dir/" + path.relative_to(self.workspace).as_posix()
-                )
+                return self.docker_path(path.relative_to(self.workspace).as_posix())
             return str(path)
 
         command = [
             "python3" if docker else sys.executable,
-            test_path(self.workspace / "duckdb/scripts/ci/run_extension_autoload_tests.py"),
+            test_path(
+                self.workspace / "duckdb/scripts/ci/run_extension_autoload_tests.py"
+            ),
             "--duckdb",
             test_path(
                 build_dir / ("duckdb.exe" if self.platform == "windows" else "duckdb")
@@ -1299,7 +1299,7 @@ class PhaseRunner:
             "--source-root",
             test_path(self.workspace / "duckdb"),
             "--test-root-directory",
-            "/duckdb_build_dir" if docker else str(self.workspace),
+            self.docker_workspace() if docker else str(self.workspace),
             "--extension-configs",
             test_path(self.workspace / "extension_config.cmake"),
             "--platform",
