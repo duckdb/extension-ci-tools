@@ -1,7 +1,9 @@
 from contextlib import redirect_stderr, redirect_stdout
 import io
+import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -15,6 +17,7 @@ import urllib.error
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ci_phase import (  # noqa: E402
+    PREBUILT_DUCKDB_ARTIFACTS,
     PhaseRunner,
     duckdb_cli_artifact_name,
     duckdb_test_artifact_name,
@@ -699,6 +702,20 @@ class CIPhaseTest(unittest.TestCase):
         return runner
 
     def test_bundle_artifact_names_cover_native_matrix(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github/workflows/build.yml"
+        mapping = re.search(
+            r"^  DUCKDB_TEST_ARTIFACTS: >-\n((?:    .+\n)+)",
+            workflow.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(mapping)
+        self.assertEqual(
+            json.loads(mapping.group(1)),
+            {
+                architecture: duckdb_test_artifact_name(architecture)
+                for architecture in PREBUILT_DUCKDB_ARTIFACTS
+            },
+        )
         for architecture in (
             "linux_amd64",
             "linux_arm64_musl",
@@ -796,25 +813,6 @@ class CIPhaseTest(unittest.TestCase):
                 archive.touch()
             with self.assertRaisesRegex(FileNotFoundError, "found 2"):
                 self.bundle_runner(workspace).prepare_test_bundle()
-
-    def test_legacy_checkout_does_not_request_workflow_bundle(self):
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "github-env"
-            env = self.environment(directory)
-            env["GITHUB_ENV"] = str(output)
-            runner = RecordingRunner(env)
-            runner.test_artifact()
-            self.assertEqual(output.read_text(), "CI_DUCKDB_TEST_ARTIFACT=\n")
-            self.assertEqual(runner.commands, [])
-
-    def test_modern_checkout_requests_matching_workflow_bundle(self):
-        with tempfile.TemporaryDirectory() as directory:
-            runner = self.bundle_runner(Path(directory))
-            runner.test_artifact()
-            self.assertEqual(
-                runner.env["CI_DUCKDB_TEST_ARTIFACT"],
-                "duckdb-test-linux-amd64.tar.gz",
-            )
 
     def test_staged_bundle_uses_requested_commit_and_version(self):
         with tempfile.TemporaryDirectory() as directory:
