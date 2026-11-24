@@ -212,7 +212,7 @@ jobs:
         run: python3 extension-ci-tools/scripts/ci_phase.py resolve-version
       - name: Compute matrix
         id: matrix
-        uses: duckdb/duckdb-ci/matrix@376a30ff29c5ebe2e9889b16081d63dc8d866ad7 # duckdb/duckdb-ci#93
+        uses: duckdb/duckdb-ci/matrix@395e3a02d25c43d7279b332ec10213d37429b133 # main
         with:
           exclude_archs: ${{ inputs.exclude_archs }}
           opt_in_archs: ${{ inputs.opt_in_archs }}
