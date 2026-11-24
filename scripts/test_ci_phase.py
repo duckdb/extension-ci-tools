@@ -21,6 +21,7 @@ from ci_phase import (  # noqa: E402
     PhaseRunner,
     duckdb_cli_artifact_name,
     duckdb_test_artifact_name,
+    derive_duckdb_test_artifacts,
     duckdb_release_line,
     extra_dependencies,
     fetch_duckdb_tags,
@@ -702,15 +703,21 @@ class CIPhaseTest(unittest.TestCase):
         return runner
 
     def test_bundle_artifact_names_cover_native_matrix(self):
-        workflow = Path(__file__).resolve().parents[1] / ".github/workflows/build.yml"
-        mapping = re.search(
-            r"^  DUCKDB_TEST_ARTIFACTS: >-\n((?:    .+\n)+)",
-            workflow.read_text(encoding="utf-8"),
-            re.MULTILINE,
-        )
-        self.assertIsNotNone(mapping)
+        matrices = {
+            "build_native": json.dumps(
+                {
+                    "include": [
+                        {
+                            "duckdb_arch": architecture,
+                            "prebuilt_duckdb_artifact": archive,
+                        }
+                        for architecture, archive in PREBUILT_DUCKDB_ARTIFACTS.items()
+                    ]
+                }
+            )
+        }
         self.assertEqual(
-            json.loads(mapping.group(1)),
+            derive_duckdb_test_artifacts(matrices),
             {
                 architecture: duckdb_test_artifact_name(architecture)
                 for architecture in PREBUILT_DUCKDB_ARTIFACTS
@@ -731,6 +738,39 @@ class CIPhaseTest(unittest.TestCase):
                 ),
             )
         self.assertEqual(duckdb_test_artifact_name("wasm_eh"), "")
+
+    def test_test_artifacts_phase_uses_matrix_metadata_and_skips_unavailable_archives(
+        self,
+    ):
+        entry = {
+            "duckdb_arch": "linux_riscv64",
+            "prebuilt_duckdb_artifact": "duckdb-static-libs-linux-riscv64.tar.gz",
+        }
+        matrices = {
+            "build_linux": json.dumps({"include": [entry, entry]}),
+            "build_macos": "",
+            "build_windows": '{"include":[]}',
+            "build_wasm": '{"include":[{"duckdb_arch":"wasm_eh","prebuilt_duckdb_artifact":""}]}',
+            "test_linux": '{"include":[{"duckdb_arch":"linux_riscv64"}]}',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            environment = {
+                "DUCKDB_BUILD_MATRICES": json.dumps(matrices),
+                "GITHUB_OUTPUT": str(output),
+            }
+            with (
+                mock.patch.dict(os.environ, environment, clear=True),
+                mock.patch.object(sys, "argv", ["ci_phase.py", "test-artifacts"]),
+            ):
+                main()
+            name, artifacts = output.read_text().strip().split("=", 1)
+            self.assertEqual(name, "duckdb_test_artifacts")
+            self.assertEqual(
+                json.loads(artifacts),
+                {"linux_riscv64": "duckdb-test-linux-riscv64.tar.gz"},
+            )
+        self.assertEqual(derive_duckdb_test_artifacts({}), {})
 
     def test_bundle_extracts_matching_pair_for_each_platform_without_running_a_build(
         self,

@@ -92,6 +92,18 @@ def duckdb_test_artifact_name(architecture: str) -> str:
     )
 
 
+def derive_duckdb_test_artifacts(matrices: Mapping[str, str]) -> dict[str, str]:
+    return {
+        entry["duckdb_arch"]: entry["prebuilt_duckdb_artifact"].replace(
+            "duckdb-static-libs-", "duckdb-test-", 1
+        )
+        for name, matrix in matrices.items()
+        if name.startswith("build_") and matrix
+        for entry in json.loads(matrix)["include"]
+        if entry.get("prebuilt_duckdb_artifact")
+    }
+
+
 def open_prebuilt_url(url: str):
     request = urllib.request.Request(
         url, headers={"User-Agent": PREBUILT_DUCKDB_USER_AGENT}
@@ -1464,6 +1476,7 @@ def main() -> None:
         "phase",
         choices=(
             "resolve-version",
+            "test-artifacts",
             "prebuilt-artifact",
             "cli-artifact",
             "checkout",
@@ -1474,6 +1487,13 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+    if args.phase == "test-artifacts":
+        artifacts = derive_duckdb_test_artifacts(
+            json.loads(os.environ["DUCKDB_BUILD_MATRICES"])
+        )
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
+            handle.write(f"duckdb_test_artifacts={json.dumps(artifacts)}\n")
+        return
     if args.phase == "resolve-version":
         duckdb_version = os.environ.get("DUCKDB_VERSION", "")
         duckdb_commit = os.environ.get("DUCKDB_COMMIT", "")
