@@ -789,6 +789,15 @@ class PhaseRunner:
 
         artifact_root = Path(self.required("CI_PREBUILT_DUCKDB_PATH"))
         archives = [path for path in artifact_root.rglob(artifact_name) if path.is_file()]
+        if not archives and self.value("CI_PREBUILT_DUCKDB_SOURCE") == "workflow":
+            print(
+                f"Prebuilt DuckDB artifact {artifact_name} is unavailable; "
+                "building DuckDB from source.",
+                flush=True,
+            )
+            self.set_environment("DUCKDB_PREBUILT_LIBRARY", "")
+            self.set_environment("DUCKDB_PREBUILT_EXTENSIONS", "")
+            return
         if len(archives) != 1:
             raise FileNotFoundError(
                 f"expected one prebuilt DuckDB artifact named {artifact_name} below {artifact_root}, found {len(archives)}"
