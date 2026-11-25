@@ -970,6 +970,104 @@ class CIPhaseTest(unittest.TestCase):
                     self.assertEqual(environment["DUCKDB_PREBUILT_LIBRARY"], "")
                     self.assertEqual(environment["DUCKDB_PREBUILT_EXTENSIONS"], "")
 
+    def test_workflow_build_continues_with_missing_artifacts_without_staged_downloads(self):
+        for platform, architecture, library in (
+            ("linux", "linux_amd64", "libduckdb_static.a"),
+            ("macos", "osx_arm64", "libduckdb_static.a"),
+            ("windows", "windows_amd64", "duckdb_static.lib"),
+        ):
+            for bundle_available, libraries_available in (
+                (True, True),
+                (True, False),
+                (False, True),
+                (False, False),
+            ):
+                with (
+                    self.subTest(
+                        platform=platform,
+                        bundle=bundle_available,
+                        libraries=libraries_available,
+                    ),
+                    tempfile.TemporaryDirectory() as directory,
+                ):
+                    workspace = Path(directory)
+                    runner = self.bundle_runner(workspace, platform, architecture)
+                    artifact_root = workspace / ".ci/prebuilt-duckdb" / architecture
+                    artifact_name = prebuilt_duckdb_artifact_name(architecture)
+                    runner.env.update(
+                        CI_PREBUILT_DUCKDB_ARTIFACT=artifact_name,
+                        CI_PREBUILT_DUCKDB_PATH=str(artifact_root),
+                        CI_LINUX_NATIVE_CONTAINER="true",
+                        DUCKDB_PREBUILT_LIBRARY="stale-core",
+                        DUCKDB_PREBUILT_EXTENSIONS="stale-extension",
+                    )
+                    if bundle_available:
+                        executable = "duckdb.exe" if platform == "windows" else "duckdb"
+                        self.create_prebuilt_archive(
+                            workspace / ".ci/duckdb-test" / architecture,
+                            duckdb_test_artifact_name(architecture),
+                            [
+                                (executable, b"shell"),
+                                ("extension/test/test.duckdb_extension", b"runner"),
+                            ],
+                        )
+                    if libraries_available:
+                        self.create_prebuilt_archive(artifact_root, artifact_name, [(library, b"core")])
+                    with mock.patch.object(runner, "_open_prebuilt_url") as open_url:
+                        runner.build()
+                    open_url.assert_not_called()
+                    self.assertEqual(runner.env["CI_PREBUILT_DUCKDB_SOURCE"], "workflow")
+                    self.assertTrue(runner.commands)
+                    environment = runner.commands[-1][1]["extra_env"]
+                    if bundle_available and libraries_available:
+                        self.assertEqual(environment["BUILD_EXTENSIONS_ONLY"], "1")
+                        self.assertEqual(
+                            Path(environment["DUCKDB_PREBUILT_LIBRARY"]).read_bytes(),
+                            b"core",
+                        )
+                    else:
+                        self.assertNotIn("BUILD_EXTENSIONS_ONLY", environment)
+                        self.assertEqual(environment["DUCKDB_PREBUILT_LIBRARY"], "")
+                    self.assertEqual(environment["DUCKDB_PREBUILT_EXTENSIONS"], "")
+
+    def test_workflow_build_rejects_corrupt_or_duplicate_static_archives(self):
+        for failure in ("corrupt", "duplicate", "missing-library"):
+            with (
+                self.subTest(failure=failure),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                workspace = Path(directory)
+                runner = self.bundle_runner(workspace)
+                artifact_root = workspace / ".ci/prebuilt-duckdb/linux_amd64"
+                artifact_name = prebuilt_duckdb_artifact_name("linux_amd64")
+                runner.env.update(
+                    CI_PREBUILT_DUCKDB_ARTIFACT=artifact_name,
+                    CI_PREBUILT_DUCKDB_PATH=str(artifact_root),
+                    CI_LINUX_NATIVE_CONTAINER="true",
+                )
+                if failure == "corrupt":
+                    artifact_root.mkdir(parents=True)
+                    (artifact_root / artifact_name).write_bytes(b"not an archive")
+                    expected_error = tarfile.ReadError
+                elif failure == "duplicate":
+                    for name in ("one", "two"):
+                        self.create_prebuilt_archive(
+                            artifact_root / name,
+                            artifact_name,
+                            [("libduckdb_static.a", b"core")],
+                        )
+                    expected_error = FileNotFoundError
+                else:
+                    self.create_prebuilt_archive(artifact_root, artifact_name, [("README", b"invalid")])
+                    expected_error = ValueError
+                with (
+                    mock.patch.object(runner, "_open_prebuilt_url") as open_url,
+                    self.assertRaises(expected_error),
+                ):
+                    runner.build()
+                open_url.assert_not_called()
+                self.assertEqual(runner.commands, [])
+
     def test_fetch_prebuilt_duckdb_skips_non_release_builds(self):
         with tempfile.TemporaryDirectory() as directory:
             env = self.environment(directory)
