@@ -13,6 +13,7 @@
 #	FULL_TEST_EXTENSION_DEPS    : `;`-separated list of extensions that are built in `full` mode
 
 .PHONY: all clean clean-python clangd format debug release pull update wasm_mvp wasm_eh wasm_threads test test_release test_debug test_reldebug test_release_internal test_debug_internal test_reldebug_internal set_duckdb_version set_duckdb_tag  output_distribution_matrix sync_oot_extensions
+.PHONY: configure_test_runner
 
 all: release
 
@@ -194,6 +195,10 @@ reldebug: ${EXTENSION_CONFIG_STEP}
 # Main tests
 test: test_release
 
+TEST_BUILD_TYPE ?= release
+configure_test_runner:
+	cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) -DCMAKE_BUILD_TYPE=Release -DEXTENSION_TESTS_ONLY=ON -DBUILD_UNITTESTS=ON -DENABLE_UNITTEST_CPP_TESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -S $(DUCKDB_SRCDIR) -B build/$(TEST_BUILD_TYPE)
+
 # Detect test runner. If missing, use the unittest binary directly.
 TEST_RUNNER_SCRIPT ?= ${DUCKDB_SRCDIR}/scripts/ci/run_tests.py
 TEST_RUNNER := python3 $(TEST_RUNNER_SCRIPT)
@@ -211,6 +216,12 @@ endif
 define RUN_TEST
 	@if [ "$(SKIP_TESTS)" = "1" ]; then \
 		echo "Tests are skipped in this run..."; \
+	elif [ -f "./build/$1/test/run.py" ]; then \
+		echo python3 ./build/$1/test/run.py $(T); \
+		python3 ./build/$1/test/run.py $(T); \
+	elif [ -x "./build/$1/test/run" ]; then \
+		echo ./build/$1/test/run $(T); \
+		./build/$1/test/run $(T); \
 	else \
 		echo $(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \
 		$(TEST_RUNNER) ./build/$1/$(TEST_PATH) $(T); \

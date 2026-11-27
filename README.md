@@ -14,9 +14,13 @@ git submodule update --init --recursive
 
 When the extension has a `duckdb` submodule, omit `duckdb_version` from the distribution and deployment workflows. CI uses the commit pinned by the submodule.
 
-The distribution workflow automatically checks DuckDB's staging storage for a
-static-library archive matching the resolved DuckDB commit and native platform.
-When no staged archive is available, it builds DuckDB from source as before.
+The distribution workflow checks DuckDB's staging storage for static linking libraries and
+`duckdb-test-<platform-suffix>.tar.gz` matching the resolved DuckDB commit and native platform.
+The test bundle contains the CLI and test extension; the runner script comes from the DuckDB checkout.
+With both archives available, CI builds only the extensions and runs their SQL tests with the downloaded binaries.
+When either archive is unavailable, or the checkout uses an older runner, CI builds DuckDB from source.
+Combined extension tests in `build.yml` are temporarily skipped for DuckDB checkouts with the legacy runner.
+Standalone extension distribution jobs continue to use their existing test commands.
 
 ### C++
 
